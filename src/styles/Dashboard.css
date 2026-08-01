@@ -1,0 +1,97 @@
+.dashboard-container {
+  display: flex;
+  min-height: 100vh;
+  direction: rtl;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f4f6f9;
+}
+
+/* --- الشريط الجانبي --- */
+.sidebar {
+  width: 250px;
+  background-color: #1e3c72;
+  color: white;
+  padding: 20px;
+}
+
+/* --- تنسيق الشعار في الشريط الجانبي --- */
+.sidebar-logo-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 15px 10px 25px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+  margin-bottom: 20px;
+}
+
+.sidebar-logo {
+  max-width: 140px;
+  max-height: 100px;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.3));
+}
+
+/* --- قائمة التنقل --- */
+.sidebar ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar li {
+  padding: 12px 15px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.sidebar li:hover,
+.sidebar li.active {
+  background-color: #2a5298;
+}
+
+/* --- المحتوى الرئيسي --- */
+.main-content {
+  flex: 1;
+  padding: 30px;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  padding: 15px 25px;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  margin-bottom: 25px;
+}
+
+/* --- بطاقات الإحصائيات --- */
+.stats-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  border-right: 5px solid #1e3c72;
+}
+
+.card h3 {
+  margin: 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.card .number {
+  font-size: 28px;
+  font-weight: bold;
+  color: #1e3c72;
+  margin: 10px 0 0 0;
+}
