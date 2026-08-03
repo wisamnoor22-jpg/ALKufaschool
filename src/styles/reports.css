@@ -197,6 +197,10 @@
   background: #ffffff;
 }
 
+.employee-report-filters {
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+}
+
 .reports-filter-group {
   display: flex;
   flex-direction: column;
@@ -516,8 +520,27 @@
 
 @media print {
   @page {
-    size: A4 landscape;
-    margin: 12mm;
+    size: A4 portrait;
+    margin: 10mm;
+  }
+
+  html,
+  body,
+  #root {
+    width: 100% !important;
+    min-height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    overflow: visible !important;
+  }
+
+  body {
+    direction: rtl;
+    color: #000000 !important;
+    font-family: Arial, Tahoma, sans-serif;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
   }
 
   body * {
@@ -525,205 +548,239 @@
   }
 
   .student-report-workspace,
-  .student-report-workspace * {
+  .student-report-workspace *,
+  .employee-report-workspace,
+  .employee-report-workspace * {
     visibility: visible !important;
   }
 
-  .student-report-workspace {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
+  .student-report-workspace,
+  .employee-report-workspace {
+    position: absolute !important;
+    inset: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
   }
 
   .reports-workspace-header,
   .reports-filters-card,
   .reports-header-actions,
-  .reports-error-message {
-    display: none !important;
-  }
-
-  .reports-print-header {
-    display: block;
-    margin-bottom: 16px;
-    text-align: center;
-  }
-
-  .reports-print-header h1 {
-    margin: 0;
-    font-size: 20px;
-  }
-
-  .reports-print-header h2 {
-    margin: 6px 0;
-    font-size: 17px;
-  }
-
-  .reports-print-header p {
-    margin: 0;
-    font-size: 13px;
-  }
-
-  .reports-summary-grid {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
-    margin-bottom: 12px;
-  }
-
-  .reports-summary-card {
-    padding: 9px;
-    break-inside: avoid;
-  }
-
-  .reports-summary-card strong {
-    font-size: 20px;
-  }
-
-  .reports-table-card,
+  .reports-error-message,
+  .reports-table-header,
   .reports-warning-card {
-    border-radius: 0;
-    break-inside: avoid;
-  }
-
-  .reports-data-table {
-    min-width: 0;
-    font-size: 10px;
-  }
-
-  .reports-data-table thead {
-    display: table-header-group;
-  }
-
-  .reports-data-table th,
-  .reports-data-table td {
-    padding: 7px;
-  }
-
-  .reports-data-table tr,
-  .reports-frequent-grid article {
-    break-inside: avoid;
-  }
-}
-.reports-print-header {
-  display: none;
-}
-
-@media print {
-  @page {
-    size: A4 landscape;
-    margin: 10mm;
-  }
-
-  html,
-  body,
-  #root {
-    width: 100%;
-    min-height: auto;
-    background: white !important;
-    overflow: visible !important;
-  }
-
-  body * {
-    visibility: hidden;
-  }
-
-  .reports-workspace,
-  .reports-workspace * {
-    visibility: visible;
-  }
-
-  .reports-workspace {
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 100%;
-    padding: 0;
-    background: white !important;
-    color: black !important;
-  }
-
-  .reports-workspace-header,
-  .reports-filters-card,
-  .reports-header-actions,
-  .reports-warning-card,
-  .reports-error-message {
     display: none !important;
   }
 
   .reports-print-header {
     display: block !important;
+    position: relative;
+    min-height: 128px;
+    margin: 0 0 10px;
+    padding: 0 0 12px;
+    border-bottom: 2px solid #000000;
     text-align: center;
-    margin-bottom: 20px;
-    color: black;
   }
 
-  .reports-print-header h1,
-  .reports-print-header h2,
+  .reports-print-header::before {
+    content: "";
+    display: block;
+    width: 72px;
+    height: 72px;
+    margin: 0 auto 5px;
+    background-image: url("/favicon.svg");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+  }
+
+  .reports-print-header h1 {
+    margin: 0 !important;
+    font-size: 0 !important;
+    line-height: 1;
+  }
+
+  .reports-print-header h1::after {
+    content: "مدرسة الكوفة الأهلية";
+    display: block;
+    color: #000000;
+    font-size: 20px;
+    font-weight: 900;
+    line-height: 1.4;
+  }
+
+  .reports-print-header h2 {
+    margin: 3px 0 5px !important;
+    color: #000000 !important;
+    font-size: 16px !important;
+    font-weight: 900;
+  }
+
   .reports-print-header p {
-    color: black !important;
-    margin: 5px 0;
+    margin: 0 !important;
+    color: #000000 !important;
+    font-size: 11px !important;
+    font-weight: 700;
   }
 
   .reports-summary-grid {
     display: grid !important;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 8px;
-    margin-bottom: 15px;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 6px !important;
+    margin: 0 0 9px !important;
   }
 
   .reports-summary-card {
-    background: white !important;
-    color: black !important;
-    border: 1px solid #555 !important;
-    box-shadow: none !important;
-    padding: 8px !important;
+    min-height: 52px;
+    padding: 6px 4px !important;
+    border: 1px solid #000000 !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
+    text-align: center !important;
+    break-inside: avoid;
   }
 
-  .reports-summary-card strong,
+  .reports-summary-card.absent,
+  .reports-summary-card.excused,
+  .reports-summary-card.late,
+  .reports-summary-card.students {
+    border-right: 1px solid #000000 !important;
+  }
+
+  .reports-summary-card strong {
+    color: #000000 !important;
+    font-size: 17px !important;
+    line-height: 1.2;
+  }
+
   .reports-summary-card span {
-    color: black !important;
+    margin-top: 2px !important;
+    color: #000000 !important;
+    font-size: 9px !important;
+    font-weight: 700;
   }
 
   .reports-table-card,
   .reports-table-wrapper {
     display: block !important;
     width: 100% !important;
+    margin: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    background: #ffffff !important;
     overflow: visible !important;
-    background: white !important;
     box-shadow: none !important;
-    border: none !important;
   }
 
   .reports-data-table {
     width: 100% !important;
+    min-width: 0 !important;
+    table-layout: fixed !important;
     border-collapse: collapse !important;
-    font-size: 10px;
-    color: black !important;
+    color: #000000 !important;
+    font-size: 8px !important;
+  }
+
+  .reports-data-table thead {
+    display: table-header-group !important;
+  }
+
+  .reports-data-table tbody {
+    display: table-row-group !important;
+  }
+
+  .reports-data-table tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 
   .reports-data-table th,
   .reports-data-table td {
-    display: table-cell !important;
-    visibility: visible !important;
-    border: 1px solid #555 !important;
-    padding: 6px 4px !important;
-    color: black !important;
-    background: white !important;
-    text-align: center;
+    padding: 4px 2px !important;
+    border: 1px solid #000000 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+    overflow-wrap: anywhere;
   }
 
-  .reports-data-table thead {
-    display: table-header-group;
+  .reports-data-table th {
+    background: #eeeeee !important;
+    font-weight: 900 !important;
   }
 
-  .reports-data-table tr {
-    page-break-inside: avoid;
+  .employee-report-table th:nth-child(1),
+  .employee-report-table td:nth-child(1) {
+    width: 15%;
+  }
+
+  .employee-report-table th:nth-child(2),
+  .employee-report-table td:nth-child(2) {
+    width: 10%;
+  }
+
+  .employee-report-table th:nth-child(3),
+  .employee-report-table td:nth-child(3) {
+    width: 10%;
+  }
+
+  .employee-report-table th:nth-child(4),
+  .employee-report-table td:nth-child(4),
+  .employee-report-table th:nth-child(5),
+  .employee-report-table td:nth-child(5) {
+    width: 8%;
+  }
+
+  .employee-report-table th:nth-child(6),
+  .employee-report-table td:nth-child(6),
+  .employee-report-table th:nth-child(7),
+  .employee-report-table td:nth-child(7) {
+    width: 9%;
+  }
+
+  .employee-report-table th:nth-child(8),
+  .employee-report-table td:nth-child(8) {
+    width: 10%;
+  }
+
+  .employee-report-table th:nth-child(9),
+  .employee-report-table td:nth-child(9) {
+    width: 21%;
+  }
+
+  .reports-student-name {
+    color: #000000 !important;
+    font-weight: 800 !important;
   }
 
   .reports-status-badge {
-    color: black !important;
+    display: inline !important;
+    min-width: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    border-radius: 0 !important;
     background: transparent !important;
-    border: none !important;
+    color: #000000 !important;
+    font-size: inherit !important;
+    font-weight: 800 !important;
+  }
+
+  .reports-empty-cell {
+    height: 60px;
+    color: #000000 !important;
+    font-size: 11px !important;
+  }
+
+  .reports-table-card::after {
+    content: "توقيع مسؤول الإدارة: ____________________            توقيع المدير: ____________________";
+    display: block;
+    margin-top: 18px;
+    color: #000000;
+    font-size: 11px;
+    font-weight: 700;
+    text-align: center;
+    white-space: pre-wrap;
   }
 }
