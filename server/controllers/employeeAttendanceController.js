@@ -4,6 +4,7 @@ const ALLOWED_STATUSES = new Set([
   "present",
   "absent",
   "excused",
+  "late",
 ]);
 
 let attendanceTablePromise = null;
@@ -18,13 +19,31 @@ const ensureAttendanceTable = () => {
             REFERENCES employees(id)
             ON DELETE CASCADE,
           attendance_date DATE NOT NULL,
-          status VARCHAR(20) NOT NULL
-            CHECK (status IN ('present', 'absent', 'excused')),
+          status VARCHAR(20) NOT NULL,
           notes TEXT,
+          check_in_time TIME,
+          check_out_time TIME,
+          late_minutes INTEGER NOT NULL DEFAULT 0,
           created_at TIMESTAMP NOT NULL DEFAULT NOW(),
           updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
           UNIQUE (employee_id, attendance_date)
         );
+
+        ALTER TABLE employee_attendance
+          ADD COLUMN IF NOT EXISTS check_in_time TIME;
+
+        ALTER TABLE employee_attendance
+          ADD COLUMN IF NOT EXISTS check_out_time TIME;
+
+        ALTER TABLE employee_attendance
+          ADD COLUMN IF NOT EXISTS late_minutes INTEGER NOT NULL DEFAULT 0;
+
+        ALTER TABLE employee_attendance
+          DROP CONSTRAINT IF EXISTS employee_attendance_status_check;
+
+        ALTER TABLE employee_attendance
+          ADD CONSTRAINT employee_attendance_status_check
+          CHECK (status IN ('present', 'absent', 'excused', 'late'));
 
         CREATE INDEX IF NOT EXISTS idx_employee_attendance_date
           ON employee_attendance(attendance_date);
@@ -54,6 +73,15 @@ const isValidDate = (value) => {
   );
 };
 
+const isValidTime = (value) =>
+  value === null ||
+  value === undefined ||
+  value === "" ||
+  /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value));
+
+const normalizeText = (value) =>
+  typeof value === "string" ? value.trim() : "";
+
 const getAttendanceByDate = async (req, res) => {
   try {
     await ensureAttendanceTable();
@@ -73,6 +101,9 @@ const getAttendanceByDate = async (req, res) => {
          attendance_date::text AS attendance_date,
          status,
          notes,
+         TO_CHAR(check_in_time, 'HH24:MI') AS check_in_time,
+         TO_CHAR(check_out_time, 'HH24:MI') AS check_out_time,
+         late_minutes,
          created_at,
          updated_at
        FROM employee_attendance
@@ -84,8 +115,136 @@ const getAttendanceByDate = async (req, res) => {
     return res.json(result.rows);
   } catch (error) {
     console.error(error);
+
     return res.status(500).json({
       message: "حدث خطأ في جلب حضور الموظفين",
+    });
+  }
+};
+
+const getAttendanceReport = async (req, res) => {
+  try {
+    await ensureAttendanceTable();
+
+    const { from, to, employee_type } = req.query;
+
+    if (!isValidDate(from) || !isValidDate(to)) {
+      return res.status(400).json({
+        message:
+          "يرجى تحديد تاريخ بداية ونهاية صحيحين بصيغة YYYY-MM-DD",
+      });
+    }
+
+    if (from > to) {
+      return res.status(400).json({
+        message: "تاريخ البداية يجب أن يكون قبل تاريخ النهاية",
+      });
+    }
+
+    const values = [from, to];
+    const conditions = [
+      "ea.attendance_date BETWEEN $1 AND $2",
+    ];
+
+    const normalizedType = normalizeText(employee_type);
+
+    if (normalizedType && normalizedType !== "الكل") {
+      values.push(normalizedType);
+      conditions.push(
+        `COALESCE(e.employee_type, '') = $${values.length}`
+      );
+    }
+
+    const result = await pool.query(
+      `SELECT
+         ea.id,
+         ea.employee_id,
+         e.full_name,
+         e.employee_type,
+         ea.attendance_date::text AS attendance_date,
+         ea.status,
+         ea.notes,
+         TO_CHAR(ea.check_in_time, 'HH24:MI') AS check_in_time,
+         TO_CHAR(ea.check_out_time, 'HH24:MI') AS check_out_time,
+         ea.late_minutes,
+         CASE
+           WHEN ea.check_in_time IS NOT NULL
+             AND ea.check_out_time IS NOT NULL
+           THEN ROUND(
+             EXTRACT(
+               EPOCH FROM (ea.check_out_time - ea.check_in_time)
+             ) / 3600.0,
+             2
+           )
+           ELSE NULL
+         END AS work_hours
+       FROM employee_attendance ea
+       JOIN employees e
+         ON e.id = ea.employee_id
+       WHERE ${conditions.join(" AND ")}
+       ORDER BY
+         ea.attendance_date DESC,
+         e.full_name`,
+      values
+    );
+
+    const summaryResult = await pool.query(
+      `SELECT
+         COUNT(*) FILTER (WHERE ea.status = 'absent')::int
+           AS absent_count,
+         COUNT(*) FILTER (WHERE ea.status = 'excused')::int
+           AS excused_count,
+         COUNT(*) FILTER (WHERE ea.status = 'late')::int
+           AS late_count,
+         COALESCE(SUM(ea.late_minutes), 0)::int
+           AS total_late_minutes
+       FROM employee_attendance ea
+       JOIN employees e
+         ON e.id = ea.employee_id
+       WHERE ${conditions.join(" AND ")}`,
+      values
+    );
+
+    const frequentLateResult = await pool.query(
+      `SELECT
+         ea.employee_id,
+         e.full_name,
+         e.employee_type,
+         COUNT(*)::int AS late_count,
+         COALESCE(SUM(ea.late_minutes), 0)::int
+           AS total_late_minutes
+       FROM employee_attendance ea
+       JOIN employees e
+         ON e.id = ea.employee_id
+       WHERE ${conditions.join(" AND ")}
+         AND ea.status = 'late'
+       GROUP BY
+         ea.employee_id,
+         e.full_name,
+         e.employee_type
+       HAVING COUNT(*) >= 3
+       ORDER BY
+         late_count DESC,
+         total_late_minutes DESC,
+         e.full_name`,
+      values
+    );
+
+    return res.json({
+      filters: {
+        from,
+        to,
+        employee_type: normalizedType || "الكل",
+      },
+      summary: summaryResult.rows[0],
+      records: result.rows,
+      frequent_late_employees: frequentLateResult.rows,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      message: "حدث خطأ في إعداد تقرير حضور الموظفين",
     });
   }
 };
@@ -114,10 +273,10 @@ const saveBulkAttendance = async (req, res) => {
     for (const record of records) {
       const employeeId = Number(record.employee_id);
       const status = String(record.status || "").trim();
-      const notes =
-        typeof record.notes === "string"
-          ? record.notes.trim()
-          : "";
+      const notes = normalizeText(record.notes);
+      const checkInTime = record.check_in_time || null;
+      const checkOutTime = record.check_out_time || null;
+      const lateMinutes = Number(record.late_minutes || 0);
 
       if (!Number.isInteger(employeeId) || employeeId <= 0) {
         return res.status(400).json({
@@ -131,10 +290,28 @@ const saveBulkAttendance = async (req, res) => {
         });
       }
 
+      if (!isValidTime(checkInTime) || !isValidTime(checkOutTime)) {
+        return res.status(400).json({
+          message: "صيغة وقت الحضور أو الانصراف غير صحيحة",
+        });
+      }
+
+      if (
+        !Number.isInteger(lateMinutes) ||
+        lateMinutes < 0
+      ) {
+        return res.status(400).json({
+          message: "عدد دقائق التأخير غير صحيح",
+        });
+      }
+
       normalized.set(employeeId, {
         employee_id: employeeId,
         status,
         notes: notes || null,
+        check_in_time: checkInTime,
+        check_out_time: checkOutTime,
+        late_minutes: lateMinutes,
       });
     }
 
@@ -150,6 +327,7 @@ const saveBulkAttendance = async (req, res) => {
 
     if (employeesResult.rows.length !== employeeIds.length) {
       await client.query("ROLLBACK");
+
       return res.status(400).json({
         message: "يوجد موظف غير مسجل في النظام",
       });
@@ -161,19 +339,28 @@ const saveBulkAttendance = async (req, res) => {
            employee_id,
            attendance_date,
            status,
-           notes
+           notes,
+           check_in_time,
+           check_out_time,
+           late_minutes
          )
-         VALUES ($1, $2, $3, $4)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          ON CONFLICT (employee_id, attendance_date)
          DO UPDATE SET
            status = EXCLUDED.status,
            notes = EXCLUDED.notes,
+           check_in_time = EXCLUDED.check_in_time,
+           check_out_time = EXCLUDED.check_out_time,
+           late_minutes = EXCLUDED.late_minutes,
            updated_at = NOW()`,
         [
           row.employee_id,
           attendance_date,
           row.status,
           row.notes,
+          row.check_in_time,
+          row.check_out_time,
+          row.late_minutes,
         ]
       );
     }
@@ -197,5 +384,6 @@ const saveBulkAttendance = async (req, res) => {
 
 module.exports = {
   getAttendanceByDate,
+  getAttendanceReport,
   saveBulkAttendance,
 };

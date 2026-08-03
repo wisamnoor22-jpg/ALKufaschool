@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import BackButton from "../components/common/BackButton";
 import "../styles/reports.css";
+
+const API_BASE = "http://localhost:5000";
 
 const REPORT_SECTIONS = [
   {
@@ -29,6 +31,872 @@ const REPORT_SECTIONS = [
   },
 ];
 
+const STATUS_LABELS = {
+  absent: "غائب بدون عذر",
+  excused: "مجاز",
+  late: "متأخر",
+  present: "حاضر",
+};
+
+const getToday = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getMonthRange = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const start = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+  const lastDay = new Date(year, month + 1, 0).getDate();
+  const end = `${year}-${String(month + 1).padStart(2, "0")}-${String(
+    lastDay
+  ).padStart(2, "0")}`;
+
+  return { start, end };
+};
+
+const formatDate = (value) => {
+  if (!value) return "—";
+
+  return new Intl.DateTimeFormat("ar-IQ", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(`${value}T00:00:00`));
+};
+
+function StudentAttendanceReport({ onBack }) {
+  const monthRange = getMonthRange();
+
+  const [mode, setMode] = useState("day");
+  const [singleDate, setSingleDate] = useState(getToday());
+  const [fromDate, setFromDate] = useState(monthRange.start);
+  const [toDate, setToDate] = useState(monthRange.end);
+  const [grade, setGrade] = useState("الكل");
+  const [section, setSection] = useState("الكل");
+  const [students, setStudents] = useState([]);
+  const [report, setReport] = useState({
+    summary: {
+      absent_count: 0,
+      excused_count: 0,
+      late_count: 0,
+      absent_students_count: 0,
+    },
+    records: [],
+    frequent_absence_students: [],
+  });
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const effectiveRange = useMemo(() => {
+    if (mode === "day") {
+      return { from: singleDate, to: singleDate };
+    }
+
+    return { from: fromDate, to: toDate };
+  }, [mode, singleDate, fromDate, toDate]);
+
+  const grades = useMemo(
+    () =>
+      [...new Set(students.map((item) => item.grade).filter(Boolean))].sort(
+        (a, b) => a.localeCompare(b, "ar")
+      ),
+    [students]
+  );
+
+  const sections = useMemo(() => {
+    const source =
+      grade === "الكل"
+        ? students
+        : students.filter((item) => item.grade === grade);
+
+    return [...new Set(source.map((item) => item.section).filter(Boolean))].sort(
+      (a, b) => a.localeCompare(b, "ar")
+    );
+  }, [students, grade]);
+
+  const loadStudents = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/students`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "تعذر جلب بيانات الطلاب");
+      }
+
+      setStudents(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error(error);
+      setMessage(error.message || "تعذر جلب بيانات الطلاب");
+    }
+  };
+
+  const loadReport = async () => {
+    if (!effectiveRange.from || !effectiveRange.to) {
+      setMessage("حدد التاريخ أو الفترة المطلوبة");
+      return;
+    }
+
+    if (effectiveRange.from > effectiveRange.to) {
+      setMessage("تاريخ البداية يجب أن يكون قبل تاريخ النهاية");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setMessage("");
+
+      const params = new URLSearchParams({
+        from: effectiveRange.from,
+        to: effectiveRange.to,
+        grade,
+        section,
+      });
+
+      const response = await fetch(
+        `${API_BASE}/student-attendance/report?${params.toString()}`
+      );
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "تعذر إعداد التقرير");
+      }
+
+      setReport({
+        summary: {
+          absent_count: Number(data.summary?.absent_count || 0),
+          excused_count: Number(data.summary?.excused_count || 0),
+          late_count: Number(data.summary?.late_count || 0),
+          absent_students_count: Number(
+            data.summary?.absent_students_count || 0
+          ),
+        },
+        records: Array.isArray(data.records) ? data.records : [],
+        frequent_absence_students: Array.isArray(
+          data.frequent_absence_students
+        )
+          ? data.frequent_absence_students
+          : [],
+      });
+    } catch (error) {
+      console.error(error);
+      setMessage(error.message || "تعذر إعداد التقرير");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadStudents();
+  }, []);
+
+  useEffect(() => {
+    loadReport();
+  }, [mode, singleDate, fromDate, toDate, grade, section]);
+
+  const exportCsv = () => {
+    const headers = [
+      "الاسم",
+      "الصف",
+      "الشعبة",
+      "التاريخ",
+      "الحالة",
+      "الملاحظة",
+    ];
+
+    const rows = report.records.map((record) => [
+      record.full_name || "",
+      record.grade || "",
+      record.section || "",
+      record.attendance_date || "",
+      STATUS_LABELS[record.status] || record.status || "",
+      record.notes || "",
+    ]);
+
+    const csv = [headers, ...rows]
+      .map((row) =>
+        row
+          .map((cell) => `"${String(cell).replaceAll('"', '""')}"`)
+          .join(",")
+      )
+      .join("\n");
+
+    const blob = new Blob(["\uFEFF", csv], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `student-attendance-${effectiveRange.from}-${effectiveRange.to}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <section className="reports-workspace student-report-workspace">
+      <header className="reports-workspace-header">
+        <button
+          type="button"
+          className="reports-inner-back"
+          onClick={onBack}
+        >
+          رجوع
+        </button>
+
+        <div className="reports-workspace-heading">
+          <span className="reports-workspace-code">ST</span>
+          <div>
+            <h2>تقرير حضور الطلاب</h2>
+            <p>
+              عرض الغياب والإجازات حسب التاريخ أو الفترة والصف والشعبة.
+            </p>
+          </div>
+        </div>
+
+        <div className="reports-header-actions">
+          <button type="button" onClick={window.print}>
+            طباعة
+          </button>
+          <button type="button" onClick={exportCsv}>
+            Excel
+          </button>
+        </div>
+      </header>
+
+      {message && <div className="reports-error-message">{message}</div>}
+
+      <section className="reports-filters-card">
+        <div className="reports-filter-group">
+          <label>نوع التقرير</label>
+          <select value={mode} onChange={(event) => setMode(event.target.value)}>
+            <option value="day">يومي</option>
+            <option value="month">شهري</option>
+            <option value="range">فترة مخصصة</option>
+          </select>
+        </div>
+
+        {mode === "day" ? (
+          <div className="reports-filter-group">
+            <label>اختر اليوم</label>
+            <input
+              type="date"
+              value={singleDate}
+              onChange={(event) => setSingleDate(event.target.value)}
+            />
+          </div>
+        ) : (
+          <>
+            <div className="reports-filter-group">
+              <label>من تاريخ</label>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(event) => setFromDate(event.target.value)}
+              />
+            </div>
+
+            <div className="reports-filter-group">
+              <label>إلى تاريخ</label>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(event) => setToDate(event.target.value)}
+              />
+            </div>
+          </>
+        )}
+
+        <div className="reports-filter-group">
+          <label>الصف</label>
+          <select
+            value={grade}
+            onChange={(event) => {
+              setGrade(event.target.value);
+              setSection("الكل");
+            }}
+          >
+            <option value="الكل">جميع الصفوف</option>
+            {grades.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="reports-filter-group">
+          <label>الشعبة</label>
+          <select
+            value={section}
+            onChange={(event) => setSection(event.target.value)}
+          >
+            <option value="الكل">جميع الشعب</option>
+            {sections.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </div>
+
+      </section>
+
+      <section className="reports-summary-grid">
+        <article className="reports-summary-card absent">
+          <strong>{report.summary.absent_count}</strong>
+          <span>حالات الغياب</span>
+        </article>
+
+        <article className="reports-summary-card excused">
+          <strong>{report.summary.excused_count}</strong>
+          <span>حالات الإجازة</span>
+        </article>
+
+        <article className="reports-summary-card late">
+          <strong>{report.summary.late_count}</strong>
+          <span>حالات التأخير</span>
+        </article>
+
+        <article className="reports-summary-card students">
+          <strong>{report.summary.absent_students_count}</strong>
+          <span>طلاب غائبون</span>
+        </article>
+      </section>
+
+      <section className="reports-print-header">
+        <h1>مدرسة الكوفة</h1>
+        <h2>تقرير حضور الطلاب</h2>
+        <p>
+          الفترة: {formatDate(effectiveRange.from)} إلى{" "}
+          {formatDate(effectiveRange.to)}
+        </p>
+      </section>
+
+      <section className="reports-table-card">
+        <div className="reports-table-header">
+          <div>
+            <h3>معاينة الغياب والإجازات</h3>
+            <p>
+              عرض غير قابل للتعديل قبل الطباعة
+            </p>
+          </div>
+          <span>
+            {
+              report.records.filter(
+                (record) =>
+                  record.status === "absent" ||
+                  record.status === "excused"
+              ).length
+            } سجل
+          </span>
+        </div>
+
+        <div className="reports-table-wrapper">
+          <table className="reports-data-table">
+            <thead>
+              <tr>
+                <th>الاسم</th>
+                <th>الصف</th>
+                <th>الشعبة</th>
+                <th>التاريخ</th>
+                <th>الحالة</th>
+                <th>الملاحظة</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan="6" className="reports-empty-cell">
+                    جاري إعداد التقرير...
+                  </td>
+                </tr>
+              ) : report.records.filter(
+                  (record) =>
+                    record.status === "absent" ||
+                    record.status === "excused"
+                ).length > 0 ? (
+                report.records
+                  .filter(
+                    (record) =>
+                      record.status === "absent" ||
+                      record.status === "excused"
+                  )
+                  .map((record) => (
+                    <tr key={record.id}>
+                      <td className="reports-student-name">
+                        {record.full_name}
+                      </td>
+                      <td>{record.grade || "غير محدد"}</td>
+                      <td>{record.section || "غير محددة"}</td>
+                      <td>{formatDate(record.attendance_date)}</td>
+                      <td>
+                        <span
+                          className={`reports-status-badge ${record.status}`}
+                        >
+                          {STATUS_LABELS[record.status]}
+                        </span>
+                      </td>
+                      <td>{record.notes || "لا توجد ملاحظة"}</td>
+                    </tr>
+                  ))
+              ) : (
+                <tr>
+                  <td colSpan="6" className="reports-empty-cell">
+                    لا يوجد غائبون أو مجازون في اليوم أو الفترة المحددة
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="reports-warning-card">
+        <div className="reports-table-header">
+          <div>
+            <h3>تنبيه الغياب المتكرر</h3>
+            <p>الطلاب الذين وصلوا إلى 3 غيابات أو أكثر خلال الفترة</p>
+          </div>
+          <span>{report.frequent_absence_students.length}</span>
+        </div>
+
+        {report.frequent_absence_students.length > 0 ? (
+          <div className="reports-frequent-grid">
+            {report.frequent_absence_students.map((student) => (
+              <article key={student.student_enrollment_id}>
+                <div>
+                  <strong>{student.full_name}</strong>
+                  <span>
+                    {student.grade || "صف غير محدد"} — شعبة{" "}
+                    {student.section || "غير محددة"}
+                  </span>
+                </div>
+                <b>{student.absence_count} غيابات</b>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="reports-empty-message">
+            لا يوجد طالب وصل إلى 3 غيابات خلال الفترة المحددة
+          </p>
+        )}
+      </section>
+    </section>
+  );
+}
+
+
+function EmployeeAttendanceReport({ onBack }) {
+  const monthRange = getMonthRange();
+
+  const [mode, setMode] = useState("day");
+  const [singleDate, setSingleDate] = useState(getToday());
+  const [fromDate, setFromDate] = useState(monthRange.start);
+  const [toDate, setToDate] = useState(monthRange.end);
+  const [employeeType, setEmployeeType] = useState("الكل");
+  const [employees, setEmployees] = useState([]);
+  const [report, setReport] = useState({
+    summary: {
+      absent_count: 0,
+      excused_count: 0,
+      late_count: 0,
+      total_late_minutes: 0,
+    },
+    records: [],
+    frequent_late_employees: [],
+  });
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+
+  const effectiveRange = useMemo(() => {
+    if (mode === "day") {
+      return { from: singleDate, to: singleDate };
+    }
+
+    return { from: fromDate, to: toDate };
+  }, [mode, singleDate, fromDate, toDate]);
+
+  const employeeTypes = useMemo(
+    () =>
+      [
+        ...new Set(
+          employees
+            .map((employee) => employee.employee_type)
+            .filter(Boolean)
+        ),
+      ].sort((a, b) => a.localeCompare(b, "ar")),
+    [employees]
+  );
+
+  const loadEmployees = async () => {
+    try {
+      const response = await fetch(`${API_BASE}/employees`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "تعذر جلب بيانات الموظفين");
+      }
+
+      setEmployees(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error(error);
+      setMessage(error.message || "تعذر جلب بيانات الموظفين");
+    }
+  };
+
+  const loadReport = async () => {
+    if (!effectiveRange.from || !effectiveRange.to) {
+      setMessage("حدد التاريخ أو الفترة المطلوبة");
+      return;
+    }
+
+    if (effectiveRange.from > effectiveRange.to) {
+      setMessage("تاريخ البداية يجب أن يكون قبل تاريخ النهاية");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setMessage("");
+
+      const params = new URLSearchParams({
+        from: effectiveRange.from,
+        to: effectiveRange.to,
+        employee_type: employeeType,
+      });
+
+      const response = await fetch(
+        `${API_BASE}/employee-attendance/report?${params.toString()}`
+      );
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "تعذر إعداد تقرير الموظفين");
+      }
+
+      setReport({
+        summary: {
+          absent_count: Number(data.summary?.absent_count || 0),
+          excused_count: Number(data.summary?.excused_count || 0),
+          late_count: Number(data.summary?.late_count || 0),
+          total_late_minutes: Number(
+            data.summary?.total_late_minutes || 0
+          ),
+        },
+        records: Array.isArray(data.records) ? data.records : [],
+        frequent_late_employees: Array.isArray(
+          data.frequent_late_employees
+        )
+          ? data.frequent_late_employees
+          : [],
+      });
+    } catch (error) {
+      console.error(error);
+      setMessage(error.message || "تعذر إعداد تقرير الموظفين");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadEmployees();
+  }, []);
+
+  useEffect(() => {
+    loadReport();
+  }, [mode, singleDate, fromDate, toDate, employeeType]);
+
+  const exportCsv = () => {
+    const headers = [
+      "الاسم",
+      "نوع الموظف",
+      "التاريخ",
+      "وقت الحضور",
+      "وقت الانصراف",
+      "دقائق التأخير",
+      "ساعات العمل",
+      "الحالة",
+      "الملاحظة",
+    ];
+
+    const rows = report.records.map((record) => [
+      record.full_name || "",
+      record.employee_type || "",
+      record.attendance_date || "",
+      record.check_in_time || "",
+      record.check_out_time || "",
+      record.late_minutes || 0,
+      record.work_hours || "",
+      STATUS_LABELS[record.status] || record.status || "",
+      record.notes || "",
+    ]);
+
+    const csv = [headers, ...rows]
+      .map((row) =>
+        row
+          .map((cell) => `"${String(cell).replaceAll('"', '""')}"`)
+          .join(",")
+      )
+      .join("\n");
+
+    const blob = new Blob(["\uFEFF", csv], {
+      type: "text/csv;charset=utf-8;",
+    });
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `employee-attendance-${effectiveRange.from}-${effectiveRange.to}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const visibleRecords = report.records.filter(
+    (record) =>
+      record.status === "absent" ||
+      record.status === "excused" ||
+      record.status === "late"
+  );
+
+  return (
+    <section className="reports-workspace employee-report-workspace">
+      <header className="reports-workspace-header">
+        <button
+          type="button"
+          className="reports-inner-back"
+          onClick={onBack}
+        >
+          رجوع
+        </button>
+
+        <div className="reports-workspace-heading">
+          <span className="reports-workspace-code">HR</span>
+          <div>
+            <h2>تقرير حضور الموظفين</h2>
+            <p>
+              عرض الغياب والإجازات والتأخير وأوقات الحضور والانصراف.
+            </p>
+          </div>
+        </div>
+
+        <div className="reports-header-actions">
+          <button type="button" onClick={window.print}>
+            طباعة
+          </button>
+          <button type="button" onClick={exportCsv}>
+            Excel
+          </button>
+        </div>
+      </header>
+
+      {message && <div className="reports-error-message">{message}</div>}
+
+      <section className="reports-filters-card employee-report-filters">
+        <div className="reports-filter-group">
+          <label>نوع التقرير</label>
+          <select
+            value={mode}
+            onChange={(event) => setMode(event.target.value)}
+          >
+            <option value="day">يومي</option>
+            <option value="month">شهري</option>
+            <option value="range">فترة مخصصة</option>
+          </select>
+        </div>
+
+        {mode === "day" ? (
+          <div className="reports-filter-group">
+            <label>اختر اليوم</label>
+            <input
+              type="date"
+              value={singleDate}
+              onChange={(event) => setSingleDate(event.target.value)}
+            />
+          </div>
+        ) : (
+          <>
+            <div className="reports-filter-group">
+              <label>من تاريخ</label>
+              <input
+                type="date"
+                value={fromDate}
+                onChange={(event) => setFromDate(event.target.value)}
+              />
+            </div>
+
+            <div className="reports-filter-group">
+              <label>إلى تاريخ</label>
+              <input
+                type="date"
+                value={toDate}
+                onChange={(event) => setToDate(event.target.value)}
+              />
+            </div>
+          </>
+        )}
+
+        <div className="reports-filter-group">
+          <label>نوع الموظف</label>
+          <select
+            value={employeeType}
+            onChange={(event) => setEmployeeType(event.target.value)}
+          >
+            <option value="الكل">جميع الموظفين</option>
+            {employeeTypes.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </div>
+      </section>
+
+      <section className="reports-summary-grid">
+        <article className="reports-summary-card absent">
+          <strong>{report.summary.absent_count}</strong>
+          <span>الغائبون</span>
+        </article>
+
+        <article className="reports-summary-card excused">
+          <strong>{report.summary.excused_count}</strong>
+          <span>المجازون</span>
+        </article>
+
+        <article className="reports-summary-card late">
+          <strong>{report.summary.late_count}</strong>
+          <span>المتأخرون</span>
+        </article>
+
+        <article className="reports-summary-card students">
+          <strong>{report.summary.total_late_minutes}</strong>
+          <span>مجموع دقائق التأخير</span>
+        </article>
+      </section>
+
+      <section className="reports-print-header">
+        <h1>مدرسة الكوفة</h1>
+        <h2>تقرير حضور الموظفين</h2>
+        <p>
+          الفترة: {formatDate(effectiveRange.from)} إلى{" "}
+          {formatDate(effectiveRange.to)}
+        </p>
+      </section>
+
+      <section className="reports-table-card">
+        <div className="reports-table-header">
+          <div>
+            <h3>معاينة الحضور والتأخير</h3>
+            <p>عرض غير قابل للتعديل قبل الطباعة</p>
+          </div>
+          <span>{visibleRecords.length} سجل</span>
+        </div>
+
+        <div className="reports-table-wrapper">
+          <table className="reports-data-table employee-report-table">
+            <thead>
+              <tr>
+                <th>الاسم</th>
+                <th>نوع الموظف</th>
+                <th>التاريخ</th>
+                <th>الحضور</th>
+                <th>الانصراف</th>
+                <th>التأخير</th>
+                <th>ساعات العمل</th>
+                <th>الحالة</th>
+                <th>الملاحظة</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan="9" className="reports-empty-cell">
+                    جاري إعداد التقرير...
+                  </td>
+                </tr>
+              ) : visibleRecords.length > 0 ? (
+                visibleRecords.map((record) => (
+                  <tr key={record.id}>
+                    <td className="reports-student-name">
+                      {record.full_name}
+                    </td>
+                    <td>{record.employee_type || "غير محدد"}</td>
+                    <td>{formatDate(record.attendance_date)}</td>
+                    <td>{record.check_in_time || "—"}</td>
+                    <td>{record.check_out_time || "—"}</td>
+                    <td>
+                      {Number(record.late_minutes || 0) > 0
+                        ? `${record.late_minutes} دقيقة`
+                        : "—"}
+                    </td>
+                    <td>
+                      {record.work_hours
+                        ? `${record.work_hours} ساعة`
+                        : "—"}
+                    </td>
+                    <td>
+                      <span
+                        className={`reports-status-badge ${record.status}`}
+                      >
+                        {STATUS_LABELS[record.status] || record.status}
+                      </span>
+                    </td>
+                    <td>{record.notes || "لا توجد ملاحظة"}</td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="9" className="reports-empty-cell">
+                    لا توجد حالات غياب أو إجازة أو تأخير في الفترة
+                    المحددة
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="reports-warning-card">
+        <div className="reports-table-header">
+          <div>
+            <h3>تنبيه التأخير المتكرر</h3>
+            <p>الموظفون الذين تأخروا 3 مرات أو أكثر خلال الفترة</p>
+          </div>
+          <span>{report.frequent_late_employees.length}</span>
+        </div>
+
+        {report.frequent_late_employees.length > 0 ? (
+          <div className="reports-frequent-grid">
+            {report.frequent_late_employees.map((employee) => (
+              <article key={employee.employee_id}>
+                <div>
+                  <strong>{employee.full_name}</strong>
+                  <span>{employee.employee_type || "موظف"}</span>
+                </div>
+                <b>
+                  {employee.late_count} تأخيرات —{" "}
+                  {employee.total_late_minutes} دقيقة
+                </b>
+              </article>
+            ))}
+          </div>
+        ) : (
+          <p className="reports-empty-message">
+            لا يوجد موظف وصل إلى 3 تأخيرات خلال الفترة المحددة
+          </p>
+        )}
+      </section>
+    </section>
+  );
+}
+
 function ReportPlaceholder({ report, onBack }) {
   return (
     <section className="reports-workspace">
@@ -41,18 +909,18 @@ function ReportPlaceholder({ report, onBack }) {
           رجوع
         </button>
 
-        <div>
+        <div className="reports-workspace-heading">
           <span className="reports-workspace-code">{report.code}</span>
-          <h2>{report.title}</h2>
-          <p>{report.description}</p>
+          <div>
+            <h2>{report.title}</h2>
+            <p>{report.description}</p>
+          </div>
         </div>
       </header>
 
       <div className="reports-coming-card">
         <strong>القسم جاهز للبدء</strong>
-        <p>
-          سنضيف الفلاتر والبيانات والطباعة والتصدير في الخطوة التالية.
-        </p>
+        <p>سيتم تفعيله في الخطوة التالية.</p>
       </div>
     </section>
   );
@@ -107,6 +975,10 @@ export default function Reports() {
             ))}
           </section>
         </>
+      ) : selectedReport.id === "student-attendance" ? (
+        <StudentAttendanceReport onBack={() => setActiveReport("")} />
+      ) : selectedReport.id === "employee-attendance" ? (
+        <EmployeeAttendanceReport onBack={() => setActiveReport("")} />
       ) : (
         <ReportPlaceholder
           report={selectedReport}
