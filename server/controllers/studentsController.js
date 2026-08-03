@@ -1,6 +1,22 @@
 const pool = require("../db");
+const {
+  createEnrollment,
+  updateCurrentEnrollment,
+  getStudentWithCurrentEnrollment,
+  getStudentsWithCurrentEnrollment,
+} = require("../services/enrollmentService");
+
+const sendError = (res, error, fallbackMessage) => {
+  console.error(error);
+
+  return res.status(error.statusCode || 500).json({
+    message: error.statusCode ? error.message : fallbackMessage,
+  });
+};
 
 const addStudent = async (req, res) => {
+  const client = await pool.connect();
+
   try {
     const {
       full_name,
@@ -18,52 +34,76 @@ const addStudent = async (req, res) => {
       });
     }
 
-    const result = await pool.query(
-      `INSERT INTO students
-      (full_name, gender, birth_date, phone, address, grade, section)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING *`,
+    if (!grade?.trim()) {
+      return res.status(400).json({
+        message: "المرحلة الدراسية مطلوبة",
+      });
+    }
+
+    await client.query("BEGIN");
+
+    const studentResult = await client.query(
+      `INSERT INTO students (
+         full_name,
+         gender,
+         birth_date,
+         phone,
+         address,
+         grade,
+         section
+       )
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
       [
         full_name.trim(),
         gender || null,
         birth_date || null,
         phone || null,
         address || null,
-        grade || null,
-        section || null,
+        grade.trim(),
+        section?.trim() || null,
       ]
     );
 
-    res.status(201).json({
+    const student = studentResult.rows[0];
+
+    await createEnrollment({
+      studentId: student.id,
+      gradeName: grade,
+      sectionName: section,
+      client,
+    });
+
+    await client.query("COMMIT");
+
+    const completeStudent = await getStudentWithCurrentEnrollment(
+      student.id
+    );
+
+    return res.status(201).json({
       message: "تمت إضافة الطالب بنجاح",
-      student: result.rows[0],
+      student: completeStudent,
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      message: "حدث خطأ في إضافة الطالب",
-    });
+    await client.query("ROLLBACK");
+    return sendError(res, error, "حدث خطأ في إضافة الطالب");
+  } finally {
+    client.release();
   }
 };
 
 const getStudents = async (req, res) => {
   try {
-    const result = await pool.query(
-      "SELECT * FROM students ORDER BY id DESC"
-    );
-
-    res.json(result.rows);
+    const students = await getStudentsWithCurrentEnrollment();
+    return res.json(students);
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      message: "حدث خطأ في جلب الطلاب",
-    });
+    return sendError(res, error, "حدث خطأ في جلب الطلاب");
   }
 };
 
 const updateStudent = async (req, res) => {
+  const client = await pool.connect();
+
   try {
     const { id } = req.params;
 
@@ -83,7 +123,15 @@ const updateStudent = async (req, res) => {
       });
     }
 
-    const result = await pool.query(
+    if (!grade?.trim()) {
+      return res.status(400).json({
+        message: "المرحلة الدراسية مطلوبة",
+      });
+    }
+
+    await client.query("BEGIN");
+
+    const studentResult = await client.query(
       `UPDATE students
        SET full_name = $1,
            gender = $2,
@@ -100,56 +148,101 @@ const updateStudent = async (req, res) => {
         birth_date || null,
         phone || null,
         address || null,
-        grade || null,
-        section || null,
+        grade.trim(),
+        section?.trim() || null,
         id,
       ]
     );
 
-    if (result.rows.length === 0) {
+    if (studentResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+
       return res.status(404).json({
         message: "الطالب غير موجود",
       });
     }
 
-    res.json({
+    await updateCurrentEnrollment({
+      studentId: id,
+      gradeName: grade,
+      sectionName: section,
+      client,
+    });
+
+    await client.query("COMMIT");
+
+    const completeStudent = await getStudentWithCurrentEnrollment(id);
+
+    return res.json({
       message: "تم تعديل بيانات الطالب بنجاح",
-      student: result.rows[0],
+      student: completeStudent,
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      message: "حدث خطأ في تعديل الطالب",
-    });
+    await client.query("ROLLBACK");
+    return sendError(res, error, "حدث خطأ في تعديل الطالب");
+  } finally {
+    client.release();
   }
 };
 
 const deleteStudent = async (req, res) => {
+  const client = await pool.connect();
+
   try {
     const { id } = req.params;
 
-    const result = await pool.query(
-      "DELETE FROM students WHERE id = $1 RETURNING *",
+    await client.query("BEGIN");
+
+    const studentResult = await client.query(
+      "SELECT * FROM students WHERE id = $1 FOR UPDATE",
       [id]
     );
 
-    if (result.rows.length === 0) {
+    if (studentResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+
       return res.status(404).json({
         message: "الطالب غير موجود",
       });
     }
 
-    res.json({
+    const financialRecords = await client.query(
+      `SELECT EXISTS (
+         SELECT 1 FROM student_fees WHERE student_id = $1
+       ) AS has_financial_records`,
+      [id]
+    );
+
+    if (financialRecords.rows[0].has_financial_records) {
+      await client.query("ROLLBACK");
+
+      return res.status(409).json({
+        message:
+          "لا يمكن حذف الطالب لوجود سجلات مالية مرتبطة به",
+      });
+    }
+
+    await client.query(
+      "DELETE FROM student_enrollments WHERE student_id = $1",
+      [id]
+    );
+
+    const deletedStudent = await client.query(
+      "DELETE FROM students WHERE id = $1 RETURNING *",
+      [id]
+    );
+
+    await client.query("COMMIT");
+
+    return res.json({
       message: "تم حذف الطالب بنجاح",
-      student: result.rows[0],
+      student: deletedStudent.rows[0],
     });
   } catch (error) {
-    console.error(error);
-
-    res.status(500).json({
-      message: "حدث خطأ في حذف الطالب",
-    });
+    await client.query("ROLLBACK");
+    return sendError(res, error, "حدث خطأ في حذف الطالب");
+  } finally {
+    client.release();
   }
 };
 
