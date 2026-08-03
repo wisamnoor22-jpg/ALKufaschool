@@ -1,411 +1,374 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import '../styles/Dashboard.css';
-import schoolLogo from '../images/logo.png';
+import React, { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import "../styles/Dashboard.css";
+import schoolLogo from "../images/logo.png";
 
-export default function Dashboard() {
-  // بيانات الأقساط
-  const financialStats = {
-    totalRequired: 100000000,
-    totalPaid: 65000000,
-    totalRemaining: 35000000,
-    paidPercentage: 65
-  };
+const employees = [
+  { id: 1, name: "أحمد علي حسن", time: "07:55", status: "present" },
+  { id: 2, name: "زهراء كريم جاسم", time: "08:08", status: "late" },
+  { id: 3, name: "حسين مهدي كاظم", time: "لم يحضر", status: "absent" },
+  { id: 4, name: "نور فاضل عباس", time: "07:51", status: "present" },
+  { id: 5, name: "علي رعد محسن", time: "08:03", status: "late" },
+  { id: 6, name: "مريم سعد هادي", time: "07:49", status: "present" },
+];
 
-  // بيانات الحضور والغياب للـ 3 أيام الأخيرة
-  const attendanceStats = {
-    beforeYesterday: { percentage: 92, date: '2026/07/30', absentCount: 36, title: 'حضور أول البارحة' },
-    yesterday: { percentage: 95, date: '2026/07/31', absentCount: 22, title: 'حضور البارحة' },
-    today: { percentage: 96, date: '2026/08/01', absentCount: 18, title: 'حضور اليوم' }
-  };
+const notifications = [
+  {
+    id: 1,
+    title: "تسجيل حضور متأخر",
+    summary: "الموظفة زهراء حضرت الساعة 08:08",
+    details: "تم تسجيل تأخير قدره 8 دقائق عن وقت الدوام الرسمي.",
+    path: "/teachers",
+    unread: true,
+  },
+  {
+    id: 2,
+    title: "قسط جديد",
+    summary: "تم تسجيل دفعة جديدة لطالب",
+    details: "تم استلام دفعة مالية جديدة وإضافتها إلى سجل الحسابات.",
+    path: "/fees",
+    unread: true,
+  },
+  {
+    id: 3,
+    title: "نسخة احتياطية ناجحة",
+    summary: "تم حفظ النسخة الاحتياطية",
+    details: "آخر نسخة احتياطية اكتملت بنجاح اليوم الساعة 02:30 ص.",
+    path: "/settings",
+    unread: false,
+  },
+];
 
-  // بيانات تفصيلية للطلاب الغائبين متضمنة (عدد مرات الغياب الكلية)
-  const absentStudentsData = {
-    '2026/07/30': [
-      { id: 1, name: 'سامر أحمد كريم', grade: 'الأول الابتدائي', class: 'أ', reason: 'بدون عذر', totalAbsentTimes: 6, phone: '07701234567' },
-      { id: 2, name: 'مروة علي إبراهيم', grade: 'الثالث الابتدائي', class: 'ب', reason: 'إجازة مرضية', totalAbsentTimes: 2, phone: '07801234567' },
-      { id: 3, name: 'حسين جواد كاظم', grade: 'الرابع الابتدائي', class: 'أ', reason: 'بدون عذر', totalAbsentTimes: 5, phone: '07901234567' },
-    ],
-    '2026/07/31': [
-      { id: 1, name: 'عباس فاضل شلش', grade: 'الثاني الابتدائي', class: 'ج', reason: 'بدون عذر', totalAbsentTimes: 7, phone: '07709876543' },
-      { id: 2, name: 'فاطمة زهراء مصطفى', grade: 'الخامس الابتدائي', class: 'أ', reason: 'إجازة مرضية', totalAbsentTimes: 1, phone: '07809876543' },
-    ],
-    '2026/08/01': [
-      { id: 1, name: 'كرار حيدر ناصر', grade: 'الأول الابتدائي', class: 'ب', reason: 'بدون عذر', totalAbsentTimes: 4, phone: '07711223344' },
-      { id: 2, name: 'نور الهدى حمزة', grade: 'السادس الابتدائي', class: 'أ', reason: 'إجازة رسمية', totalAbsentTimes: 1, phone: '07811223344' },
-    ]
-  };
+const absentStudents = [
+  { id: 1, name: "علي حسن كريم", grade: "الثالث الابتدائي", section: "أ", reason: "بدون عذر" },
+  { id: 2, name: "زهراء فاضل عباس", grade: "الخامس الابتدائي", section: "ب", reason: "إجازة مرضية" },
+  { id: 3, name: "حسين جواد كاظم", grade: "الرابع الابتدائي", section: "أ", reason: "بدون عذر" },
+];
 
-  // حالة التحكم بالنافذة المنبثقة
-  const [selectedAbsentDay, setSelectedAbsentDay] = useState(null);
+const changesToday = [
+  { id: 1, label: "تم تسجيل 3 طلاب جدد", time: "10:42" },
+  { id: 2, label: "تم استلام 18 قسطًا", time: "10:15" },
+  { id: 3, label: "تم تعديل بيانات موظف", time: "09:35" },
+  { id: 4, label: "تم نقل طالب بين شعبتين", time: "09:10" },
+];
 
-  // تبويبات سجل الأحداث
-  const [activeTab, setActiveTab] = useState('transfers');
+const systemStatus = [
+  { id: 1, label: "قاعدة البيانات", state: "online" },
+  { id: 2, label: "الخادم", state: "online" },
+  { id: 3, label: "جهاز البصمة", state: "warning" },
+  { id: 4, label: "النسخة الاحتياطية", state: "online" },
+];
 
-  // سجل النقل
-  const transferLogs = [
-    { id: 1, studentName: 'أحمد علي حسين', grade: 'الأول الابتدائي', fromClass: 'أ', toClass: 'ب', date: '2026/08/01 - 09:30 ص' },
-    { id: 2, studentName: 'زينب حسن جاسم', grade: 'الثاني الابتدائي', fromClass: 'ب', toClass: 'ج', date: '2026/07/28 - 11:15 ص' },
-  ];
+const sections = [
+  { title: "الطلاب", description: "إدارة ملفات الطلبة", path: "/students", code: "ST" },
+  { title: "الكادر", description: "الموظفون والحضور", path: "/teachers", code: "HR" },
+  { title: "الحسابات", description: "الأقساط والدفعات", path: "/fees", code: "FN" },
+  { title: "الحضور", description: "الحضور والغياب", path: "/attendance", code: "AT" },
+  { title: "الدرجات", description: "النتائج والتقييمات", path: "/results", code: "GR" },
+  { title: "الجداول", description: "الجداول الدراسية", path: "/timetable", code: "SC" },
+  { title: "التقارير", description: "مركز التقارير", path: "/reports", code: "RP" },
+  { title: "السجل", description: "آخر العمليات", path: "/history", code: "LG" },
+  { title: "الإعدادات", description: "إعدادات النظام", path: "/settings", code: "SE" },
+];
 
-  // سجل المنقولين والمفصولين
-  const statusLogs = [
-    { id: 1, studentName: 'حيدر كرار فاضل', grade: 'الثالث الابتدائي', action: 'منقول خارج المدرسة', reason: 'الانتقال لسكن جديد', date: '2026/07/25' },
-    { id: 2, studentName: 'محمد جاسم محمد', grade: 'الرابع الابتدائي', action: 'مفصول', reason: 'تجاوز نسبة الغياب الرسمية', date: '2026/07/20' },
-  ];
-
-  // حسابات رسم SVG للأقساط
-  const radius = 70;
+function Donut({ value, color, label }) {
+  const radius = 52;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (circumference * financialStats.paidPercentage) / 100;
-
-  // أمر طباعة سجل الغياب
-  const handlePrintAbsentReport = () => {
-    window.print();
-  };
-
-  // دالة رسم دائرة الحضور
-  const renderAttendanceCircle = (data, color = '#0866ff') => {
-    const smallRadius = 45;
-    const smallCircumference = 2 * Math.PI * smallRadius;
-    const smallOffset = smallCircumference - (smallCircumference * data.percentage) / 100;
-
-    return (
-      <div 
-        onClick={() => setSelectedAbsentDay(data)}
-        className="card" 
-        style={{ 
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', 
-          padding: '15px', cursor: 'pointer', transition: 'transform 0.2s, box-shadow 0.2s',
-          border: '1px solid #e4e6eb'
-        }}
-        title="اضغط لعرض سجل الغائبين والطباعة"
-      >
-        <h4 style={{ margin: '0 0 5px 0', fontSize: '14px', color: '#1c1e21', fontWeight: 'bold' }}>{data.title}</h4>
-        
-        <div style={{ position: 'relative', width: '100px', height: '100px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '5px 0' }}>
-          <svg width="100" height="100" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r={smallRadius} fill="none" stroke="#e4e6eb" strokeWidth="9" />
-            <circle
-              cx="50" cy="50" r={smallRadius} fill="none" stroke={color} strokeWidth="9"
-              strokeDasharray={smallCircumference} strokeDashoffset={smallOffset}
-              strokeLinecap="round" transform="rotate(-90 50 50)"
-              style={{ transition: 'stroke-dashoffset 1s ease-in-out' }}
-            />
-          </svg>
-          <div style={{ position: 'absolute', textAlign: 'center' }}>
-            <span style={{ fontSize: '17px', fontWeight: '800', color: color }}>{data.percentage}%</span>
-          </div>
-        </div>
-
-        <div style={{ textAlign: 'center', marginTop: '4px' }}>
-          <span style={{ fontSize: '12px', color: '#65676b', display: 'block', fontWeight: 'bold' }}>📅 {data.date}</span>
-          <span style={{ fontSize: '12px', color: '#dc3545', fontWeight: '800', marginTop: '2px', display: 'block' }}>
-            عدد الغائبين: {data.absentCount} طالب
-          </span>
-        </div>
-      </div>
-    );
-  };
+  const offset = circumference - (value / 100) * circumference;
 
   return (
-    <div className="dashboard-container" style={{ direction: 'rtl', fontFamily: 'system-ui, sans-serif' }}>
-      
-      {/* 1. الشريط الجانبي */}
-      <aside className="sidebar print-hide">
-        <div className="sidebar-logo-container">
-          <img src={schoolLogo} alt="شعار المدرسة" className="sidebar-logo" />
-        </div>
-
-        <nav>
-          <ul>
-            <li className="active"><Link to="/" style={{ color: 'inherit', textDecoration: 'none' }}>🏠 الرئيسية</Link></li>
-            <li><Link to="/students" style={{ color: 'inherit', textDecoration: 'none', display: 'block' }}>👨‍🎓 قائمة الطلاب</Link></li>
-            <li><Link to="/teachers" style={{ color: 'inherit', textDecoration: 'none', display: 'block' }}>👨‍🏫 الكادر التدريسي</Link></li>
-            <li><Link to="/classes" style={{ color: 'inherit', textDecoration: 'none', display: 'block' }}>🏫 الصفوف والشعب</Link></li>
-            <li><Link to="/timetable" style={{ color: 'inherit', textDecoration: 'none', display: 'block' }}>📅 الجدول الدراسي</Link></li>
-            <li><Link to="/results" style={{ color: 'inherit', textDecoration: 'none', display: 'block' }}>📊 النتائج والدرجات</Link></li>
-          </ul>
-        </nav>
-      </aside>
-
-      {/* 2. المحتوى الرئيسي */}
-      <main className="main-content">
-        <header className="topbar print-hide">
-          <h1 style={{ fontSize: '18px', margin: 0, fontWeight: 'bold', color: '#1c1e21' }}>لوحة التحكم الرئيسية</h1>
-          <div className="user-profile">أهلاً بك، المدير 👤</div>
-        </header>
-
-        {/* 3. دوائر الحضور والغياب */}
-        <section className="stats-cards print-hide" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '15px' }}>
-          {renderAttendanceCircle(attendanceStats.beforeYesterday, "#6c757d")}
-          {renderAttendanceCircle(attendanceStats.yesterday, "#17a2b8")}
-          {renderAttendanceCircle(attendanceStats.today, "#0866ff")}
-        </section>
-
-        {/* 4. الأقساط المالية */}
-        <section className="card print-hide" style={{ marginTop: '20px', padding: '25px', borderRadius: '16px', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
-          <h2 style={{ fontSize: '16px', color: '#1c1e21', marginBottom: '20px' }}>💳 الموقف المالي والأقساط الدراسية</h2>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', flexWrap: 'wrap', gap: '20px' }}>
-            
-            <div style={{ position: 'relative', width: '180px', height: '180px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg width="180" height="180" viewBox="0 0 180 180">
-                <circle cx="90" cy="90" r={radius} fill="none" stroke="#e4e6eb" strokeWidth="16" />
-                <circle
-                  cx="90" cy="90" r={radius} fill="none" stroke="#0866ff" strokeWidth="16"
-                  strokeDasharray={circumference} strokeDashoffset={strokeDashoffset}
-                  strokeLinecap="round" transform="rotate(-90 90 90)"
-                />
-              </svg>
-              <div style={{ position: 'absolute', textAlign: 'center' }}>
-                <span style={{ fontSize: '28px', fontWeight: '800', color: '#0866ff', display: 'block', lineHeight: 1 }}>{financialStats.paidPercentage}%</span>
-                <span style={{ fontSize: '12px', color: '#65676b', fontWeight: '600', marginTop: '4px', display: 'block' }}>نسبة المسدد</span>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', minWidth: '250px' }}>
-              <div style={financialCardStyle}>
-                <span style={{ color: '#65676b', fontSize: '13px' }}>إجمالي الأقساط المطلوبة:</span>
-                <strong style={{ fontSize: '15px', color: '#1c1e21' }}>{financialStats.totalRequired.toLocaleString()} د.ع</strong>
-              </div>
-              <div style={{ ...financialCardStyle, borderRight: '4px solid #0866ff' }}>
-                <span style={{ color: '#65676b', fontSize: '13px' }}>المبلغ القابض (المسدد):</span>
-                <strong style={{ fontSize: '15px', color: '#0866ff' }}>{financialStats.totalPaid.toLocaleString()} د.ع</strong>
-              </div>
-              <div style={{ ...financialCardStyle, borderRight: '4px solid #e4e6eb' }}>
-                <span style={{ color: '#65676b', fontSize: '13px' }}>المبلغ المتبقي (غير المسدد):</span>
-                <strong style={{ fontSize: '15px', color: '#dc3545' }}>{financialStats.totalRemaining.toLocaleString()} د.ع</strong>
-              </div>
-            </div>
-
-          </div>
-        </section>
-
-        {/* 5. سجل الأحداث والتاريخ */}
-        <section className="card print-hide" style={{ marginTop: '20px', padding: '25px', borderRadius: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px', borderBottom: '1px solid #e4e6eb', paddingBottom: '10px' }}>
-            <h2 style={{ fontSize: '16px', margin: 0, color: '#1c1e21' }}>📜 سجل الأحداث والتاريخ الرسمية</h2>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button onClick={() => setActiveTab('transfers')} style={activeTab === 'transfers' ? activeTabStyle : inactiveTabStyle}>🔄 تاريخ النقل بين الشعب</button>
-              <button onClick={() => setActiveTab('status')} style={activeTab === 'status' ? activeTabStyle : inactiveTabStyle}>🚪 المفصولين والمنقولين خارجياً</button>
-            </div>
-          </div>
-
-          {activeTab === 'transfers' && (
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid #e4e6eb', color: '#65676b', fontSize: '13px' }}>
-                  <th style={{ padding: '10px' }}>اسم الطالب</th>
-                  <th style={{ padding: '10px' }}>المرحلة</th>
-                  <th style={{ padding: '10px' }}>من شعبة</th>
-                  <th style={{ padding: '10px' }}>إلى شعبة</th>
-                  <th style={{ padding: '10px' }}>تاريخ ووقت النقل 📅</th>
-                </tr>
-              </thead>
-              <tbody>
-                {transferLogs.map(log => (
-                  <tr key={log.id} style={{ borderBottom: '1px solid #f0f2f5', fontSize: '14px' }}>
-                    <td style={{ padding: '12px', fontWeight: 'bold' }}>{log.studentName}</td>
-                    <td style={{ padding: '12px' }}>{log.grade}</td>
-                    <td style={{ padding: '12px', color: '#dc3545', fontWeight: 'bold' }}>شعبة ({log.fromClass})</td>
-                    <td style={{ padding: '12px', color: '#198754', fontWeight: 'bold' }}>شعبة ({log.toClass})</td>
-                    <td style={{ padding: '12px', color: '#65676b', fontSize: '13px' }}>{log.date}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-
-          {activeTab === 'status' && (
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right' }}>
-              <thead>
-                <tr style={{ borderBottom: '2px solid #e4e6eb', color: '#65676b', fontSize: '13px' }}>
-                  <th style={{ padding: '10px' }}>اسم الطالب</th>
-                  <th style={{ padding: '10px' }}>المرحلة</th>
-                  <th style={{ padding: '10px' }}>حالة الإجراء</th>
-                  <th style={{ padding: '10px' }}>السبب</th>
-                  <th style={{ padding: '10px' }}>تاريخ القرار 📅</th>
-                </tr>
-              </thead>
-              <tbody>
-                {statusLogs.map(log => (
-                  <tr key={log.id} style={{ borderBottom: '1px solid #f0f2f5', fontSize: '14px' }}>
-                    <td style={{ padding: '12px', fontWeight: 'bold' }}>{log.studentName}</td>
-                    <td style={{ padding: '12px' }}>{log.grade}</td>
-                    <td style={{ padding: '12px' }}>
-                      <span style={{ 
-                        backgroundColor: log.action === 'مفصول' ? '#ffebe9' : '#e7f3ff', 
-                        color: log.action === 'مفصول' ? '#dc3545' : '#0866ff',
-                        padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold' 
-                      }}>
-                        {log.action}
-                      </span>
-                    </td>
-                    <td style={{ padding: '12px', color: '#65676b' }}>{log.reason}</td>
-                    <td style={{ padding: '12px', color: '#65676b', fontSize: '13px' }}>{log.date}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </section>
-
-      </main>
-
-      {/* 6. نافذة سجل الغياب الهيدر الفاخر المخصص للطباعة */}
-      {selectedAbsentDay && (
-        <div style={modalOverlayStyle}>
-          <div style={modalContentStyle} className="printable-modal">
-            
-            {/* الهيدر الرسمي المطبوع: مدرسة الكوفة الأهلية بالوسط وبخط عربي فاخر */}
-            <div style={{ textAlign: 'center', borderBottom: '2px solid #0866ff', paddingBottom: '15px', marginBottom: '20px' }}>
-              <h1 style={{ 
-                fontFamily: "'Amiri', 'Traditional Arabic', 'Segoe UI', Tahoma, sans-serif", 
-                fontSize: '28px', 
-                fontWeight: 'bold', 
-                color: '#0866ff', 
-                margin: '0 0 5px 0',
-                letterSpacing: '0.5px'
-              }}>
-                مدرسة الكوفة الأهلية
-              </h1>
-              <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', color: '#1c1e21', fontWeight: 'bold' }}>
-                📋 التقرير اليومي للطلاب الغائبين
-              </h3>
-              <span style={{ fontSize: '13px', color: '#65676b', fontWeight: 'bold', backgroundColor: '#f0f2f5', padding: '4px 12px', borderRadius: '12px' }}>
-                التاريخ الرسمي: {selectedAbsentDay.date} | {selectedAbsentDay.title}
-              </span>
-            </div>
-
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'right', marginBottom: '20px' }}>
-              <thead>
-                <tr style={{ backgroundColor: '#f0f2f5', borderBottom: '2px solid #e4e6eb' }}>
-                  <th style={{ padding: '10px' }}>#</th>
-                  <th style={{ padding: '10px' }}>اسم الطالب الغائب</th>
-                  <th style={{ padding: '10px' }}>المرحلة</th>
-                  <th style={{ padding: '10px' }}>الشعبة</th>
-                  <th style={{ padding: '10px' }}>السبب / الملاحظة</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(absentStudentsData[selectedAbsentDay.date] || []).map((student, index) => {
-                  const isHighAbsence = student.totalAbsentTimes >= 3;
-
-                  return (
-                    <tr key={student.id} style={{ borderBottom: '1px solid #e4e6eb' }}>
-                      <td style={{ padding: '10px' }}>{index + 1}</td>
-                      <td style={{ padding: '10px', position: 'relative' }} className="student-name-hover">
-                        <span style={{ 
-                          fontWeight: 'bold', 
-                          color: isHighAbsence ? '#dc3545' : '#1c1e21', 
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px'
-                        }}>
-                          {student.name}
-                          {isHighAbsence && (
-                            <span style={{ backgroundColor: '#ffebe9', color: '#dc3545', fontSize: '10px', padding: '2px 6px', borderRadius: '8px', fontWeight: 'bold' }}>
-                              كثير الغياب ⚠️
-                            </span>
-                          )}
-                        </span>
-
-                        <div className="tooltip-card">
-                          <div style={{ fontWeight: 'bold', borderBottom: '1px solid #eee', paddingBottom: '4px', marginBottom: '4px' }}>
-                            📊 معلومات الغياب
-                          </div>
-                          <div>عدد مرات الغياب هذا الشهر: <strong style={{ color: '#dc3545' }}>{student.totalAbsentTimes} مرات</strong></div>
-                          <div>هاتف ولي الأمر: <strong>{student.phone}</strong></div>
-                        </div>
-                      </td>
-
-                      <td style={{ padding: '10px' }}>{student.grade}</td>
-                      <td style={{ padding: '10px' }}>شعبة ({student.class})</td>
-                      <td style={{ padding: '10px', color: student.reason === 'بدون عذر' ? '#dc3545' : '#0866ff' }}>{student.reason}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-
-            <div style={{ backgroundColor: '#f8f9fa', padding: '10px 15px', borderRadius: '8px', fontSize: '13px', display: 'flex', justifyContent: 'space-between', marginBottom: '20px' }}>
-              <span>إجمالي الغائبين لهذا اليوم: <strong>{selectedAbsentDay.absentCount} طالب</strong></span>
-              <span>نسبة الحضور المتبقية: <strong>{selectedAbsentDay.percentage}%</strong></span>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }} className="print-hide">
-              <button onClick={() => setSelectedAbsentDay(null)} style={cancelButtonStyle}>إغلاق</button>
-              <button onClick={handlePrintAbsentReport} style={printButtonStyle}>🖨️ طباعة التقرير</button>
-            </div>
-
-          </div>
-        </div>
-      )}
-
-      {/* إعدادات CSS */}
-      <style>{`
-        .student-name-hover .tooltip-card {
-          display: none;
-          position: absolute;
-          bottom: 100%;
-          right: 0;
-          background-color: #1c1e21;
-          color: white;
-          padding: 8px 12px;
-          border-radius: 8px;
-          font-size: 11px;
-          white-space: nowrap;
-          z-index: 100;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        }
-
-        .student-name-hover:hover .tooltip-card {
-          display: block;
-        }
-
-        @page {
-          margin: 10mm;
-          size: auto;
-        }
-
-        @media print {
-          body * { visibility: hidden; }
-          .printable-modal, .printable-modal * { visibility: visible; }
-          .printable-modal { position: absolute; left: 0; top: 0; width: 100%; border: none !important; box-shadow: none !important; }
-          .print-hide, .tooltip-card { display: none !important; }
-        }
-      `}</style>
-
+    <div className="donut">
+      <svg viewBox="0 0 140 140" aria-hidden="true">
+        <circle cx="70" cy="70" r={radius} className="donut-track" />
+        <circle
+          cx="70"
+          cy="70"
+          r={radius}
+          className="donut-progress"
+          style={{ stroke: color, strokeDasharray: circumference, strokeDashoffset: offset }}
+        />
+      </svg>
+      <div className="donut-value">
+        <strong>{value}%</strong>
+        <span>{label}</span>
+      </div>
     </div>
   );
 }
 
-// التنسيقات العامة
-const financialCardStyle = {
-  display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#f0f2f5', padding: '12px 16px', borderRadius: '8px', gap: '20px'
-};
+export default function Dashboard() {
+  const navigate = useNavigate();
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [attendanceOpen, setAttendanceOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem("alkufa-theme") || "light";
+  });
 
-const activeTabStyle = {
-  backgroundColor: '#0866ff', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px'
-};
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    localStorage.setItem("alkufa-theme", theme);
+  }, [theme]);
 
-const inactiveTabStyle = {
-  backgroundColor: '#e4e6eb', color: '#050505', border: 'none', padding: '8px 16px', borderRadius: '20px', fontWeight: 'bold', cursor: 'pointer', fontSize: '13px'
-};
+  const toggleTheme = () => {
+    setTheme((currentTheme) => (currentTheme === "light" ? "dark" : "light"));
+  };
 
-const modalOverlayStyle = {
-  position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0, 0, 0, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000
-};
+  const dateText = useMemo(() => {
+    return new Intl.DateTimeFormat("ar-IQ", {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }).format(new Date());
+  }, []);
 
-const modalContentStyle = {
-  backgroundColor: 'white', padding: '25px', borderRadius: '16px', width: '90%', maxWidth: '650px', boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
-};
+  const searchResults = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return [];
 
-const printButtonStyle = {
-  backgroundColor: '#0866ff', color: 'white', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer'
-};
+    return sections.filter((item) => {
+      return (
+        item.title.toLowerCase().includes(query) ||
+        item.description.toLowerCase().includes(query)
+      );
+    });
+  }, [search]);
 
-const cancelButtonStyle = {
-  backgroundColor: '#e4e6eb', color: '#050505', border: 'none', padding: '10px 20px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer'
-};
+  const unreadCount = notifications.filter((item) => item.unread).length;
+
+  const statusText = {
+    present: "حاضر",
+    late: "متأخر",
+    absent: "غائب",
+  };
+
+  return (
+    <div className="founder-dashboard" dir="rtl">
+      <header className="founder-header">
+        <div className="brand-area">
+          <img src={schoolLogo} alt="شعار المدرسة" />
+          <div>
+            <h1>مدرسة الكوفة الأهلية</h1>
+            <p>مرحبًا بك، بحساب المؤسس</p>
+          </div>
+        </div>
+
+        <div className="header-tools">
+          <div className="global-search">
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="بحث سريع في النظام..."
+            />
+
+            {searchResults.length > 0 && (
+              <div className="search-results">
+                {searchResults.map((item) => (
+                  <button key={item.path} type="button" onClick={() => navigate(item.path)}>
+                    <strong>{item.title}</strong>
+                    <span>{item.description}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="notifications">
+            <button
+              type="button"
+              className="icon-button"
+              onClick={() => setNotificationsOpen((value) => !value)}
+              aria-label="الإشعارات"
+            >
+              !
+              {unreadCount > 0 && <b>{unreadCount}</b>}
+            </button>
+
+            {notificationsOpen && (
+              <div className="notifications-menu">
+                <div className="menu-title">
+                  <strong>الإشعارات</strong>
+                  <span>{unreadCount} غير مقروء</span>
+                </div>
+
+                {notifications.map((item) => (
+                  <button
+                    type="button"
+                    key={item.id}
+                    className={`notification-item ${item.unread ? "unread" : ""}`}
+                    onClick={() => navigate(item.path)}
+                  >
+                    <strong>{item.title}</strong>
+                    <span>{item.summary}</span>
+                    <small>{item.details}</small>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={toggleTheme}
+            aria-label={theme === "light" ? "تفعيل الوضع الداكن" : "تفعيل الوضع الفاتح"}
+            title={theme === "light" ? "الوضع الداكن" : "الوضع الفاتح"}
+          >
+            <span aria-hidden="true">{theme === "light" ? "☾" : "☀"}</span>
+          </button>
+
+          <div className="date-chip">{dateText}</div>
+          <button type="button" className="logout-button" onClick={() => navigate("/")}>تسجيل الخروج</button>
+        </div>
+      </header>
+
+      <main className="dashboard-content">
+        <section className="top-grid">
+          <article className="panel employee-panel">
+            <div className="panel-heading">
+              <div>
+                <h2>حضور الموظفين اليوم</h2>
+                <p>الاسم يمينًا ووقت الحضور يسارًا</p>
+              </div>
+              <div className="employee-summary">
+                <span className="present">3 حاضر</span>
+                <span className="late">2 متأخر</span>
+                <span className="absent">1 غائب</span>
+              </div>
+            </div>
+
+            <div className="employee-list">
+              {employees.map((employee) => (
+                <button
+                  type="button"
+                  key={employee.id}
+                  className={`employee-row ${employee.status}`}
+                  onClick={() => navigate("/teachers")}
+                >
+                  <div>
+                    <strong>{employee.name}</strong>
+                    <span>{statusText[employee.status]}</span>
+                  </div>
+                  <time>{employee.time}</time>
+                </button>
+              ))}
+            </div>
+          </article>
+
+          <article className="panel financial-panel" onClick={() => navigate("/fees")}>
+            <div className="panel-heading">
+              <div>
+                <h2>الحالة المالية للمدرسة</h2>
+                <p>ملخص الأقساط الحالية</p>
+              </div>
+              <span className="trend">+6% هذا الشهر</span>
+            </div>
+
+            <div className="financial-body">
+              <Donut value={82} color="#20a464" label="نسبة التحصيل" />
+              <div className="financial-values">
+                <div><span className="paid-dot" /><p>المقبوض</p><strong>82,000,000 د.ع</strong></div>
+                <div><span className="remaining-dot" /><p>المتبقي</p><strong>18,000,000 د.ع</strong></div>
+                <div className="payment-counts">
+                  <span>310 مسدد بالكامل</span>
+                  <span>95 مسدد جزئيًا</span>
+                  <span>65 غير مسدد</span>
+                </div>
+              </div>
+            </div>
+          </article>
+        </section>
+
+        <section className="middle-grid">
+          <button type="button" className="panel attendance-panel" onClick={() => setAttendanceOpen(true)}>
+            <div className="panel-heading">
+              <div><h2>حضور الطلاب اليوم</h2><p>اضغط لعرض قائمة الغياب</p></div>
+            </div>
+            <div className="attendance-body">
+              <Donut value={96} color="#2ca66f" label="نسبة الحضور" />
+              <div className="attendance-numbers">
+                <span><b>452</b> حاضر</span>
+                <span><b>18</b> غائب</span>
+              </div>
+            </div>
+          </button>
+
+          <article className="panel">
+            <div className="panel-heading"><div><h2>ماذا تغير اليوم؟</h2><p>آخر العمليات المهمة</p></div></div>
+            <div className="simple-list">
+              {changesToday.map((item) => (
+                <div key={item.id}><span>{item.label}</span><time>{item.time}</time></div>
+              ))}
+            </div>
+          </article>
+
+          <article className="panel">
+            <div className="panel-heading"><div><h2>حالة الأنظمة</h2><p>المكونات الأساسية</p></div></div>
+            <div className="systems-list">
+              {systemStatus.map((item) => (
+                <div key={item.id}>
+                  <span className={`system-dot ${item.state}`} />
+                  <strong>{item.label}</strong>
+                  <small>{item.state === "online" ? "متصل" : "يحتاج متابعة"}</small>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          <article className="panel backup-panel">
+            <div className="panel-heading"><div><h2>النسخة الاحتياطية</h2><p>حماية بيانات المدرسة</p></div></div>
+            <span className="backup-badge">ناجحة</span>
+            <strong>اليوم، 02:30 ص</strong>
+            <p>آخر نسخة احتياطية اكتملت دون أخطاء.</p>
+            <button type="button" onClick={() => navigate("/settings")}>إدارة النسخ الاحتياطية</button>
+          </article>
+        </section>
+
+        <section className="sections-area">
+          <div className="section-title"><h2>أقسام النظام</h2><p>انتقل مباشرة إلى القسم المطلوب</p></div>
+          <div className="section-cards">
+            {sections.map((item) => (
+              <Link key={item.path} to={item.path} className="section-card">
+                <span className="section-icon">{item.code}</span>
+                <div><h3>{item.title}</h3><p>{item.description}</p></div>
+                <b>←</b>
+              </Link>
+            ))}
+          </div>
+        </section>
+      </main>
+
+      {attendanceOpen && (
+        <div className="modal-overlay">
+          <div className="absence-modal printable-area">
+            <div className="modal-header">
+              <div><h2>قائمة الطلاب الغائبين</h2><p>{dateText}</p></div>
+              <button type="button" className="print-hide" onClick={() => setAttendanceOpen(false)}>×</button>
+            </div>
+
+            <table>
+              <thead><tr><th>#</th><th>اسم الطالب</th><th>الصف</th><th>الشعبة</th><th>السبب</th></tr></thead>
+              <tbody>
+                {absentStudents.map((student, index) => (
+                  <tr key={student.id}>
+                    <td>{index + 1}</td>
+                    <td>{student.name}</td>
+                    <td>{student.grade}</td>
+                    <td>{student.section}</td>
+                    <td>{student.reason}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            <div className="modal-actions print-hide">
+              <button type="button" className="secondary" onClick={() => setAttendanceOpen(false)}>إغلاق</button>
+              <button type="button" className="primary" onClick={() => window.print()}>طباعة الغياب</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

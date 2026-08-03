@@ -1,15 +1,15 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import '../styles/Login.css';
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import "../styles/Login.css";
 
 export default function Login() {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const navigate = useNavigate();
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    navigate('/dashboard');
+    navigate("/dashboard");
   };
 
   return (
@@ -28,7 +28,6 @@ export default function Login() {
               placeholder="أدخل اسم المستخدم"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              required
             />
           </div>
 
@@ -39,12 +38,20 @@ export default function Login() {
               placeholder="أدخل كلمة المرور"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              required
             />
           </div>
 
           <button type="submit" className="login-btn">
             تسجيل الدخول
+          </button>
+
+          <button
+            type="button"
+            className="login-btn"
+            style={{ marginTop: "10px", background: "#666" }}
+            onClick={() => navigate("/dashboard")}
+          >
+            تخطي تسجيل الدخول
           </button>
         </form>
       </div>

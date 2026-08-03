@@ -76,3 +76,19 @@
 .login-btn:hover {
   background-color: #2a5298;
 }
+.skip-login-btn {
+  width: 100%;
+  padding: 12px;
+  margin-top: 12px;
+  background: white;
+  color: #1e3c72;
+  border: 1px solid #1e3c72;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.skip-login-btn:hover {
+  background: #eef4ff;
+}
