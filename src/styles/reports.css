@@ -605,3 +605,125 @@
     break-inside: avoid;
   }
 }
+.reports-print-header {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  html,
+  body,
+  #root {
+    width: 100%;
+    min-height: auto;
+    background: white !important;
+    overflow: visible !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .reports-workspace,
+  .reports-workspace * {
+    visibility: visible;
+  }
+
+  .reports-workspace {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 100%;
+    padding: 0;
+    background: white !important;
+    color: black !important;
+  }
+
+  .reports-workspace-header,
+  .reports-filters-card,
+  .reports-header-actions,
+  .reports-warning-card,
+  .reports-error-message {
+    display: none !important;
+  }
+
+  .reports-print-header {
+    display: block !important;
+    text-align: center;
+    margin-bottom: 20px;
+    color: black;
+  }
+
+  .reports-print-header h1,
+  .reports-print-header h2,
+  .reports-print-header p {
+    color: black !important;
+    margin: 5px 0;
+  }
+
+  .reports-summary-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 15px;
+  }
+
+  .reports-summary-card {
+    background: white !important;
+    color: black !important;
+    border: 1px solid #555 !important;
+    box-shadow: none !important;
+    padding: 8px !important;
+  }
+
+  .reports-summary-card strong,
+  .reports-summary-card span {
+    color: black !important;
+  }
+
+  .reports-table-card,
+  .reports-table-wrapper {
+    display: block !important;
+    width: 100% !important;
+    overflow: visible !important;
+    background: white !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .reports-data-table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    font-size: 10px;
+    color: black !important;
+  }
+
+  .reports-data-table th,
+  .reports-data-table td {
+    display: table-cell !important;
+    visibility: visible !important;
+    border: 1px solid #555 !important;
+    padding: 6px 4px !important;
+    color: black !important;
+    background: white !important;
+    text-align: center;
+  }
+
+  .reports-data-table thead {
+    display: table-header-group;
+  }
+
+  .reports-data-table tr {
+    page-break-inside: avoid;
+  }
+
+  .reports-status-badge {
+    color: black !important;
+    background: transparent !important;
+    border: none !important;
+  }
+}
