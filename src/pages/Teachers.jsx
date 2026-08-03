@@ -1,12 +1,24 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
+import "../styles/teachers.css";
 
+import BackButton from "../components/common/BackButton";
 import TeacherStats from "../components/teachers/TeacherStats";
 import TeacherTable from "../components/teachers/TeacherTable";
 import TeacherForm from "../components/teachers/TeacherForm";
 
 const API_URL = "http://localhost:5000/employees";
+
+const EMPLOYEE_TYPES = [
+  "الكل",
+  "كادر تدريسي",
+  "إداري",
+  "طبيب",
+  "عامل",
+  "حارس",
+  "سائق",
+];
 
 export default function Teachers() {
   const navigate = useNavigate();
@@ -15,21 +27,25 @@ export default function Teachers() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState("");
+  const [employeeType, setEmployeeType] = useState("الكل");
+  const [message, setMessage] = useState("");
 
   const loadEmployees = async () => {
     try {
       setLoading(true);
+      setMessage("");
 
       const response = await fetch(API_URL);
+      const data = await response.json();
 
       if (!response.ok) {
-        throw new Error("تعذر جلب الموظفين");
+        throw new Error(data.message || "تعذر جلب الموظفين");
       }
 
-      const data = await response.json();
-      setEmployees(data);
+      setEmployees(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error(error);
+      setMessage(error.message || "تعذر الاتصال بالخادم");
     } finally {
       setLoading(false);
     }
@@ -38,6 +54,26 @@ export default function Teachers() {
   useEffect(() => {
     loadEmployees();
   }, []);
+
+  const filteredEmployees = useMemo(() => {
+    const query = search.trim().toLowerCase();
+
+    return employees.filter((employee) => {
+      const matchesSearch =
+        !query ||
+        employee.full_name?.toLowerCase().includes(query) ||
+        employee.employee_code?.toLowerCase().includes(query) ||
+        employee.employee_type?.toLowerCase().includes(query) ||
+        employee.phone?.toLowerCase().includes(query) ||
+        employee.address?.toLowerCase().includes(query);
+
+      const matchesType =
+        employeeType === "الكل" ||
+        employee.employee_type === employeeType;
+
+      return matchesSearch && matchesType;
+    });
+  }, [employees, search, employeeType]);
 
   const handleSaved = (employee) => {
     setEmployees((previous) => [employee, ...previous]);
@@ -49,72 +85,66 @@ export default function Teachers() {
     navigate(`/teachers/${employee.id}`);
   };
 
-  const filteredEmployees = employees.filter((employee) => {
-    const query = search.trim().toLowerCase();
-
-    if (!query) return true;
-
-    return (
-      employee.full_name?.toLowerCase().includes(query) ||
-      employee.employee_code?.toLowerCase().includes(query) ||
-      employee.employee_type?.toLowerCase().includes(query) ||
-      employee.phone?.toLowerCase().includes(query) ||
-      employee.address?.toLowerCase().includes(query)
-    );
-  });
-
   return (
-    <div className="main-content" dir="rtl">
-      <div style={headerStyle}>
-        <div>
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            style={backButtonStyle}
-          >
-            رجوع
-          </button>
+    <div className="main-content teachers-page" dir="rtl">
+      <header className="teachers-page-header">
+        <div className="teachers-header-copy">
+          <BackButton />
 
-          <h2 style={{ margin: "14px 0 0" }}>
-            الكادر التدريسي والإداري
-          </h2>
-
-          <p style={{ color: "#777", marginBottom: 0 }}>
-            إدارة الموظفين والحضور والرواتب والتقارير
-          </p>
+          <div>
+            <h2>الكادر التدريسي والإداري</h2>
+            <p>إدارة الموظفين والحضور والرواتب والتقارير</p>
+          </div>
         </div>
 
         <button
           type="button"
+          className="teachers-primary-button"
           onClick={() => setShowForm(true)}
-          style={addButtonStyle}
         >
-          + إضافة موظف
+          إضافة موظف جديد +
         </button>
-      </div>
+      </header>
+
+      {message && <div className="teachers-message">{message}</div>}
 
       <TeacherStats total={employees.length} />
 
-      <div style={{ marginBottom: 20 }}>
+      <section className="card teachers-filters">
         <input
+          type="search"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          placeholder="بحث بالاسم أو الرقم الوظيفي أو نوع الموظف..."
-          style={searchStyle}
+          placeholder="ابحث بالاسم أو الرقم الوظيفي أو الهاتف..."
+          className="teachers-search-input"
         />
-      </div>
 
-      {loading ? (
-        <h3>جاري تحميل الموظفين...</h3>
-      ) : (
-        <TeacherTable
-          employees={filteredEmployees}
-          onDelete={loadEmployees}
-          onView={handleView}
-          onEdit={() => alert("سنضيف التعديل في الخطوة القادمة")}
-          onReport={() => alert("سنضيف التقرير في الخطوة القادمة")}
-        />
-      )}
+        <select
+          value={employeeType}
+          onChange={(event) => setEmployeeType(event.target.value)}
+          className="teachers-filter-select"
+        >
+          {EMPLOYEE_TYPES.map((type) => (
+            <option key={type} value={type}>
+              {type === "الكل" ? "جميع أنواع الموظفين" : type}
+            </option>
+          ))}
+        </select>
+      </section>
+
+      <section className="card teachers-table-section">
+        {loading ? (
+          <p className="teachers-loading">جاري تحميل الموظفين...</p>
+        ) : (
+          <TeacherTable
+            employees={filteredEmployees}
+            onDelete={loadEmployees}
+            onView={handleView}
+            onEdit={() => alert("سيتم إضافة التعديل في الخطوة القادمة")}
+            onReport={() => alert("سيتم إضافة التقرير في الخطوة القادمة")}
+          />
+        )}
+      </section>
 
       {showForm && (
         <TeacherForm
@@ -125,41 +155,3 @@ export default function Teachers() {
     </div>
   );
 }
-
-const headerStyle = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  marginBottom: 25,
-  gap: 15,
-  flexWrap: "wrap",
-};
-
-const backButtonStyle = {
-  background: "#edf1f5",
-  color: "#1e3c72",
-  border: "none",
-  padding: "9px 14px",
-  borderRadius: "9px",
-  cursor: "pointer",
-  fontWeight: "bold",
-};
-
-const addButtonStyle = {
-  background: "#1e3c72",
-  color: "#fff",
-  border: 0,
-  padding: "12px 22px",
-  borderRadius: 10,
-  cursor: "pointer",
-  fontWeight: "bold",
-};
-
-const searchStyle = {
-  width: "100%",
-  padding: 14,
-  borderRadius: 10,
-  border: "1px solid #ddd",
-  fontSize: 15,
-  boxSizing: "border-box",
-};

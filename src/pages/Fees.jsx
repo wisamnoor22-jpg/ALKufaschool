@@ -417,7 +417,7 @@ const placeholderStyle = {
 const messageStyle = {
   background: "#ffebee",
   color: "#b71c1c",
-  padding: "12px",
+  padding: "12px",                                                                                                         
   borderRadius: "9px",
   marginBottom: "15px",
   fontWeight: "bold",

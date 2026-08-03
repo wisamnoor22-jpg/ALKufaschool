@@ -59,3 +59,90 @@ button {
   width: 100%;
   min-height: 100vh;
 }
+/* إصلاح الألوان الباهتة في الوضع الداكن */
+:root[data-theme="dark"],
+body.dark-mode {
+  --page-bg: #0b1724;
+  --card-bg: #142231;
+  --soft-bg: #1b2b3d;
+  --input-bg: #101c2a;
+  --text-color: #f1f5f9;
+  --heading-color: #ffffff;
+  --muted-color: #a9b7c6;
+  --border-color: #30465b;
+  --table-header-bg: #203653;
+}
+
+/* النصوص */
+:root[data-theme="dark"] h1,
+:root[data-theme="dark"] h2,
+:root[data-theme="dark"] h3,
+:root[data-theme="dark"] h4,
+:root[data-theme="dark"] label,
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode label {
+  color: var(--heading-color) !important;
+  opacity: 1 !important;
+}
+
+/* الحقول */
+:root[data-theme="dark"] input,
+:root[data-theme="dark"] select,
+:root[data-theme="dark"] textarea,
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea {
+  background: var(--input-bg) !important;
+  color: var(--text-color) !important;
+  border-color: var(--border-color) !important;
+  opacity: 1 !important;
+  color-scheme: dark;
+}
+
+:root[data-theme="dark"] input::placeholder,
+:root[data-theme="dark"] textarea::placeholder,
+body.dark-mode input::placeholder,
+body.dark-mode textarea::placeholder {
+  color: var(--muted-color) !important;
+  opacity: 1 !important;
+}
+
+/* النوافذ والبطاقات */
+:root[data-theme="dark"] [class*="modal-content"],
+:root[data-theme="dark"] [class*="form-section"],
+:root[data-theme="dark"] [class*="card"],
+body.dark-mode [class*="modal-content"],
+body.dark-mode [class*="form-section"],
+body.dark-mode [class*="card"] {
+  background: var(--card-bg) !important;
+  color: var(--text-color) !important;
+  border-color: var(--border-color) !important;
+}
+
+/* الجداول */
+:root[data-theme="dark"] table,
+:root[data-theme="dark"] td,
+body.dark-mode table,
+body.dark-mode td {
+  color: var(--text-color) !important;
+}
+
+:root[data-theme="dark"] th,
+body.dark-mode th {
+  background: var(--table-header-bg) !important;
+  color: #ffffff !important;
+}
+
+/* منع الأزرار من الظهور باهتة */
+:root[data-theme="dark"] button:not(:disabled),
+body.dark-mode button:not(:disabled) {
+  opacity: 1 !important;
+}
+
+:root[data-theme="dark"] button:disabled,
+body.dark-mode button:disabled {
+  opacity: 0.55 !important;
+}

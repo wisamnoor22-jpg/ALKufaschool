@@ -121,12 +121,7 @@ const createEnrollment = async ({
        updated_at = NOW(),
        deleted_at = NULL
      RETURNING *`,
-    [
-      studentId,
-      academicYear.id,
-      grade.id,
-      section?.id || null,
-    ]
+    [studentId, academicYear.id, grade.id, section?.id || null]
   );
 
   return {
@@ -137,18 +132,54 @@ const createEnrollment = async ({
   };
 };
 
-const updateCurrentEnrollment = async ({
+const updateCurrentSection = async ({
   studentId,
-  gradeName,
   sectionName,
   client = pool,
 }) => {
-  return createEnrollment({
-    studentId,
-    gradeName,
+  const academicYear = await getActiveAcademicYear(client);
+
+  const enrollmentResult = await client.query(
+    `SELECT se.id, se.grade_id, g.name AS grade
+     FROM student_enrollments se
+     JOIN grades g ON g.id = se.grade_id
+     WHERE se.student_id = $1
+       AND se.academic_year_id = $2
+       AND se.deleted_at IS NULL
+     LIMIT 1`,
+    [studentId, academicYear.id]
+  );
+
+  if (enrollmentResult.rows.length === 0) {
+    const error = new Error("لا يوجد تسجيل حالي لهذا الطالب");
+    error.statusCode = 404;
+    throw error;
+  }
+
+  const enrollment = enrollmentResult.rows[0];
+
+  const section = await getOrCreateSection({
+    academicYearId: academicYear.id,
+    gradeId: enrollment.grade_id,
     sectionName,
     client,
   });
+
+  const updatedResult = await client.query(
+    `UPDATE student_enrollments
+     SET section_id = $1,
+         updated_at = NOW()
+     WHERE id = $2
+     RETURNING *`,
+    [section?.id || null, enrollment.id]
+  );
+
+  return {
+    ...updatedResult.rows[0],
+    academic_year: academicYear.name,
+    grade: enrollment.grade,
+    section: section?.name || null,
+  };
 };
 
 const getStudentWithCurrentEnrollment = async (
@@ -158,8 +189,8 @@ const getStudentWithCurrentEnrollment = async (
   const result = await client.query(
     `SELECT
        s.*,
-       g.name AS grade,
-       sec.name AS section,
+       COALESCE(g.name, s.grade) AS grade,
+       COALESCE(sec.name, s.section) AS section,
        ay.name AS academic_year,
        se.id AS enrollment_id,
        se.enrollment_status,
@@ -171,7 +202,6 @@ const getStudentWithCurrentEnrollment = async (
       AND se.deleted_at IS NULL
      LEFT JOIN academic_years ay
        ON ay.id = se.academic_year_id
-      AND ay.is_active = TRUE
      LEFT JOIN grades g
        ON g.id = se.grade_id
      LEFT JOIN sections sec
@@ -202,12 +232,11 @@ const getStudentsWithCurrentEnrollment = async (client = pool) => {
       AND se.deleted_at IS NULL
      LEFT JOIN academic_years ay
        ON ay.id = se.academic_year_id
-      AND ay.is_active = TRUE
      LEFT JOIN grades g
        ON g.id = se.grade_id
      LEFT JOIN sections sec
        ON sec.id = se.section_id
-     ORDER BY s.id DESC`
+     ORDER BY ay.is_active DESC, s.id DESC`
   );
 
   return result.rows;
@@ -218,7 +247,7 @@ module.exports = {
   getGradeByName,
   getOrCreateSection,
   createEnrollment,
-  updateCurrentEnrollment,
+  updateCurrentSection,
   getStudentWithCurrentEnrollment,
   getStudentsWithCurrentEnrollment,
 };

@@ -6,14 +6,14 @@ export default function TeacherTable({
   onReport,
 }) {
   const deleteEmployee = async (id) => {
-    if (!window.confirm("هل أنت متأكد من حذف هذا الموظف؟")) return;
+    if (!window.confirm("هل أنت متأكد من حذف هذا الموظف؟")) {
+      return;
+    }
 
     try {
       const response = await fetch(
         `http://localhost:5000/employees/${id}`,
-        {
-          method: "DELETE",
-        }
+        { method: "DELETE" }
       );
 
       const data = await response.json();
@@ -31,61 +31,55 @@ export default function TeacherTable({
   };
 
   return (
-    <div style={tableContainerStyle}>
-      <table style={tableStyle}>
-        <thead style={tableHeaderStyle}>
+    <div className="teachers-table-wrapper">
+      <table className="teachers-table">
+        <thead>
           <tr>
-            <th style={cellStyle}>الرقم الوظيفي</th>
-            <th style={cellStyle}>الاسم</th>
-            <th style={cellStyle}>نوع الموظف</th>
-            <th style={cellStyle}>الهاتف</th>
-            <th style={cellStyle}>العنوان</th>
-            <th style={cellStyle}>الإجراءات</th>
+            <th>الرقم الوظيفي</th>
+            <th>الاسم</th>
+            <th>نوع الموظف</th>
+            <th>الهاتف</th>
+            <th>العنوان</th>
+            <th>الإجراءات</th>
           </tr>
         </thead>
 
         <tbody>
           {employees.length === 0 ? (
             <tr>
-              <td colSpan="6" style={emptyStyle}>
-                لا يوجد موظفون حتى الآن
+              <td colSpan="6" className="teachers-empty-state">
+                لا توجد بيانات مطابقة
               </td>
             </tr>
           ) : (
             employees.map((employee) => (
-              <tr key={employee.id} style={rowStyle}>
-                <td style={cellStyle}>
-                  {employee.employee_code}
+              <tr key={employee.id}>
+                <td>
+                  <span className="teachers-code-badge">
+                    {employee.employee_code || "غير مسجل"}
+                  </span>
                 </td>
 
-                <td style={cellStyle}>
+                <td>
                   <button
                     type="button"
                     onClick={() => onView?.(employee)}
-                    style={nameButtonStyle}
+                    className="teachers-name-button"
                   >
                     {employee.full_name}
                   </button>
                 </td>
 
-                <td style={cellStyle}>
-                  {employee.employee_type || "غير محدد"}
-                </td>
+                <td>{employee.employee_type || "غير محدد"}</td>
+                <td>{employee.phone || "غير مسجل"}</td>
+                <td>{employee.address || "غير مسجل"}</td>
 
-                <td style={cellStyle}>
-                  {employee.phone || "غير مسجل"}
-                </td>
-
-                <td style={cellStyle}>
-                  {employee.address || "غير مسجل"}
-                </td>
-
-                <td style={cellStyle}>
-                  <div style={actionsStyle}>
+                <td>
+                  <div className="teachers-actions">
                     <button
                       type="button"
                       onClick={() => onReport?.(employee)}
-                      style={reportButtonStyle}
+                      className="teachers-report-button"
                     >
                       تقرير
                     </button>
@@ -93,7 +87,7 @@ export default function TeacherTable({
                     <button
                       type="button"
                       onClick={() => onEdit?.(employee)}
-                      style={editButtonStyle}
+                      className="teachers-edit-button"
                     >
                       تعديل
                     </button>
@@ -101,7 +95,7 @@ export default function TeacherTable({
                     <button
                       type="button"
                       onClick={() => deleteEmployee(employee.id)}
-                      style={deleteButtonStyle}
+                      className="teachers-delete-button"
                     >
                       حذف
                     </button>
@@ -115,79 +109,3 @@ export default function TeacherTable({
     </div>
   );
 }
-
-const tableContainerStyle = {
-  background: "#fff",
-  borderRadius: "14px",
-  overflowX: "auto",
-  boxShadow: "0 6px 18px rgba(0,0,0,.08)",
-};
-
-const tableStyle = {
-  width: "100%",
-  minWidth: "900px",
-  borderCollapse: "collapse",
-  direction: "rtl",
-};
-
-const tableHeaderStyle = {
-  background: "#1e3c72",
-  color: "#fff",
-};
-
-const rowStyle = {
-  borderBottom: "1px solid #eee",
-};
-
-const cellStyle = {
-  padding: "14px",
-  textAlign: "right",
-};
-
-const emptyStyle = {
-  textAlign: "center",
-  padding: "35px",
-};
-
-const nameButtonStyle = {
-  border: "none",
-  background: "transparent",
-  color: "#1e5fa8",
-  padding: 0,
-  cursor: "pointer",
-  fontWeight: "bold",
-  textDecoration: "underline",
-};
-
-const actionsStyle = {
-  display: "flex",
-  gap: "7px",
-  flexWrap: "wrap",
-};
-
-const reportButtonStyle = {
-  background: "#198754",
-  color: "#fff",
-  border: "none",
-  padding: "6px 12px",
-  borderRadius: "6px",
-  cursor: "pointer",
-};
-
-const editButtonStyle = {
-  background: "#f0a500",
-  color: "#fff",
-  border: "none",
-  padding: "6px 12px",
-  borderRadius: "6px",
-  cursor: "pointer",
-};
-
-const deleteButtonStyle = {
-  background: "#dc3545",
-  color: "#fff",
-  border: "none",
-  padding: "6px 12px",
-  borderRadius: "6px",
-  cursor: "pointer",
-};

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import "../styles/Dashboard.css";
+import "../styles/students.css";
+import BackButton from "../components/common/BackButton";
 
 const API_URL = "http://localhost:5000/students";
 
@@ -35,23 +37,34 @@ const formatDateForInput = (value) => {
   return String(value).slice(0, 10);
 };
 
+const translateEnrollmentStatus = (status) => {
+  const labels = {
+    active: "مستمر",
+    transferred: "منقول",
+    withdrawn: "منسحب",
+    graduated: "متخرج",
+    suspended: "موقوف",
+  };
+
+  return labels[status] || status || "غير محددة";
+};
+
 export default function Students() {
   const [students, setStudents] = useState([]);
   const [form, setForm] = useState(createEmptyForm());
   const [selectedStudent, setSelectedStudent] = useState(null);
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
-
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("success");
-
   const [search, setSearch] = useState("");
   const [filterGrade, setFilterGrade] = useState("الكل");
   const [filterGender, setFilterGender] = useState("الكل");
   const [filterAcademicYear, setFilterAcademicYear] = useState("الكل");
+
+  const isEditing = Boolean(selectedStudent);
 
   const showMessage = (text, type = "success") => {
     setMessage(text);
@@ -83,15 +96,16 @@ export default function Students() {
     fetchStudents();
   }, []);
 
-  const academicYears = useMemo(() => {
-    return [
+  const academicYears = useMemo(
+    () => [
       ...new Set(
         students
           .map((student) => student.academic_year)
           .filter(Boolean)
       ),
-    ];
-  }, [students]);
+    ],
+    [students]
+  );
 
   const filteredStudents = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -145,7 +159,6 @@ export default function Students() {
 
   const openEditModal = (student) => {
     setSelectedStudent(student);
-
     setForm({
       full_name: student.full_name || "",
       gender: student.gender || "",
@@ -155,7 +168,6 @@ export default function Students() {
       grade: student.grade || GRADES[0],
       section: student.section || SECTIONS[0],
     });
-
     setMessage("");
     setIsModalOpen(true);
   };
@@ -185,22 +197,29 @@ export default function Students() {
       setSaving(true);
       setMessage("");
 
-      const isEditing = Boolean(selectedStudent);
       const url = isEditing
         ? `${API_URL}/${selectedStudent.id}`
         : API_URL;
+
+      const payload = {
+        full_name: form.full_name.trim(),
+        gender: form.gender,
+        birth_date: form.birth_date || null,
+        phone: form.phone.trim(),
+        address: form.address.trim(),
+        section: form.section,
+      };
+
+      if (!isEditing) {
+        payload.grade = form.grade;
+      }
 
       const response = await fetch(url, {
         method: isEditing ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          ...form,
-          full_name: form.full_name.trim(),
-          phone: form.phone.trim(),
-          address: form.address.trim(),
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await response.json();
@@ -222,18 +241,18 @@ export default function Students() {
               : student
           )
         );
-
         showMessage("تم تعديل بيانات الطالب بنجاح");
       } else {
         setStudents((previousStudents) => [
           data.student,
           ...previousStudents,
         ]);
-
         showMessage("تمت إضافة الطالب بنجاح");
       }
 
-      closeModal();
+      setIsModalOpen(false);
+      setSelectedStudent(null);
+      setForm(createEmptyForm());
     } catch (error) {
       console.error(error);
       showMessage(error.message, "error");
@@ -280,73 +299,64 @@ export default function Students() {
 
   return (
     <div
-      className="main-content"
-      style={{ direction: "rtl", textAlign: "right", color: "var(--text)" }}
+      className="main-content students-page"
+      style={{ direction: "rtl", textAlign: "right" }}
     >
-      <header className="topbar" style={topbarStyle}>
+      <header className="topbar students-topbar">
         <div>
-          <h2 style={pageTitleStyle}>إدارة الطلاب</h2>
-          <p style={pageSubtitleStyle}>
-            الصف والشعبة والسنة الدراسية تُقرأ من التسجيل السنوي للطالب
+          <BackButton />
+          <p className="students-page-subtitle">
+            الصف والشعبة والسنة الدراسية مرتبطة بالتسجيل السنوي
           </p>
         </div>
 
         <button
           type="button"
           onClick={openAddModal}
-          style={primaryButtonStyle}
+          className="students-primary-button"
         >
           إضافة طالب جديد +
         </button>
       </header>
 
       {message && (
-        <div
-          style={{
-            ...messageStyle,
-            ...(messageType === "success"
-              ? successMessageStyle
-              : errorMessageStyle),
-          }}
-        >
+        <div className={`students-message ${messageType}`}>
           {message}
         </div>
       )}
 
-      <section className="card" style={summaryCardStyle}>
+      <section className="card students-summary-card">
         <div>
-          <h3 style={{ margin: 0 }}>سجل الطلاب والطالبات</h3>
-          <p style={mutedTextStyle}>
-            إجمالي الطلاب: {students.length}
-          </p>
+          <h3>سجل الطلاب والطالبات</h3>
+          <p>إجمالي الطلاب: {students.length}</p>
         </div>
 
-        <div style={summaryItemsStyle}>
-          <div style={summaryItemStyle}>
+        <div className="students-summary-items">
+          <div className="students-summary-item">
             <strong>{filteredStudents.length}</strong>
             <span>نتائج ظاهرة</span>
           </div>
 
-          <div style={summaryItemStyle}>
+          <div className="students-summary-item">
             <strong>{academicYears[0] || "غير محددة"}</strong>
             <span>السنة الدراسية</span>
           </div>
         </div>
       </section>
 
-      <section className="card" style={filtersCardStyle}>
+      <section className="card students-filters-card">
         <input
           type="search"
           placeholder="ابحث باسم الطالب أو رقم الهاتف..."
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          style={{ ...filterInputStyle, flex: "1 1 260px" }}
+          className="students-filter-input students-search-input"
         />
 
         <select
           value={filterGrade}
           onChange={(event) => setFilterGrade(event.target.value)}
-          style={filterInputStyle}
+          className="students-filter-input"
         >
           <option value="الكل">جميع الصفوف</option>
           {GRADES.map((grade) => (
@@ -359,7 +369,7 @@ export default function Students() {
         <select
           value={filterGender}
           onChange={(event) => setFilterGender(event.target.value)}
-          style={filterInputStyle}
+          className="students-filter-input"
         >
           <option value="الكل">الطلاب والطالبات</option>
           <option value="طالب">الطلاب</option>
@@ -371,7 +381,7 @@ export default function Students() {
           onChange={(event) =>
             setFilterAcademicYear(event.target.value)
           }
-          style={filterInputStyle}
+          className="students-filter-input"
         >
           <option value="الكل">جميع السنوات</option>
           {academicYears.map((academicYear) => (
@@ -382,80 +392,69 @@ export default function Students() {
         </select>
       </section>
 
-      <section className="card" style={{ overflowX: "auto" }}>
+      <section className="card students-table-card">
         {loading ? (
-          <p style={loadingStyle}>جاري تحميل الطلاب...</p>
+          <p className="students-loading">جاري تحميل الطلاب...</p>
         ) : (
-          <table style={tableStyle}>
+          <table className="students-table">
             <thead>
-              <tr style={tableHeaderRowStyle}>
-                <th style={tableCellStyle}>الرقم</th>
-                <th style={tableCellStyle}>الاسم الكامل</th>
-                <th style={tableCellStyle}>النوع</th>
-                <th style={tableCellStyle}>الصف الحالي</th>
-                <th style={tableCellStyle}>الشعبة</th>
-                <th style={tableCellStyle}>السنة الدراسية</th>
-                <th style={tableCellStyle}>الحالة</th>
-                <th style={tableCellStyle}>الهاتف</th>
-                <th style={tableCellStyle}>الإجراءات</th>
+              <tr>
+                <th>الرقم</th>
+                <th>الاسم الكامل</th>
+                <th>النوع</th>
+                <th>الصف الحالي</th>
+                <th>الشعبة</th>
+                <th>السنة الدراسية</th>
+                <th>الحالة</th>
+                <th>الهاتف</th>
+                <th>الإجراءات</th>
               </tr>
             </thead>
 
             <tbody>
               {filteredStudents.length > 0 ? (
                 filteredStudents.map((student) => (
-                  <tr key={student.id} style={tableRowStyle}>
-                    <td style={tableCellStyle}>{student.id}</td>
-
-                    <td style={studentNameCellStyle}>
+                  <tr key={student.id}>
+                    <td>{student.id}</td>
+                    <td className="students-name-cell">
                       {student.full_name}
                     </td>
-
-                    <td style={tableCellStyle}>
+                    <td>
                       <span
-                        style={{
-                          ...genderBadgeStyle,
-                          ...(student.gender === "طالبة"
-                            ? femaleBadgeStyle
-                            : maleBadgeStyle),
-                        }}
+                        className={`students-gender-badge ${
+                          student.gender === "طالبة"
+                            ? "female"
+                            : "male"
+                        }`}
                       >
                         {student.gender || "غير محدد"}
                       </span>
                     </td>
-
-                    <td style={tableCellStyle}>
-                      {student.grade || "غير محدد"}
+                    <td>{student.grade || "غير محدد"}</td>
+                    <td>
+                      <span className="students-section-badge">
+                        {student.section || "غير محددة"}
+                      </span>
                     </td>
-
-                    <td style={tableCellStyle}>
-                      {student.section || "غير محددة"}
-                    </td>
-
-                    <td style={tableCellStyle}>
-                      <span style={academicYearBadgeStyle}>
+                    <td>
+                      <span className="students-year-badge">
                         {student.academic_year || "غير مرتبطة"}
                       </span>
                     </td>
-
-                    <td style={tableCellStyle}>
-                      <span style={statusBadgeStyle}>
-                        {student.enrollment_status === "active"
-                          ? "مستمر"
-                          : student.enrollment_status || "غير محددة"}
+                    <td>
+                      <span className="students-status-badge">
+                        {translateEnrollmentStatus(
+                          student.enrollment_status
+                        )}
                       </span>
                     </td>
-
-                    <td style={tableCellStyle}>
-                      {student.phone || "غير مسجل"}
-                    </td>
-
-                    <td style={tableCellStyle}>
-                      <div style={actionsStyle}>
+                    <td>{student.phone || "غير مسجل"}</td>
+                    <td>
+                      <div className="students-actions">
                         <button
                           type="button"
                           onClick={() => openEditModal(student)}
-                          style={editButtonStyle}
+                          className="students-edit-button"
                         >
                           تعديل
                         </button>
@@ -464,11 +463,7 @@ export default function Students() {
                           type="button"
                           onClick={() => handleDelete(student)}
                           disabled={deletingId === student.id}
-                          style={{
-                            ...deleteButtonStyle,
-                            opacity:
-                              deletingId === student.id ? 0.6 : 1,
-                          }}
+                          className="students-delete-button"
                         >
                           {deletingId === student.id
                             ? "جاري الحذف..."
@@ -480,7 +475,7 @@ export default function Students() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="9" style={emptyStateStyle}>
+                  <td colSpan="9" className="students-empty-state">
                     لا توجد بيانات مطابقة
                   </td>
                 </tr>
@@ -491,136 +486,178 @@ export default function Students() {
       </section>
 
       {isModalOpen && (
-        <div style={modalOverlayStyle}>
-          <div style={modalContentStyle}>
+        <div className="students-modal-overlay">
+          <div className="students-modal-content">
             <button
               type="button"
               onClick={closeModal}
-              style={closeButtonStyle}
+              className="students-modal-close"
               aria-label="إغلاق"
             >
               ×
             </button>
 
-            <h2 style={modalTitleStyle}>
-              {selectedStudent
+            <h2>
+              {isEditing
                 ? "تعديل بيانات الطالب"
                 : "إضافة طالب أو طالبة"}
             </h2>
 
-            <p style={modalSubtitleStyle}>
-              سيتم حفظ الصف والشعبة ضمن السنة الدراسية النشطة
-            </p>
-
             <form onSubmit={handleSubmit}>
-              <div style={formGroupStyle}>
-                <label style={labelStyle}>الاسم الكامل *</label>
-                <input
-                  name="full_name"
-                  value={form.full_name}
-                  onChange={handleChange}
-                  style={inputStyle}
-                  required
-                />
-              </div>
+              <section className="students-form-section">
+                <div className="students-form-section-header">
+                  <span>1</span>
+                  <div>
+                    <h3>بيانات الطالب</h3>
+                    <p>المعلومات الشخصية الأساسية</p>
+                  </div>
+                </div>
 
-              <div style={formGridStyle}>
-                <div style={formGroupStyle}>
-                  <label style={labelStyle}>النوع *</label>
-                  <select
-                    name="gender"
-                    value={form.gender}
+                <div className="students-form-group">
+                  <label>الاسم الكامل *</label>
+                  <input
+                    name="full_name"
+                    value={form.full_name}
                     onChange={handleChange}
-                    style={inputStyle}
                     required
-                  >
-                    <option value="">اختر النوع</option>
-                    <option value="طالب">طالب</option>
-                    <option value="طالبة">طالبة</option>
-                  </select>
-                </div>
-
-                <div style={formGroupStyle}>
-                  <label style={labelStyle}>تاريخ الميلاد</label>
-                  <input
-                    type="date"
-                    name="birth_date"
-                    value={form.birth_date}
-                    onChange={handleChange}
-                    style={inputStyle}
-                  />
-                </div>
-              </div>
-
-              <div style={formGridStyle}>
-                <div style={formGroupStyle}>
-                  <label style={labelStyle}>الصف *</label>
-                  <select
-                    name="grade"
-                    value={form.grade}
-                    onChange={handleChange}
-                    style={inputStyle}
-                    required
-                  >
-                    {GRADES.map((grade) => (
-                      <option key={grade} value={grade}>
-                        {grade}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div style={formGroupStyle}>
-                  <label style={labelStyle}>الشعبة</label>
-                  <select
-                    name="section"
-                    value={form.section}
-                    onChange={handleChange}
-                    style={inputStyle}
-                  >
-                    {SECTIONS.map((section) => (
-                      <option key={section} value={section}>
-                        {section}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div style={formGridStyle}>
-                <div style={formGroupStyle}>
-                  <label style={labelStyle}>رقم الهاتف</label>
-                  <input
-                    name="phone"
-                    value={form.phone}
-                    onChange={handleChange}
-                    style={inputStyle}
                   />
                 </div>
 
-                <div style={formGroupStyle}>
-                  <label style={labelStyle}>مكان السكن</label>
-                  <input
-                    name="address"
-                    value={form.address}
-                    onChange={handleChange}
-                    style={inputStyle}
-                  />
-                </div>
-              </div>
+                <div className="students-form-grid">
+                  <div className="students-form-group">
+                    <label>النوع *</label>
+                    <select
+                      name="gender"
+                      value={form.gender}
+                      onChange={handleChange}
+                      required
+                    >
+                      <option value="">اختر النوع</option>
+                      <option value="طالب">طالب</option>
+                      <option value="طالبة">طالبة</option>
+                    </select>
+                  </div>
 
-              <div style={modalActionsStyle}>
+                  <div className="students-form-group">
+                    <label>تاريخ الميلاد</label>
+                    <input
+                      type="date"
+                      name="birth_date"
+                      value={form.birth_date}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </div>
+
+                <div className="students-form-grid">
+                  <div className="students-form-group">
+                    <label>رقم الهاتف</label>
+                    <input
+                      name="phone"
+                      value={form.phone}
+                      onChange={handleChange}
+                    />
+                  </div>
+
+                  <div className="students-form-group">
+                    <label>مكان السكن</label>
+                    <input
+                      name="address"
+                      value={form.address}
+                      onChange={handleChange}
+                    />
+                  </div>
+                </div>
+              </section>
+
+              <section className="students-form-section">
+                <div className="students-form-section-header">
+                  <span>2</span>
+                  <div>
+                    <h3>
+                      {isEditing
+                        ? "التسجيل الحالي"
+                        : "التسجيل الأول"}
+                    </h3>
+                    <p>
+                      {isEditing
+                        ? "الصف والسنة لا يتغيران من شاشة التعديل"
+                        : "يُحفظ التسجيل في السنة الدراسية النشطة"}
+                    </p>
+                  </div>
+                </div>
+
+                {isEditing && (
+                  <div className="students-readonly-grid">
+                    <div className="students-readonly-field">
+                      <span>السنة الدراسية</span>
+                      <strong>
+                        {selectedStudent.academic_year ||
+                          "غير محددة"}
+                      </strong>
+                    </div>
+
+                    <div className="students-readonly-field">
+                      <span>حالة التسجيل</span>
+                      <strong>
+                        {translateEnrollmentStatus(
+                          selectedStudent.enrollment_status
+                        )}
+                      </strong>
+                    </div>
+                  </div>
+                )}
+
+                <div className="students-form-grid">
+                  <div className="students-form-group">
+                    <label>الصف *</label>
+
+                    {isEditing ? (
+                      <div className="students-readonly-input">
+                        {selectedStudent.grade || "غير محدد"}
+                      </div>
+                    ) : (
+                      <select
+                        name="grade"
+                        value={form.grade}
+                        onChange={handleChange}
+                        required
+                      >
+                        {GRADES.map((grade) => (
+                          <option key={grade} value={grade}>
+                            {grade}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  <div className="students-form-group">
+                    <label>الشعبة</label>
+                    <select
+                      name="section"
+                      value={form.section}
+                      onChange={handleChange}
+                    >
+                      {SECTIONS.map((section) => (
+                        <option key={section} value={section}>
+                          {section}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              </section>
+
+              <div className="students-modal-actions">
                 <button
                   type="submit"
                   disabled={saving}
-                  style={{
-                    ...primaryButtonStyle,
-                    opacity: saving ? 0.65 : 1,
-                  }}
+                  className="students-primary-button"
                 >
                   {saving
                     ? "جاري الحفظ..."
-                    : selectedStudent
+                    : isEditing
                       ? "حفظ التعديلات"
                       : "حفظ الطالب"}
                 </button>
@@ -629,7 +666,7 @@ export default function Students() {
                   type="button"
                   onClick={closeModal}
                   disabled={saving}
-                  style={secondaryButtonStyle}
+                  className="students-secondary-button"
                 >
                   إلغاء
                 </button>
@@ -641,306 +678,3 @@ export default function Students() {
     </div>
   );
 }
-
-const topbarStyle = {
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  gap: "16px",
-  flexWrap: "wrap",
-};
-
-const pageTitleStyle = {
-  margin: 0,
-  color: "var(--brand-900)",
-  fontSize: "21px",
-};
-
-const pageSubtitleStyle = {
-  margin: "6px 0 0",
-  color: "var(--muted)",
-  fontSize: "13px",
-};
-
-const messageStyle = {
-  padding: "12px 14px",
-  marginBottom: "16px",
-  borderRadius: "10px",
-  fontWeight: "700",
-};
-
-const successMessageStyle = {
-  backgroundColor: "#e8f5e9",
-  color: "#1b5e20",
-  border: "1px solid #c8e6c9",
-};
-
-const errorMessageStyle = {
-  backgroundColor: "#ffebee",
-  color: "#b71c1c",
-  border: "1px solid #ffcdd2",
-};
-
-const summaryCardStyle = {
-  marginBottom: "18px",
-  display: "flex",
-  justifyContent: "space-between",
-  alignItems: "center",
-  gap: "18px",
-  flexWrap: "wrap",
-};
-
-const mutedTextStyle = {
-  color: "var(--muted)",
-  margin: "7px 0 0",
-};
-
-const summaryItemsStyle = {
-  display: "flex",
-  gap: "10px",
-  flexWrap: "wrap",
-};
-
-const summaryItemStyle = {
-  minWidth: "125px",
-  padding: "10px 14px",
-  borderRadius: "10px",
-  background: "var(--background)",
-  border: "1px solid var(--border)",
-  color: "var(--text)",
-  display: "flex",
-  flexDirection: "column",
-  gap: "3px",
-};
-
-const filtersCardStyle = {
-  marginBottom: "18px",
-  display: "flex",
-  gap: "12px",
-  flexWrap: "wrap",
-  alignItems: "center",
-};
-
-const primaryButtonStyle = {
-  backgroundColor: "#1e3c72",
-  color: "#ffffff",
-  border: "none",
-  padding: "11px 18px",
-  borderRadius: "9px",
-  cursor: "pointer",
-  fontWeight: "700",
-};
-
-const secondaryButtonStyle = {
-  backgroundColor: "#e5e7eb",
-  color: "var(--text)",
-  border: "none",
-  padding: "11px 18px",
-  borderRadius: "9px",
-  cursor: "pointer",
-  fontWeight: "700",
-};
-
-const filterInputStyle = {
-  padding: "10px 12px",
-  border: "1px solid var(--border)",
-  borderRadius: "8px",
-  minWidth: "175px",
-  backgroundColor: "var(--surface)",
-  color: "var(--text)",
-  colorScheme: "light dark",
-  outline: "none",
-  textAlign: "right",
-};
-
-const loadingStyle = {
-  textAlign: "center",
-  padding: "32px",
-};
-
-const tableStyle = {
-  width: "100%",
-  borderCollapse: "collapse",
-  minWidth: "1100px",
-};
-
-const tableHeaderRowStyle = {
-  borderBottom: "2px solid #dbe3ec",
-  backgroundColor: "var(--background)",
-  color: "var(--text)",
-};
-
-const tableRowStyle = {
-  borderBottom: "1px solid var(--border)",
-  color: "var(--text)",
-};
-
-const tableCellStyle = {
-  padding: "12px",
-  textAlign: "right",
-  verticalAlign: "middle",
-};
-
-const studentNameCellStyle = {
-  ...tableCellStyle,
-  fontWeight: "700",
-  color: "var(--brand-900)",
-};
-
-const genderBadgeStyle = {
-  display: "inline-flex",
-  padding: "4px 9px",
-  borderRadius: "999px",
-  fontWeight: "700",
-  fontSize: "12px",
-};
-
-const femaleBadgeStyle = {
-  backgroundColor: "#fce4ec",
-  color: "#c2185b",
-};
-
-const maleBadgeStyle = {
-  backgroundColor: "#e3f2fd",
-  color: "#1565c0",
-};
-
-const academicYearBadgeStyle = {
-  display: "inline-flex",
-  padding: "5px 9px",
-  borderRadius: "8px",
-  backgroundColor: "#eef2ff",
-  color: "#3730a3",
-  fontWeight: "700",
-  whiteSpace: "nowrap",
-};
-
-const statusBadgeStyle = {
-  display: "inline-flex",
-  padding: "5px 9px",
-  borderRadius: "999px",
-  backgroundColor: "#dcfce7",
-  color: "#166534",
-  fontWeight: "700",
-  fontSize: "12px",
-};
-
-const actionsStyle = {
-  display: "flex",
-  gap: "7px",
-  flexWrap: "wrap",
-};
-
-const editButtonStyle = {
-  backgroundColor: "#1976d2",
-  color: "#ffffff",
-  border: "none",
-  borderRadius: "7px",
-  padding: "7px 11px",
-  cursor: "pointer",
-  fontWeight: "700",
-};
-
-const deleteButtonStyle = {
-  backgroundColor: "#d32f2f",
-  color: "#ffffff",
-  border: "none",
-  borderRadius: "7px",
-  padding: "7px 11px",
-  cursor: "pointer",
-  fontWeight: "700",
-};
-
-const emptyStateStyle = {
-  textAlign: "center",
-  padding: "34px",
-  color: "var(--muted)",
-};
-
-const modalOverlayStyle = {
-  position: "fixed",
-  inset: 0,
-  backgroundColor: "rgba(15, 23, 42, 0.6)",
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  zIndex: 1000,
-  padding: "16px",
-};
-
-const modalContentStyle = {
-  position: "relative",
-  backgroundColor: "var(--surface)",
-  color: "var(--text)",
-  width: "100%",
-  maxWidth: "680px",
-  maxHeight: "92vh",
-  overflowY: "auto",
-  padding: "28px",
-  borderRadius: "16px",
-  direction: "rtl",
-  boxShadow: "0 24px 60px rgba(15, 23, 42, 0.24)",
-};
-
-const closeButtonStyle = {
-  position: "absolute",
-  top: "10px",
-  left: "14px",
-  border: "none",
-  background: "transparent",
-  color: "var(--muted)",
-  fontSize: "28px",
-  cursor: "pointer",
-};
-
-const modalTitleStyle = {
-  margin: 0,
-  color: "var(--brand-900)",
-  textAlign: "center",
-};
-
-const modalSubtitleStyle = {
-  margin: "7px 0 22px",
-  color: "var(--muted)",
-  textAlign: "center",
-  fontSize: "13px",
-};
-
-const formGridStyle = {
-  display: "grid",
-  gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
-  gap: "12px",
-};
-
-const formGroupStyle = {
-  display: "flex",
-  flexDirection: "column",
-  gap: "6px",
-  marginBottom: "13px",
-};
-
-const labelStyle = {
-  fontWeight: "700",
-  color: "var(--text)",
-};
-
-const inputStyle = {
-  width: "100%",
-  padding: "10px 11px",
-  border: "1px solid var(--border)",
-  borderRadius: "8px",
-  boxSizing: "border-box",
-  backgroundColor: "var(--surface)",
-  color: "var(--text)",
-  colorScheme: "light dark",
-  outline: "none",
-  textAlign: "right",
-};
-
-const modalActionsStyle = {
-  display: "flex",
-  gap: "10px",
-  justifyContent: "center",
-  marginTop: "12px",
-  flexWrap: "wrap",
-};

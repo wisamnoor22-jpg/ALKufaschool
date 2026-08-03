@@ -1,7 +1,7 @@
 const pool = require("../db");
 const {
   createEnrollment,
-  updateCurrentEnrollment,
+  updateCurrentSection,
   getStudentWithCurrentEnrollment,
   getStudentsWithCurrentEnrollment,
 } = require("../services/enrollmentService");
@@ -106,14 +106,12 @@ const updateStudent = async (req, res) => {
 
   try {
     const { id } = req.params;
-
     const {
       full_name,
       gender,
       birth_date,
       phone,
       address,
-      grade,
       section,
     } = req.body;
 
@@ -123,38 +121,14 @@ const updateStudent = async (req, res) => {
       });
     }
 
-    if (!grade?.trim()) {
-      return res.status(400).json({
-        message: "المرحلة الدراسية مطلوبة",
-      });
-    }
-
     await client.query("BEGIN");
 
-    const studentResult = await client.query(
-      `UPDATE students
-       SET full_name = $1,
-           gender = $2,
-           birth_date = $3,
-           phone = $4,
-           address = $5,
-           grade = $6,
-           section = $7
-       WHERE id = $8
-       RETURNING *`,
-      [
-        full_name.trim(),
-        gender || null,
-        birth_date || null,
-        phone || null,
-        address || null,
-        grade.trim(),
-        section?.trim() || null,
-        id,
-      ]
+    const currentStudent = await getStudentWithCurrentEnrollment(
+      id,
+      client
     );
 
-    if (studentResult.rows.length === 0) {
+    if (!currentStudent) {
       await client.query("ROLLBACK");
 
       return res.status(404).json({
@@ -162,9 +136,28 @@ const updateStudent = async (req, res) => {
       });
     }
 
-    await updateCurrentEnrollment({
+    await client.query(
+      `UPDATE students
+       SET full_name = $1,
+           gender = $2,
+           birth_date = $3,
+           phone = $4,
+           address = $5,
+           section = $6
+       WHERE id = $7`,
+      [
+        full_name.trim(),
+        gender || null,
+        birth_date || null,
+        phone || null,
+        address || null,
+        section?.trim() || null,
+        id,
+      ]
+    );
+
+    await updateCurrentSection({
       studentId: id,
-      gradeName: grade,
       sectionName: section,
       client,
     });
