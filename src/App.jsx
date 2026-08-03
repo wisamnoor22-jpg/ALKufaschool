@@ -12,6 +12,7 @@ import Teachers from "./pages/Teachers";
 import EmployeeProfile from "./pages/EmployeeProfile";
 import Fees from "./pages/Fees";
 import Attendance from "./pages/Attendance";
+import Reports from "./pages/Reports";
 
 import "./App.css";
 
@@ -31,6 +32,7 @@ function App() {
 
         <Route path="/fees" element={<Fees />} />
         <Route path="/attendance" element={<Attendance />} />
+        <Route path="/reports" element={<Reports />} />
       </Routes>
     </Router>
   );
