@@ -26,9 +26,17 @@ const pool = new Pool({
   port: Number(process.env.DB_PORT || 5432),
 });
 
-pool.on("connect", () => {
-  console.log("Connected to PostgreSQL");
-});
+// فحص الاتصال مرة واحدة فقط عند تشغيل السيرفر
+(async () => {
+  try {
+    const client = await pool.connect();
+    console.log("✅ PostgreSQL connected successfully");
+    client.release();
+  } catch (error) {
+    console.error("❌ PostgreSQL connection failed:", error);
+    process.exit(1);
+  }
+})();
 
 pool.on("error", (error) => {
   console.error("Unexpected PostgreSQL error:", error);

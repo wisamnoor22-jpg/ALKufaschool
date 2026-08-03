@@ -32,7 +32,7 @@ app.get("/", (req, res) => {
 
 pool
   .connect()
-  .then(() => console.log("Connected to PostgreSQL"))
+ .then(() => {})
   .catch((err) =>
     console.error("Database connection error:", err)
   );
