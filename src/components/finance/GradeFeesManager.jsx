@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import "./GradeFeesManager.css";
 
 const API_URL = "http://localhost:5000/grade-fees";
@@ -18,18 +18,19 @@ const GRADES = [
   "السادس الإعدادي",
 ];
 
-const createEmptyForm = () => ({
+const EMPTY_FORM = {
   grade: GRADES[0],
   academic_year: "2026-2027",
   total_fee: "",
-});
+};
 
 const formatMoney = (value) =>
   `${Number(value || 0).toLocaleString("en-US")} د.ع`;
 
 export default function GradeFeesManager() {
   const [fees, setFees] = useState([]);
-  const [form, setForm] = useState(createEmptyForm());
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [editingFee, setEditingFee] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -44,7 +45,6 @@ export default function GradeFeesManager() {
   const loadFees = async () => {
     try {
       setLoading(true);
-      setMessage("");
 
       const response = await fetch(API_URL);
       const data = await response.json();
@@ -66,16 +66,30 @@ export default function GradeFeesManager() {
     loadFees();
   }, []);
 
-  const openModal = () => {
-    setForm(createEmptyForm());
+  const openAddModal = () => {
+    setEditingFee(null);
+    setForm(EMPTY_FORM);
+    setMessage("");
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (fee) => {
+    setEditingFee(fee);
+    setForm({
+      grade: fee.grade,
+      academic_year: fee.academic_year,
+      total_fee: String(fee.total_fee || ""),
+    });
     setMessage("");
     setIsModalOpen(true);
   };
 
   const closeModal = () => {
     if (saving) return;
+
     setIsModalOpen(false);
-    setForm(createEmptyForm());
+    setEditingFee(null);
+    setForm(EMPTY_FORM);
   };
 
   const handleChange = (event) => {
@@ -90,8 +104,8 @@ export default function GradeFeesManager() {
   const handleSubmit = async (event) => {
     event.preventDefault();
 
-    if (!form.academic_year.trim()) {
-      showMessage("السنة الدراسية مطلوبة", "error");
+    if (!form.grade.trim() || !form.academic_year.trim()) {
+      showMessage("المرحلة والسنة الدراسية مطلوبتان", "error");
       return;
     }
 
@@ -104,13 +118,17 @@ export default function GradeFeesManager() {
       setSaving(true);
       setMessage("");
 
-      const response = await fetch(API_URL, {
-        method: "POST",
+      const url = editingFee
+        ? `${API_URL}/${editingFee.id}`
+        : API_URL;
+
+      const response = await fetch(url, {
+        method: editingFee ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          grade: form.grade,
+          grade: form.grade.trim(),
           academic_year: form.academic_year.trim(),
           total_fee: Number(form.total_fee),
         }),
@@ -119,12 +137,23 @@ export default function GradeFeesManager() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "تعذر إضافة الرسم الدراسي");
+        throw new Error(
+          data.message ||
+            (editingFee
+              ? "تعذر تعديل الرسم الدراسي"
+              : "تعذر إضافة الرسم الدراسي")
+        );
       }
 
-      showMessage("تمت إضافة الرسم الدراسي بنجاح");
+      showMessage(
+        editingFee
+          ? "تم تعديل الرسم الدراسي بنجاح"
+          : "تمت إضافة الرسم الدراسي بنجاح"
+      );
+
       setIsModalOpen(false);
-      setForm(createEmptyForm());
+      setEditingFee(null);
+      setForm(EMPTY_FORM);
       await loadFees();
     } catch (error) {
       console.error(error);
@@ -173,7 +202,7 @@ export default function GradeFeesManager() {
         <button
           type="button"
           className="grade-fees-add-button"
-          onClick={openModal}
+          onClick={openAddModal}
         >
           + إضافة رسم دراسي
         </button>
@@ -212,17 +241,36 @@ export default function GradeFeesManager() {
             ) : (
               fees.map((fee) => (
                 <tr key={fee.id}>
-                  <td>{fee.grade}</td>
-                  <td>{fee.academic_year}</td>
-                  <td>{formatMoney(fee.total_fee)}</td>
+                  <td className="grade-fees-name">{fee.grade}</td>
+
                   <td>
-                    <button
-                      type="button"
-                      className="grade-fees-delete-button"
-                      onClick={() => handleDelete(fee)}
-                    >
-                      حذف
-                    </button>
+                    <span className="grade-fees-year-badge">
+                      {fee.academic_year}
+                    </span>
+                  </td>
+
+                  <td className="grade-fees-amount">
+                    {formatMoney(fee.total_fee)}
+                  </td>
+
+                  <td>
+                    <div className="grade-fees-actions">
+                      <button
+                        type="button"
+                        className="grade-fees-edit-button"
+                        onClick={() => openEditModal(fee)}
+                      >
+                        تعديل
+                      </button>
+
+                      <button
+                        type="button"
+                        className="grade-fees-delete-button"
+                        onClick={() => handleDelete(fee)}
+                      >
+                        حذف
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))
@@ -243,11 +291,16 @@ export default function GradeFeesManager() {
               ×
             </button>
 
-            <h3>إضافة رسم دراسي</h3>
+            <h3>
+              {editingFee
+                ? "تعديل الرسم الدراسي"
+                : "إضافة رسم دراسي"}
+            </h3>
 
             <form onSubmit={handleSubmit}>
               <div className="grade-fees-form-group">
                 <label>المرحلة *</label>
+
                 <select
                   name="grade"
                   value={form.grade}
@@ -264,6 +317,7 @@ export default function GradeFeesManager() {
 
               <div className="grade-fees-form-group">
                 <label>السنة الدراسية *</label>
+
                 <input
                   name="academic_year"
                   value={form.academic_year}
@@ -275,6 +329,7 @@ export default function GradeFeesManager() {
 
               <div className="grade-fees-form-group">
                 <label>الرسم السنوي *</label>
+
                 <input
                   type="number"
                   name="total_fee"
@@ -292,7 +347,11 @@ export default function GradeFeesManager() {
                   className="grade-fees-save-button"
                   disabled={saving}
                 >
-                  {saving ? "جاري الحفظ..." : "حفظ"}
+                  {saving
+                    ? "جاري الحفظ..."
+                    : editingFee
+                      ? "حفظ التعديل"
+                      : "حفظ"}
                 </button>
 
                 <button

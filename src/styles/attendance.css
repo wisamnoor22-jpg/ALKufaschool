@@ -1,0 +1,131 @@
+.attendance-page {
+  color: #1f2937;
+}
+
+.attendance-page-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.attendance-page-header h2 {
+  margin: 0;
+  color: #163c70;
+}
+
+.attendance-page-header p {
+  margin: 6px 0 0;
+  color: #64748b;
+}
+
+.attendance-back-button {
+  min-height: 42px;
+  padding: 9px 15px;
+  border: 1px solid #d8e0e8;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #1e3c72;
+  font-family: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.attendance-sections-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 18px;
+}
+
+.attendance-section-card {
+  position: relative;
+  min-height: 150px;
+  padding: 22px;
+  border: 1px solid #dfe7ef;
+  border-radius: 15px;
+  background: #ffffff;
+  color: #1f2937;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  text-align: right;
+  font-family: inherit;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(30, 60, 114, 0.08);
+  transition:
+    transform 0.2s ease,
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.attendance-section-card:hover {
+  transform: translateY(-2px);
+  border-color: #86a5ca;
+  box-shadow: 0 12px 28px rgba(30, 60, 114, 0.12);
+}
+
+.attendance-section-code {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: 14px;
+  background: #edf3fb;
+  color: #1e3c72;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.attendance-section-card h3 {
+  margin: 0 0 7px;
+  color: #163c70;
+}
+
+.attendance-section-card p {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.7;
+}
+
+.attendance-section-arrow {
+  position: absolute;
+  left: 18px;
+  bottom: 15px;
+  color: #1e3c72;
+  font-weight: 900;
+}
+
+.attendance-content-card {
+  min-height: 260px;
+  padding: 24px;
+  border: 1px solid #dfe7ef;
+  background: #ffffff;
+}
+
+.attendance-empty-state {
+  min-height: 210px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.attendance-empty-state h3 {
+  margin: 0 0 8px;
+  color: #163c70;
+}
+
+.attendance-empty-state p {
+  margin: 0;
+  color: #64748b;
+}
+
+@media (max-width: 640px) {
+  .attendance-section-card {
+    align-items: flex-start;
+  }
+}

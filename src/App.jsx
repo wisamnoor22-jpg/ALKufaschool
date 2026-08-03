@@ -11,6 +11,7 @@ import Students from "./pages/students";
 import Teachers from "./pages/Teachers";
 import EmployeeProfile from "./pages/EmployeeProfile";
 import Fees from "./pages/Fees";
+import Attendance from "./pages/Attendance";
 
 import "./App.css";
 
@@ -28,10 +29,8 @@ function App() {
           element={<EmployeeProfile />}
         />
 
-        <Route
-          path="/fees"
-          element={<Fees />}
-        />
+        <Route path="/fees" element={<Fees />} />
+        <Route path="/attendance" element={<Attendance />} />
       </Routes>
     </Router>
   );

@@ -24,12 +24,6 @@ const sections = [
     icon: "💵",
   },
   {
-    id: "statements",
-    title: "كشوف الحساب",
-    description: "عرض دفعات الطلاب والمبالغ المتبقية",
-    icon: "📄",
-  },
-  {
     id: "reports",
     title: "التقارير المالية",
     description: "تقارير المقبوضات والمتبقي والتحصيل",
@@ -76,7 +70,6 @@ export default function Fees() {
   useEffect(() => {
     if (
       activeSection === "payments" ||
-      activeSection === "statements" ||
       activeSection === "reports"
     ) {
       loadFees();
@@ -150,7 +143,7 @@ export default function Fees() {
           </h2>
 
           <p style={{ color: "#777", marginBottom: 0 }}>
-            إدارة الأقساط والدفعات وكشوف الحساب والتقارير
+            إدارة الرسوم والدفعات والتقارير المالية
           </p>
         </div>
       </div>
@@ -211,30 +204,6 @@ export default function Fees() {
             <FeesTable
               fees={filteredFees}
               onPayment={setSelectedFeeForPayment}
-              onHistory={setSelectedFeeForHistory}
-            />
-          )}
-        </>
-      )}
-
-      {activeSection === "statements" && (
-        <>
-          <SectionTitle
-            title="كشوف الحساب"
-            description="عرض الأقساط والدفعات والمتبقي لكل طالب"
-          />
-
-          <SearchInput
-            search={search}
-            setSearch={setSearch}
-            placeholder="بحث باسم الطالب أو السنة الدراسية..."
-          />
-
-          {loading ? (
-            <h3>جاري تحميل كشوف الحساب...</h3>
-          ) : (
-            <FeesTable
-              fees={filteredFees}
               onHistory={setSelectedFeeForHistory}
             />
           )}
@@ -417,7 +386,7 @@ const placeholderStyle = {
 const messageStyle = {
   background: "#ffebee",
   color: "#b71c1c",
-  padding: "12px",                                                                                                         
+  padding: "12px",                                                                                                          
   borderRadius: "9px",
   marginBottom: "15px",
   fontWeight: "bold",
