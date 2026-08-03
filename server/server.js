@@ -9,6 +9,7 @@ const employeesRoutes = require("./routes/employees");
 const studentsRoutes = require("./routes/students");
 const feesRoutes = require("./routes/fees");
 const gradeFeesRoutes = require("./routes/gradeFees");
+const studentAttendanceRoutes = require("./routes/studentAttendance");
 
 const app = express();
 const PORT = Number(process.env.PORT || 5000);
@@ -31,6 +32,7 @@ app.use("/students", studentsRoutes);
 app.use("/employees", employeesRoutes);
 app.use("/fees", feesRoutes);
 app.use("/grade-fees", gradeFeesRoutes);
+app.use("/student-attendance", studentAttendanceRoutes);
 
 app.get("/", (req, res) => {
   res.json({
