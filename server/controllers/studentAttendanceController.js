@@ -57,6 +57,9 @@ const isValidDate = (value) => {
   );
 };
 
+const normalizeOptionalText = (value) =>
+  typeof value === "string" ? value.trim() : "";
+
 const sendServerError = (res, error, fallbackMessage) => {
   console.error(error);
 
@@ -98,6 +101,196 @@ const getAttendanceByDate = async (req, res) => {
       res,
       error,
       "حدث خطأ في جلب حضور الطلاب"
+    );
+  }
+};
+
+const getAttendanceReport = async (req, res) => {
+  try {
+    await ensureAttendanceTable();
+
+    const {
+      from,
+      to,
+      grade,
+      section,
+      search,
+      status,
+    } = req.query;
+
+    if (!isValidDate(from) || !isValidDate(to)) {
+      return res.status(400).json({
+        message:
+          "يرجى تحديد تاريخ بداية ونهاية صحيحين بصيغة YYYY-MM-DD",
+      });
+    }
+
+    if (from > to) {
+      return res.status(400).json({
+        message: "تاريخ البداية يجب أن يكون قبل تاريخ النهاية",
+      });
+    }
+
+    const normalizedGrade = normalizeOptionalText(grade);
+    const normalizedSection = normalizeOptionalText(section);
+    const normalizedSearch = normalizeOptionalText(search);
+    const normalizedStatus = normalizeOptionalText(status);
+
+    if (
+      normalizedStatus &&
+      normalizedStatus !== "all" &&
+      !ALLOWED_STATUSES.has(normalizedStatus)
+    ) {
+      return res.status(400).json({
+        message: "حالة الحضور المحددة غير صحيحة",
+      });
+    }
+
+    const values = [from, to];
+    const conditions = [
+      "sa.attendance_date BETWEEN $1 AND $2",
+    ];
+
+    if (normalizedGrade && normalizedGrade !== "الكل") {
+      values.push(normalizedGrade);
+      conditions.push(
+        `COALESCE(g.name, s.grade) = $${values.length}`
+      );
+    }
+
+    if (normalizedSection && normalizedSection !== "الكل") {
+      values.push(normalizedSection);
+      conditions.push(
+        `COALESCE(sec.name, s.section) = $${values.length}`
+      );
+    }
+
+    if (normalizedSearch) {
+      values.push(`%${normalizedSearch}%`);
+      conditions.push(
+        `(s.full_name ILIKE $${values.length}
+          OR COALESCE(s.phone, '') ILIKE $${values.length})`
+      );
+    }
+
+    if (normalizedStatus && normalizedStatus !== "all") {
+      values.push(normalizedStatus);
+      conditions.push(`sa.status = $${values.length}`);
+    }
+
+    const result = await pool.query(
+      `SELECT
+         sa.id,
+         sa.student_enrollment_id,
+         se.student_id,
+         s.full_name,
+         s.phone,
+         COALESCE(g.name, s.grade) AS grade,
+         COALESCE(sec.name, s.section) AS section,
+         ay.name AS academic_year,
+         sa.attendance_date::text AS attendance_date,
+         sa.status,
+         sa.notes,
+         sa.created_at,
+         sa.updated_at
+       FROM student_attendance sa
+       JOIN student_enrollments se
+         ON se.id = sa.student_enrollment_id
+       JOIN students s
+         ON s.id = se.student_id
+       LEFT JOIN academic_years ay
+         ON ay.id = se.academic_year_id
+       LEFT JOIN grades g
+         ON g.id = se.grade_id
+       LEFT JOIN sections sec
+         ON sec.id = se.section_id
+       WHERE ${conditions.join(" AND ")}
+       ORDER BY
+         sa.attendance_date DESC,
+         COALESCE(g.sort_order, 9999),
+         COALESCE(sec.name, s.section),
+         s.full_name`,
+      values
+    );
+
+    const summaryResult = await pool.query(
+      `SELECT
+         COUNT(*) FILTER (WHERE sa.status = 'absent')::int
+           AS absent_count,
+         COUNT(*) FILTER (WHERE sa.status = 'excused')::int
+           AS excused_count,
+         COUNT(*) FILTER (WHERE sa.status = 'late')::int
+           AS late_count,
+         COUNT(DISTINCT sa.student_enrollment_id)
+           FILTER (WHERE sa.status = 'absent')::int
+           AS absent_students_count
+       FROM student_attendance sa
+       JOIN student_enrollments se
+         ON se.id = sa.student_enrollment_id
+       JOIN students s
+         ON s.id = se.student_id
+       LEFT JOIN grades g
+         ON g.id = se.grade_id
+       LEFT JOIN sections sec
+         ON sec.id = se.section_id
+       WHERE ${conditions.join(" AND ")}`,
+      values
+    );
+
+    const frequentAbsenceResult = await pool.query(
+      `SELECT
+         se.student_id,
+         sa.student_enrollment_id,
+         s.full_name,
+         COALESCE(g.name, s.grade) AS grade,
+         COALESCE(sec.name, s.section) AS section,
+         COUNT(*)::int AS absence_count
+       FROM student_attendance sa
+       JOIN student_enrollments se
+         ON se.id = sa.student_enrollment_id
+       JOIN students s
+         ON s.id = se.student_id
+       LEFT JOIN grades g
+         ON g.id = se.grade_id
+       LEFT JOIN sections sec
+         ON sec.id = se.section_id
+       WHERE ${conditions.join(" AND ")}
+         AND sa.status = 'absent'
+       GROUP BY
+         se.student_id,
+         sa.student_enrollment_id,
+         s.full_name,
+         g.name,
+         s.grade,
+         sec.name,
+         s.section,
+         g.sort_order
+       HAVING COUNT(*) >= 3
+       ORDER BY
+         absence_count DESC,
+         COALESCE(g.sort_order, 9999),
+         s.full_name`,
+      values
+    );
+
+    return res.json({
+      filters: {
+        from,
+        to,
+        grade: normalizedGrade || "الكل",
+        section: normalizedSection || "الكل",
+        search: normalizedSearch,
+        status: normalizedStatus || "all",
+      },
+      summary: summaryResult.rows[0],
+      records: result.rows,
+      frequent_absence_students: frequentAbsenceResult.rows,
+    });
+  } catch (error) {
+    return sendServerError(
+      res,
+      error,
+      "حدث خطأ في إعداد تقرير حضور الطلاب"
     );
   }
 };
@@ -231,5 +424,6 @@ const saveBulkAttendance = async (req, res) => {
 
 module.exports = {
   getAttendanceByDate,
+  getAttendanceReport,
   saveBulkAttendance,
 };
