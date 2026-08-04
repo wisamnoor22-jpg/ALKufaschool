@@ -1,23 +1,22 @@
 import React, { useEffect, useMemo, useState } from "react";
 
-const FEES_API = "http://localhost:5000/fees";
-const EMPLOYEES_API = "http://localhost:5000/employees";
+const FEES_API_URL = "http://localhost:5000/fees";
+const EMPLOYEES_API_URL = "http://localhost:5000/employees";
 
-const createInitialForm = () => ({
+const initialForm = {
   amount: "",
   payment_method: "نقدًا",
   receipt_number: "",
-  accountant_employee_id: "",
-  assistant_employee_id: "",
+  responsible_employee_id: "",
   notes: "",
-});
+};
 
 export default function PaymentForm({
   fee,
   onClose,
   onSaved,
 }) {
-  const [form, setForm] = useState(createInitialForm);
+  const [form, setForm] = useState(initialForm);
   const [employees, setEmployees] = useState([]);
   const [loadingEmployees, setLoadingEmployees] =
     useState(true);
@@ -32,55 +31,16 @@ export default function PaymentForm({
     0
   );
 
-  const accountants = useMemo(() => {
-    return employees.filter((employee) =>
-      String(employee.employee_type || "")
-        .trim()
-        .includes("محاسب")
-    );
-  }, [employees]);
-
-  const selectableAccountants = useMemo(() => {
-    return accountants.length > 0
-      ? accountants
-      : employees;
-  }, [accountants, employees]);
-
-  const assistantEmployees = useMemo(() => {
-    return employees.filter(
-      (employee) =>
-        String(employee.id) !==
-        String(form.accountant_employee_id)
-    );
-  }, [employees, form.accountant_employee_id]);
-
   useEffect(() => {
     loadEmployees();
   }, []);
-
-  useEffect(() => {
-    if (
-      !form.accountant_employee_id &&
-      selectableAccountants.length > 0
-    ) {
-      setForm((previous) => ({
-        ...previous,
-        accountant_employee_id: String(
-          selectableAccountants[0].id
-        ),
-      }));
-    }
-  }, [
-    selectableAccountants,
-    form.accountant_employee_id,
-  ]);
 
   const loadEmployees = async () => {
     try {
       setLoadingEmployees(true);
       setMessage("");
 
-      const response = await fetch(EMPLOYEES_API);
+      const response = await fetch(EMPLOYEES_API_URL);
       const data = await response.json();
 
       if (!response.ok) {
@@ -89,7 +49,30 @@ export default function PaymentForm({
         );
       }
 
-      setEmployees(Array.isArray(data) ? data : []);
+      const employeeList = Array.isArray(data) ? data : [];
+      setEmployees(employeeList);
+
+      const accountsEmployee =
+        employeeList.find((employee) =>
+          String(employee.employee_type || "")
+            .trim()
+            .includes("مسؤول الحسابات")
+        ) ||
+        employeeList.find((employee) =>
+          String(employee.employee_type || "")
+            .trim()
+            .includes("حسابات")
+        ) ||
+        employeeList[0];
+
+      if (accountsEmployee) {
+        setForm((previous) => ({
+          ...previous,
+          responsible_employee_id: String(
+            accountsEmployee.id
+          ),
+        }));
+      }
     } catch (error) {
       setMessage(
         error.message || "تعذر جلب قائمة الموظفين"
@@ -99,24 +82,19 @@ export default function PaymentForm({
     }
   };
 
-  const handleChange = ({
-    target: { name, value },
-  }) => {
-    setForm((previous) => {
-      const next = {
-        ...previous,
-        [name]: value,
-      };
+  const selectedEmployee = useMemo(() => {
+    return employees.find(
+      (employee) =>
+        String(employee.id) ===
+        String(form.responsible_employee_id)
+    );
+  }, [employees, form.responsible_employee_id]);
 
-      if (
-        name === "accountant_employee_id" &&
-        value === previous.assistant_employee_id
-      ) {
-        next.assistant_employee_id = "";
-      }
-
-      return next;
-    });
+  const handleChange = ({ target: { name, value } }) => {
+    setForm((previous) => ({
+      ...previous,
+      [name]: value,
+    }));
   };
 
   const handleSubmit = async (event) => {
@@ -136,8 +114,8 @@ export default function PaymentForm({
       return;
     }
 
-    if (!form.accountant_employee_id) {
-      setMessage("يرجى اختيار المحاسب");
+    if (!form.responsible_employee_id) {
+      setMessage("اختر الموظف المسؤول عن الاستلام");
       return;
     }
 
@@ -146,7 +124,7 @@ export default function PaymentForm({
       setMessage("");
 
       const response = await fetch(
-        `${FEES_API}/${fee.id}/payments`,
+        `${FEES_API_URL}/${fee.id}/payments`,
         {
           method: "POST",
           headers: {
@@ -157,13 +135,11 @@ export default function PaymentForm({
             payment_method: form.payment_method,
             receipt_number:
               form.receipt_number.trim() || null,
-            accountant_employee_id: Number(
-              form.accountant_employee_id
+            responsible_employee_id: Number(
+              form.responsible_employee_id
             ),
-            assistant_employee_id:
-              form.assistant_employee_id
-                ? Number(form.assistant_employee_id)
-                : null,
+            responsible_employee_name:
+              selectedEmployee?.full_name || null,
             notes: form.notes.trim() || null,
           }),
         }
@@ -210,7 +186,12 @@ export default function PaymentForm({
           </span>
 
           <span>
-            المتبقي: {formatNumber(remaining)} د.ع
+            القسط الدراسي الحالي:{" "}
+            {totalFee.toLocaleString()} د.ع
+          </span>
+
+          <span>
+            المتبقي: {remaining.toLocaleString()} د.ع
           </span>
         </div>
 
@@ -220,7 +201,11 @@ export default function PaymentForm({
 
         <form onSubmit={handleSubmit}>
           <div style={gridStyle}>
-            <Field label="مبلغ الدفعة *">
+            <div>
+              <label style={labelStyle}>
+                مبلغ الدفعة *
+              </label>
+
               <input
                 type="number"
                 name="amount"
@@ -229,12 +214,15 @@ export default function PaymentForm({
                 min="1"
                 max={remaining}
                 required
-                autoFocus
                 style={inputStyle}
               />
-            </Field>
+            </div>
 
-            <Field label="طريقة الدفع">
+            <div>
+              <label style={labelStyle}>
+                طريقة الدفع
+              </label>
+
               <select
                 name="payment_method"
                 value={form.payment_method}
@@ -248,9 +236,13 @@ export default function PaymentForm({
                 <option value="بطاقة">بطاقة</option>
                 <option value="أخرى">أخرى</option>
               </select>
-            </Field>
+            </div>
 
-            <Field label="رقم الإيصال">
+            <div>
+              <label style={labelStyle}>
+                رقم الإيصال
+              </label>
+
               <input
                 name="receipt_number"
                 value={form.receipt_number}
@@ -258,68 +250,40 @@ export default function PaymentForm({
                 placeholder="اختياري"
                 style={inputStyle}
               />
-            </Field>
+            </div>
 
-            <Field label="المحاسب *">
+            <div>
+              <label style={labelStyle}>
+                الموظف المسؤول *
+              </label>
+
               <select
-                name="accountant_employee_id"
-                value={form.accountant_employee_id}
+                name="responsible_employee_id"
+                value={form.responsible_employee_id}
                 onChange={handleChange}
-                disabled={
-                  loadingEmployees ||
-                  selectableAccountants.length === 0
-                }
+                disabled={loadingEmployees}
                 required
                 style={inputStyle}
               >
-                {loadingEmployees ? (
-                  <option value="">
-                    جاري تحميل الموظفين...
-                  </option>
-                ) : selectableAccountants.length ===
-                  0 ? (
-                  <option value="">
-                    لا يوجد موظفون مسجلون
-                  </option>
-                ) : (
-                  selectableAccountants.map(
-                    (employee) => (
-                      <option
-                        key={employee.id}
-                        value={employee.id}
-                      >
-                        {employee.full_name}
-                      </option>
-                    )
-                  )
-                )}
-              </select>
-            </Field>
-
-            <Field label="الموظف المساعد">
-              <select
-                name="assistant_employee_id"
-                value={form.assistant_employee_id}
-                onChange={handleChange}
-                disabled={loadingEmployees}
-                style={inputStyle}
-              >
                 <option value="">
-                  لا يوجد موظف مساعد
+                  {loadingEmployees
+                    ? "جاري تحميل الموظفين..."
+                    : "اختر الموظف"}
                 </option>
 
-                {assistantEmployees.map((employee) => (
+                {employees.map((employee) => (
                   <option
                     key={employee.id}
                     value={employee.id}
                   >
-                    {employee.full_name} —{" "}
-                    {employee.employee_type ||
-                      "موظف"}
+                    {employee.full_name}
+                    {employee.employee_type
+                      ? ` — ${employee.employee_type}`
+                      : ""}
                   </option>
                 ))}
               </select>
-            </Field>
+            </div>
           </div>
 
           <div style={{ marginTop: 14 }}>
@@ -341,13 +305,10 @@ export default function PaymentForm({
             <span>المتبقي بعد الدفعة</span>
 
             <strong>
-              {formatNumber(
-                Math.max(
-                  remaining -
-                    Number(form.amount || 0),
-                  0
-                )
-              )}{" "}
+              {Math.max(
+                remaining - Number(form.amount || 0),
+                0
+              ).toLocaleString()}{" "}
               د.ع
             </strong>
           </div>
@@ -363,20 +324,8 @@ export default function PaymentForm({
 
             <button
               type="submit"
-              disabled={
-                saving ||
-                loadingEmployees ||
-                !form.accountant_employee_id
-              }
-              style={{
-                ...saveButtonStyle,
-                opacity:
-                  saving ||
-                  loadingEmployees ||
-                  !form.accountant_employee_id
-                    ? 0.6
-                    : 1,
-              }}
+              disabled={saving || loadingEmployees}
+              style={saveButtonStyle}
             >
               {saving
                 ? "جاري التسجيل..."
@@ -387,19 +336,6 @@ export default function PaymentForm({
       </div>
     </div>
   );
-}
-
-function Field({ label, children }) {
-  return (
-    <div>
-      <label style={labelStyle}>{label}</label>
-      {children}
-    </div>
-  );
-}
-
-function formatNumber(value) {
-  return Number(value || 0).toLocaleString("en-US");
 }
 
 const overlayStyle = {
@@ -450,7 +386,7 @@ const studentCardStyle = {
 const gridStyle = {
   display: "grid",
   gridTemplateColumns:
-    "repeat(auto-fit, minmax(220px, 1fr))",
+    "repeat(auto-fit, minmax(210px, 1fr))",
   gap: "14px",
 };
 
@@ -462,13 +398,11 @@ const labelStyle = {
 
 const inputStyle = {
   width: "100%",
-  minHeight: "44px",
   padding: "11px",
   border: "1px solid #ccc",
   borderRadius: "8px",
   boxSizing: "border-box",
   fontFamily: "inherit",
-  background: "#fff",
 };
 
 const summaryStyle = {

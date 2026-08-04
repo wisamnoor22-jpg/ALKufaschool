@@ -1,5 +1,25 @@
 const db = require("../db");
 
+const syncStudentFeesForGrade = async (
+  client,
+  grade,
+  academicYear,
+  totalFee
+) => {
+  await client.query(
+    `
+    UPDATE student_fees sf
+    SET total_fee = $1
+    FROM students s
+    WHERE s.id = sf.student_id
+      AND LOWER(TRIM(COALESCE(s.grade, ''))) =
+          LOWER(TRIM($2))
+      AND TRIM(sf.academic_year) = TRIM($3)
+    `,
+    [Number(totalFee), grade, academicYear]
+  );
+};
+
 exports.getGradeFees = async (req, res) => {
   try {
     const result = await db.query(`
@@ -13,18 +33,23 @@ exports.getGradeFees = async (req, res) => {
     console.error(error);
 
     res.status(500).json({
-      message: "حدث خطأ أثناء جلب أقساط المراحل",
+      message:
+        "حدث خطأ أثناء جلب أقساط المراحل",
     });
   }
 };
 
 exports.addGradeFee = async (req, res) => {
+  const client = await db.connect();
+
   try {
-    const { grade, academic_year, total_fee } = req.body;
+    const { grade, academic_year, total_fee } =
+      req.body;
 
     if (!grade?.trim() || !academic_year?.trim()) {
       return res.status(400).json({
-        message: "المرحلة والسنة الدراسية مطلوبتان",
+        message:
+          "المرحلة والسنة الدراسية مطلوبتان",
       });
     }
 
@@ -34,7 +59,9 @@ exports.addGradeFee = async (req, res) => {
       });
     }
 
-    const result = await db.query(
+    await client.query("BEGIN");
+
+    const result = await client.query(
       `
       INSERT INTO grade_fees
       (
@@ -42,7 +69,7 @@ exports.addGradeFee = async (req, res) => {
         academic_year,
         total_fee
       )
-      VALUES ($1,$2,$3)
+      VALUES ($1, $2, $3)
       RETURNING *
       `,
       [
@@ -52,11 +79,22 @@ exports.addGradeFee = async (req, res) => {
       ]
     );
 
+    await syncStudentFeesForGrade(
+      client,
+      grade.trim(),
+      academic_year.trim(),
+      Number(total_fee)
+    );
+
+    await client.query("COMMIT");
+
     res.status(201).json({
-      message: "تمت إضافة قسط المرحلة بنجاح",
+      message:
+        "تمت إضافة قسط المرحلة وتحديث أقساط الطلاب بنجاح",
       gradeFee: result.rows[0],
     });
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error(error);
 
     if (error.code === "23505") {
@@ -67,19 +105,26 @@ exports.addGradeFee = async (req, res) => {
     }
 
     res.status(500).json({
-      message: "حدث خطأ أثناء إضافة قسط المرحلة",
+      message:
+        "حدث خطأ أثناء إضافة قسط المرحلة",
     });
+  } finally {
+    client.release();
   }
 };
 
 exports.updateGradeFee = async (req, res) => {
+  const client = await db.connect();
+
   try {
     const { id } = req.params;
-    const { grade, academic_year, total_fee } = req.body;
+    const { grade, academic_year, total_fee } =
+      req.body;
 
     if (!grade?.trim() || !academic_year?.trim()) {
       return res.status(400).json({
-        message: "المرحلة والسنة الدراسية مطلوبتان",
+        message:
+          "المرحلة والسنة الدراسية مطلوبتان",
       });
     }
 
@@ -89,7 +134,27 @@ exports.updateGradeFee = async (req, res) => {
       });
     }
 
-    const result = await db.query(
+    await client.query("BEGIN");
+
+    const existingResult = await client.query(
+      `
+      SELECT *
+      FROM grade_fees
+      WHERE id = $1
+      FOR UPDATE
+      `,
+      [id]
+    );
+
+    if (existingResult.rows.length === 0) {
+      await client.query("ROLLBACK");
+
+      return res.status(404).json({
+        message: "قسط المرحلة غير موجود",
+      });
+    }
+
+    const result = await client.query(
       `
       UPDATE grade_fees
       SET
@@ -108,17 +173,22 @@ exports.updateGradeFee = async (req, res) => {
       ]
     );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({
-        message: "قسط المرحلة غير موجود",
-      });
-    }
+    await syncStudentFeesForGrade(
+      client,
+      grade.trim(),
+      academic_year.trim(),
+      Number(total_fee)
+    );
+
+    await client.query("COMMIT");
 
     res.json({
-      message: "تم تعديل قسط المرحلة بنجاح",
+      message:
+        "تم تعديل القسط وتحديث وصول الطلاب بنجاح",
       gradeFee: result.rows[0],
     });
   } catch (error) {
+    await client.query("ROLLBACK");
     console.error(error);
 
     if (error.code === "23505") {
@@ -129,8 +199,11 @@ exports.updateGradeFee = async (req, res) => {
     }
 
     res.status(500).json({
-      message: "حدث خطأ أثناء تعديل قسط المرحلة",
+      message:
+        "حدث خطأ أثناء تعديل قسط المرحلة",
     });
+  } finally {
+    client.release();
   }
 };
 
@@ -161,7 +234,8 @@ exports.deleteGradeFee = async (req, res) => {
     console.error(error);
 
     res.status(500).json({
-      message: "حدث خطأ أثناء حذف قسط المرحلة",
+      message:
+        "حدث خطأ أثناء حذف قسط المرحلة",
     });
   }
 };
