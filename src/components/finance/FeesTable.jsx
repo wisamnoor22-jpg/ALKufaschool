@@ -85,7 +85,9 @@ export default function FeesTable({
                               : "pointer",
                         }}
                       >
-                        تسجيل دفعة
+                        {remaining === 0
+                          ? "تم التسديد"
+                          : "تسديد قسط"}
                       </button>
 
                       <button
@@ -155,8 +157,8 @@ const paymentButtonStyle = {
   background: "#198754",
   color: "#fff",
   border: "none",
-  padding: "8px 12px",
-  borderRadius: "7px",
+  padding: "9px 14px",
+  borderRadius: "8px",
   fontWeight: "bold",
 };
 
@@ -164,8 +166,8 @@ const historyButtonStyle = {
   background: "#1e5fa8",
   color: "#fff",
   border: "none",
-  padding: "8px 12px",
-  borderRadius: "7px",
+  padding: "9px 14px",
+  borderRadius: "8px",
   cursor: "pointer",
   fontWeight: "bold",
 };

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import BackButton from "../components/common/BackButton";
 import "../styles/Results.css";
 
@@ -17,6 +17,10 @@ const EXAM_TYPES = ["يومي", "شهري", "نصف السنة"];
 
 export default function Results() {
   const [page, setPage] = useState("home");
+  const [addMethod, setAddMethod] = useState("");
+
+  const excelInputRef = useRef(null);
+  const wordInputRef = useRef(null);
 
   const [grade, setGrade] = useState(GRADES[0]);
   const [section, setSection] = useState(SECTIONS[0]);
@@ -27,6 +31,27 @@ export default function Results() {
     new Date().toISOString().slice(0, 10)
   );
   const [maxScore, setMaxScore] = useState("100");
+
+  const openAddGrades = () => {
+    setPage("add");
+    setAddMethod("");
+  };
+
+  const handleExcelFile = (event) => {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    alert(`تم اختيار ملف Excel:\n${file.name}`);
+  };
+
+  const handleWordFile = (event) => {
+    const file = event.target.files?.[0];
+
+    if (!file) return;
+
+    alert(`تم اختيار ملف Word:\n${file.name}`);
+  };
 
   return (
     <main className="results-page" dir="rtl">
@@ -63,14 +88,15 @@ export default function Results() {
             <button
               type="button"
               className="results-home-card results-home-card-green"
-              onClick={() => setPage("add")}
+              onClick={openAddGrades}
             >
               <div className="results-card-icon">+</div>
 
               <div className="results-card-content">
                 <h2>إضافة درجات</h2>
                 <p>
-                  إنشاء امتحان جديد وإدخال درجات الطلاب ثم حفظها.
+                  إضافة الدرجات يدويًا أو رفعها من ملف Excel أو
+                  Word.
                 </p>
               </div>
 
@@ -99,6 +125,7 @@ export default function Results() {
             <section className="results-panel results-form-grid">
               <label className="results-field">
                 <span>الصف</span>
+
                 <select
                   value={grade}
                   onChange={(event) => setGrade(event.target.value)}
@@ -113,6 +140,7 @@ export default function Results() {
 
               <label className="results-field">
                 <span>الشعبة</span>
+
                 <select
                   value={section}
                   onChange={(event) =>
@@ -129,6 +157,7 @@ export default function Results() {
 
               <label className="results-field">
                 <span>المادة</span>
+
                 <input
                   value={subject}
                   onChange={(event) =>
@@ -139,7 +168,10 @@ export default function Results() {
               </label>
 
               <div className="results-action-box">
-                <button type="button" className="results-primary-button">
+                <button
+                  type="button"
+                  className="results-primary-button"
+                >
                   عرض الدرجات
                 </button>
               </div>
@@ -151,7 +183,7 @@ export default function Results() {
           </section>
         )}
 
-        {page === "add" && (
+        {page === "add" && addMethod === "" && (
           <section>
             <div className="results-subheader">
               <button
@@ -164,6 +196,97 @@ export default function Results() {
 
               <div>
                 <h2>إضافة درجات</h2>
+                <p>اختر طريقة إضافة الدرجات</p>
+              </div>
+            </div>
+
+            <section className="results-methods-grid">
+              <button
+                type="button"
+                className="results-method-card results-method-excel"
+                onClick={() => excelInputRef.current?.click()}
+              >
+                <div className="results-method-icon">X</div>
+
+                <div className="results-method-content">
+                  <h3>رفع Excel</h3>
+                  <p>
+                    رفع ملف درجات بصيغة XLS أو XLSX ومعاينته قبل
+                    الحفظ.
+                  </p>
+                </div>
+
+                <span className="results-card-arrow">←</span>
+              </button>
+
+              <button
+                type="button"
+                className="results-method-card results-method-word"
+                onClick={() => wordInputRef.current?.click()}
+              >
+                <div className="results-method-icon">W</div>
+
+                <div className="results-method-content">
+                  <h3>رفع Word</h3>
+                  <p>
+                    رفع ملف درجات بصيغة DOC أو DOCX ومعاينته قبل
+                    الحفظ.
+                  </p>
+                </div>
+
+                <span className="results-card-arrow">←</span>
+              </button>
+
+              <button
+                type="button"
+                className="results-method-card results-method-manual"
+                onClick={() => setAddMethod("manual")}
+              >
+                <div className="results-method-icon">+</div>
+
+                <div className="results-method-content">
+                  <h3>إدخال يدوي</h3>
+                  <p>
+                    اختيار الصف والشعبة ثم إدخال درجات الطلاب
+                    مباشرة.
+                  </p>
+                </div>
+
+                <span className="results-card-arrow">←</span>
+              </button>
+            </section>
+
+            <input
+              ref={excelInputRef}
+              className="results-hidden-input"
+              type="file"
+              accept=".xls,.xlsx"
+              onChange={handleExcelFile}
+            />
+
+            <input
+              ref={wordInputRef}
+              className="results-hidden-input"
+              type="file"
+              accept=".doc,.docx"
+              onChange={handleWordFile}
+            />
+          </section>
+        )}
+
+        {page === "add" && addMethod === "manual" && (
+          <section>
+            <div className="results-subheader">
+              <button
+                type="button"
+                className="results-back-button"
+                onClick={() => setAddMethod("")}
+              >
+                رجوع
+              </button>
+
+              <div>
+                <h2>الإدخال اليدوي</h2>
                 <p>أدخل بيانات الامتحان ثم اعرض الطلاب</p>
               </div>
             </div>
@@ -171,6 +294,7 @@ export default function Results() {
             <section className="results-panel results-form-grid">
               <label className="results-field">
                 <span>الصف</span>
+
                 <select
                   value={grade}
                   onChange={(event) => setGrade(event.target.value)}
@@ -185,6 +309,7 @@ export default function Results() {
 
               <label className="results-field">
                 <span>الشعبة</span>
+
                 <select
                   value={section}
                   onChange={(event) =>
@@ -201,6 +326,7 @@ export default function Results() {
 
               <label className="results-field">
                 <span>المادة</span>
+
                 <input
                   value={subject}
                   onChange={(event) =>
@@ -212,6 +338,7 @@ export default function Results() {
 
               <label className="results-field">
                 <span>نوع الامتحان</span>
+
                 <select
                   value={examType}
                   onChange={(event) =>
@@ -228,6 +355,7 @@ export default function Results() {
 
               <label className="results-field">
                 <span>اسم الامتحان</span>
+
                 <input
                   value={examName}
                   onChange={(event) =>
@@ -239,6 +367,7 @@ export default function Results() {
 
               <label className="results-field">
                 <span>تاريخ الامتحان</span>
+
                 <input
                   type="date"
                   value={examDate}
@@ -250,6 +379,7 @@ export default function Results() {
 
               <label className="results-field">
                 <span>الدرجة الكلية</span>
+
                 <input
                   type="number"
                   min="1"
@@ -261,7 +391,10 @@ export default function Results() {
               </label>
 
               <div className="results-action-box">
-                <button type="button" className="results-primary-button">
+                <button
+                  type="button"
+                  className="results-primary-button"
+                >
                   عرض الطلاب
                 </button>
               </div>

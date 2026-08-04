@@ -46,6 +46,11 @@ export default function Fees() {
   const [selectedFeeForHistory, setSelectedFeeForHistory] =
     useState(null);
 
+  const [showQuickPayment, setShowQuickPayment] =
+    useState(false);
+
+  const [quickSearch, setQuickSearch] = useState("");
+
   const loadFees = async () => {
     try {
       setLoading(true);
@@ -55,13 +60,15 @@ export default function Fees() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "تعذر جلب الحسابات");
+        throw new Error(
+          data.message || "تعذر جلب الحسابات"
+        );
       }
 
-      setFees(data);
+      setFees(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error(error);
-      setMessage(error.message);
+      setMessage(error.message || "تعذر جلب الحسابات");
     } finally {
       setLoading(false);
     }
@@ -89,6 +96,31 @@ export default function Fees() {
     });
   }, [fees, search]);
 
+  const quickPaymentFees = useMemo(() => {
+    const query = quickSearch.trim().toLowerCase();
+
+    const unpaidFees = fees.filter((fee) => {
+      const totalFee = Number(fee.total_fee || 0);
+      const discount = Number(fee.discount || 0);
+      const paid = Number(fee.paid || 0);
+      const remaining = Math.max(
+        totalFee - discount - paid,
+        0
+      );
+
+      return remaining > 0;
+    });
+
+    if (!query) return unpaidFees;
+
+    return unpaidFees.filter((fee) => {
+      return (
+        fee.full_name?.toLowerCase().includes(query) ||
+        fee.academic_year?.toLowerCase().includes(query)
+      );
+    });
+  }, [fees, quickSearch]);
+
   const totals = useMemo(() => {
     return fees.reduce(
       (result, fee) => {
@@ -99,7 +131,10 @@ export default function Fees() {
 
         result.totalFees += netFee;
         result.totalPaid += paid;
-        result.totalRemaining += Math.max(netFee - paid, 0);
+        result.totalRemaining += Math.max(
+          netFee - paid,
+          0
+        );
 
         return result;
       },
@@ -113,6 +148,8 @@ export default function Fees() {
 
   const handlePaymentSaved = () => {
     setSelectedFeeForPayment(null);
+    setShowQuickPayment(false);
+    setQuickSearch("");
     loadFees();
   };
 
@@ -120,6 +157,28 @@ export default function Fees() {
     setActiveSection("");
     setSearch("");
     setMessage("");
+    setShowQuickPayment(false);
+    setQuickSearch("");
+  };
+
+  const openQuickPayment = () => {
+    setMessage("");
+
+    if (fees.length === 0) {
+      setMessage(
+        "لا توجد حسابات طلاب متاحة لتسديد قسط"
+      );
+      return;
+    }
+
+    setQuickSearch("");
+    setShowQuickPayment(true);
+  };
+
+  const chooseStudentForPayment = (fee) => {
+    setShowQuickPayment(false);
+    setQuickSearch("");
+    setSelectedFeeForPayment(fee);
   };
 
   return (
@@ -158,7 +217,9 @@ export default function Fees() {
             <button
               key={section.id}
               type="button"
-              onClick={() => setActiveSection(section.id)}
+              onClick={() =>
+                setActiveSection(section.id)
+              }
               style={sectionCardStyle}
             >
               <span style={sectionIconStyle}>
@@ -182,15 +243,25 @@ export default function Fees() {
       )}
 
       {activeSection === "grade-fees" && (
-  <GradeFeesManager />
-)}
+        <GradeFeesManager />
+      )}
 
       {activeSection === "payments" && (
         <>
-          <SectionTitle
-            title="تسديد الأقساط"
-            description="اختر الطالب ثم سجل الدفعة المستلمة"
-          />
+          <div style={paymentsTopRowStyle}>
+            <SectionTitle
+              title="تسديد الأقساط"
+              description="اختر الطالب ثم سجل الدفعة المستلمة"
+            />
+
+            <button
+              type="button"
+              onClick={openQuickPayment}
+              style={topPaymentButtonStyle}
+            >
+              + تسديد قسط
+            </button>
+          </div>
 
           <SearchInput
             search={search}
@@ -226,10 +297,103 @@ export default function Fees() {
         </>
       )}
 
+      {showQuickPayment && (
+        <div style={quickOverlayStyle}>
+          <div style={quickModalStyle}>
+            <div style={quickModalHeaderStyle}>
+              <div>
+                <h2 style={{ margin: 0 }}>
+                  تسديد قسط
+                </h2>
+
+                <p style={quickModalSubtitleStyle}>
+                  ابحث عن الطالب ثم اختر حسابه
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowQuickPayment(false);
+                  setQuickSearch("");
+                }}
+                style={quickCloseButtonStyle}
+              >
+                ×
+              </button>
+            </div>
+
+            <input
+              value={quickSearch}
+              onChange={(event) =>
+                setQuickSearch(event.target.value)
+              }
+              placeholder="ابحث باسم الطالب أو السنة الدراسية..."
+              style={quickSearchStyle}
+              autoFocus
+            />
+
+            <div style={quickStudentsListStyle}>
+              {quickPaymentFees.length === 0 ? (
+                <div style={quickEmptyStyle}>
+                  لا يوجد طالب لديه مبلغ متبقٍ
+                </div>
+              ) : (
+                quickPaymentFees.map((fee) => {
+                  const totalFee = Number(
+                    fee.total_fee || 0
+                  );
+                  const discount = Number(
+                    fee.discount || 0
+                  );
+                  const paid = Number(fee.paid || 0);
+                  const remaining = Math.max(
+                    totalFee - discount - paid,
+                    0
+                  );
+
+                  return (
+                    <button
+                      key={fee.id}
+                      type="button"
+                      onClick={() =>
+                        chooseStudentForPayment(fee)
+                      }
+                      style={quickStudentButtonStyle}
+                    >
+                      <div>
+                        <strong style={quickStudentNameStyle}>
+                          {fee.full_name}
+                        </strong>
+
+                        <span style={quickStudentMetaStyle}>
+                          السنة الدراسية:{" "}
+                          {fee.academic_year}
+                        </span>
+                      </div>
+
+                      <div style={quickRemainingBoxStyle}>
+                        <span>المتبقي</span>
+
+                        <strong>
+                          {remaining.toLocaleString()} د.ع
+                        </strong>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {selectedFeeForPayment && (
         <PaymentForm
           fee={selectedFeeForPayment}
-          onClose={() => setSelectedFeeForPayment(null)}
+          onClose={() =>
+            setSelectedFeeForPayment(null)
+          }
           onSaved={handlePaymentSaved}
         />
       )}
@@ -237,7 +401,9 @@ export default function Fees() {
       {selectedFeeForHistory && (
         <PaymentHistory
           fee={selectedFeeForHistory}
-          onClose={() => setSelectedFeeForHistory(null)}
+          onClose={() =>
+            setSelectedFeeForHistory(null)
+          }
         />
       )}
     </div>
@@ -271,15 +437,6 @@ function SearchInput({
         placeholder={placeholder}
         style={searchStyle}
       />
-    </div>
-  );
-}
-
-function SectionPlaceholder({ title, text }) {
-  return (
-    <div style={placeholderStyle}>
-      <h3 style={{ marginTop: 0 }}>{title}</h3>
-      <p style={{ marginBottom: 0 }}>{text}</p>
     </div>
   );
 }
@@ -357,12 +514,37 @@ const arrowStyle = {
   fontWeight: "bold",
 };
 
-const sectionHeaderStyle = {
+const paymentsTopRowStyle = {
+  display: "flex",
+  alignItems: "stretch",
+  justifyContent: "space-between",
+  gap: "14px",
   marginBottom: "20px",
+  direction: "rtl",
+};
+
+const sectionHeaderStyle = {
+  flex: 1,
+  marginBottom: 0,
   padding: "18px",
   background: "#fff",
   borderRadius: "13px",
   border: "1px solid #e5e9ef",
+};
+
+const topPaymentButtonStyle = {
+  alignSelf: "stretch",
+  minWidth: "170px",
+  padding: "14px 22px",
+  border: "none",
+  borderRadius: "13px",
+  background: "#198754",
+  color: "#fff",
+  fontFamily: "inherit",
+  fontSize: "17px",
+  fontWeight: "900",
+  cursor: "pointer",
+  boxShadow: "0 7px 18px rgba(25,135,84,.22)",
 };
 
 const searchStyle = {
@@ -374,20 +556,121 @@ const searchStyle = {
   boxSizing: "border-box",
 };
 
-const placeholderStyle = {
-  padding: "40px 25px",
-  textAlign: "center",
-  color: "#666",
-  background: "#fff",
-  border: "1px solid #e5e9ef",
-  borderRadius: "14px",
-};
-
 const messageStyle = {
   background: "#ffebee",
   color: "#b71c1c",
-  padding: "12px",                                                                                                          
+  padding: "12px",
   borderRadius: "9px",
   marginBottom: "15px",
   fontWeight: "bold",
+};
+
+const quickOverlayStyle = {
+  position: "fixed",
+  inset: 0,
+  zIndex: 1300,
+  padding: "20px",
+  background: "rgba(15,23,42,.58)",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
+
+const quickModalStyle = {
+  width: "min(720px, 100%)",
+  maxHeight: "88vh",
+  padding: "22px",
+  borderRadius: "16px",
+  background: "#fff",
+  overflowY: "auto",
+  boxShadow: "0 24px 70px rgba(15,23,42,.28)",
+};
+
+const quickModalHeaderStyle = {
+  display: "flex",
+  alignItems: "flex-start",
+  justifyContent: "space-between",
+  gap: "15px",
+  marginBottom: "16px",
+};
+
+const quickModalSubtitleStyle = {
+  margin: "6px 0 0",
+  color: "#64748b",
+};
+
+const quickCloseButtonStyle = {
+  width: "40px",
+  height: "40px",
+  border: "none",
+  borderRadius: "9px",
+  background: "#f1f5f9",
+  color: "#334155",
+  fontSize: "26px",
+  cursor: "pointer",
+};
+
+const quickSearchStyle = {
+  width: "100%",
+  minHeight: "46px",
+  padding: "11px 13px",
+  border: "1px solid #cbd5e1",
+  borderRadius: "10px",
+  boxSizing: "border-box",
+  fontFamily: "inherit",
+  fontSize: "15px",
+  outline: "none",
+};
+
+const quickStudentsListStyle = {
+  display: "grid",
+  gap: "10px",
+  marginTop: "15px",
+};
+
+const quickStudentButtonStyle = {
+  width: "100%",
+  minHeight: "82px",
+  padding: "14px",
+  border: "1px solid #dfe7ef",
+  borderRadius: "12px",
+  background: "#fff",
+  color: "#1f2937",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: "14px",
+  textAlign: "right",
+  fontFamily: "inherit",
+  cursor: "pointer",
+};
+
+const quickStudentNameStyle = {
+  display: "block",
+  color: "#163c70",
+  fontSize: "17px",
+};
+
+const quickStudentMetaStyle = {
+  display: "block",
+  marginTop: "6px",
+  color: "#64748b",
+  fontSize: "14px",
+};
+
+const quickRemainingBoxStyle = {
+  minWidth: "145px",
+  padding: "10px",
+  borderRadius: "9px",
+  background: "#fff7ed",
+  color: "#9a3412",
+  textAlign: "center",
+};
+
+const quickEmptyStyle = {
+  padding: "36px",
+  border: "1px dashed #cbd5e1",
+  borderRadius: "12px",
+  color: "#64748b",
+  textAlign: "center",
 };
