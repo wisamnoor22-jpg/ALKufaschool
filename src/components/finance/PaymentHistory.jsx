@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 const API_URL = "http://localhost:5000/fees";
+const LOGO_PATH = "/school-logo.png";
 
 export default function PaymentHistory({ fee, onClose }) {
   const [payments, setPayments] = useState([]);
-  const [selectedPaymentId, setSelectedPaymentId] = useState("");
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
@@ -25,76 +25,57 @@ export default function PaymentHistory({ fee, onClose }) {
 
       if (!response.ok) {
         throw new Error(
-          data.message || "تعذر جلب سجل الدفعات"
+          data.message || "تعذر جلب آخر دفعة"
         );
       }
 
-      const loadedPayments = Array.isArray(data) ? data : [];
-
-      setPayments(loadedPayments);
-
-      if (loadedPayments.length > 0) {
-        setSelectedPaymentId(
-          String(loadedPayments[0].id)
-        );
-      }
+      setPayments(Array.isArray(data) ? data : []);
     } catch (error) {
-      setMessage(error.message || "تعذر جلب سجل الدفعات");
+      setMessage(
+        error.message || "تعذر جلب آخر دفعة"
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  const selectedPayment = useMemo(() => {
-    return (
-      payments.find(
-        (payment) =>
-          String(payment.id) ===
-          String(selectedPaymentId)
-      ) || payments[0]
-    );
-  }, [payments, selectedPaymentId]);
+  const latestPayment = payments[0] || null;
 
   const totalFee = Number(fee.total_fee || 0);
-  const paidBeforeSelected = useMemo(() => {
-    if (!selectedPayment) return 0;
+  const discount = Number(fee.discount || 0);
+  const netFee = Math.max(totalFee - discount, 0);
 
-    return payments
-      .filter(
-        (payment) =>
-          Number(payment.id) < Number(selectedPayment.id)
-      )
-      .reduce(
-        (sum, payment) =>
-          sum + Number(payment.amount || 0),
-        0
-      );
-  }, [payments, selectedPayment]);
+  const totalPaid = useMemo(() => {
+    return payments.reduce(
+      (sum, payment) =>
+        sum + Number(payment.amount || 0),
+      0
+    );
+  }, [payments]);
 
   const currentAmount = Number(
-    selectedPayment?.amount || 0
+    latestPayment?.amount || 0
   );
 
-  const totalPaidAfterPayment =
-    paidBeforeSelected + currentAmount;
+  const paidBeforeLatest = Math.max(
+    totalPaid - currentAmount,
+    0
+  );
 
   const remainingAfterPayment = Math.max(
-    totalFee - totalPaidAfterPayment,
+    netFee - totalPaid,
     0
   );
 
   const collectionRate =
-    totalFee > 0
-      ? Math.min(
-          (totalPaidAfterPayment / totalFee) * 100,
-          100
-        )
+    netFee > 0
+      ? Math.min((totalPaid / netFee) * 100, 100)
       : 0;
 
-  const printReceipt = () => {
-    if (!selectedPayment) return;
+  const printLatestReceipt = () => {
+    if (!latestPayment) return;
 
-    const logoUrl = `${window.location.origin}/logo.png`;
+    const logoUrl = `${window.location.origin}${LOGO_PATH}`;
 
     const receiptHtml = `
       <!doctype html>
@@ -125,7 +106,6 @@ export default function PaymentHistory({ fee, onClose }) {
             }
 
             body {
-              padding: 0;
               direction: rtl;
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
@@ -139,16 +119,16 @@ export default function PaymentHistory({ fee, onClose }) {
             }
 
             .receipt-header {
-              padding: 10px 18px 12px;
+              padding: 8px 18px 10px;
               border-bottom: 2px solid #000000;
               text-align: center;
             }
 
             .logo {
               display: block;
-              width: 82px;
-              height: 82px;
-              margin: 0 auto 5px;
+              width: 90px;
+              height: 90px;
+              margin: 0 auto 4px;
               object-fit: contain;
             }
 
@@ -159,15 +139,15 @@ export default function PaymentHistory({ fee, onClose }) {
             }
 
             .receipt-title {
-              margin-top: 4px;
+              margin-top: 3px;
               font-size: 19px;
               font-weight: 900;
             }
 
-            .receipt-body {
+            .body {
               display: grid;
               gap: 9px;
-              padding: 14px 18px 18px;
+              padding: 13px 18px 18px;
             }
 
             .grid-4 {
@@ -207,7 +187,6 @@ export default function PaymentHistory({ fee, onClose }) {
               display: block;
               min-height: 30px;
               padding: 7px;
-              color: #000000;
               font-size: 15px;
               font-weight: 900;
               text-align: center;
@@ -236,7 +215,6 @@ export default function PaymentHistory({ fee, onClose }) {
               display: flex;
               align-items: center;
               padding: 7px 10px;
-              color: #000000;
               font-size: 14px;
               font-weight: 900;
             }
@@ -245,7 +223,6 @@ export default function PaymentHistory({ fee, onClose }) {
               direction: ltr;
               unicode-bidi: isolate;
               font-family: Arial, sans-serif;
-              font-weight: 900;
             }
 
             .footer {
@@ -257,17 +234,18 @@ export default function PaymentHistory({ fee, onClose }) {
               padding-top: 8px;
             }
 
-            .employee {
-              min-width: 330px;
-              text-align: right;
+            .employees {
+              display: grid;
+              gap: 11px;
+              min-width: 430px;
               font-size: 14px;
               font-weight: 900;
             }
 
-            .employee strong {
+            .employee-line strong {
               display: inline-block;
-              min-width: 210px;
-              padding-bottom: 5px;
+              min-width: 230px;
+              padding-bottom: 4px;
               border-bottom: 1px solid #000000;
             }
 
@@ -291,6 +269,7 @@ export default function PaymentHistory({ fee, onClose }) {
           <section class="receipt">
             <header class="receipt-header">
               <img
+                id="schoolLogo"
                 class="logo"
                 src="${logoUrl}"
                 alt=""
@@ -305,18 +284,20 @@ export default function PaymentHistory({ fee, onClose }) {
               </div>
             </header>
 
-            <div class="receipt-body">
+            <div class="body">
               <div class="grid-4">
                 ${printBox(
                   "رقم الوصل",
-                  selectedPayment.receipt_number ||
-                    formatNumber(selectedPayment.id),
+                  latestPayment.receipt_number ||
+                    formatNumber(latestPayment.id),
                   true
                 )}
 
                 ${printBox(
                   "تاريخ التسديد",
-                  formatDate(selectedPayment.payment_date),
+                  formatDate(
+                    latestPayment.payment_date
+                  ),
                   true
                 )}
 
@@ -353,7 +334,7 @@ export default function PaymentHistory({ fee, onClose }) {
 
                 ${printField(
                   "طريقة الدفع",
-                  selectedPayment.payment_method ||
+                  latestPayment.payment_method ||
                     "نقدًا"
                 )}
               </div>
@@ -373,7 +354,9 @@ export default function PaymentHistory({ fee, onClose }) {
 
                 ${printField(
                   "المتبقي بعد الدفعة",
-                  formatMoney(remainingAfterPayment),
+                  formatMoney(
+                    remainingAfterPayment
+                  ),
                   true
                 )}
               </div>
@@ -390,32 +373,49 @@ export default function PaymentHistory({ fee, onClose }) {
               <div class="grid-3">
                 ${printField(
                   "المدفوع سابقًا",
-                  formatMoney(paidBeforeSelected),
+                  formatMoney(paidBeforeLatest),
                   true
                 )}
 
                 ${printField(
                   "إجمالي المدفوع",
-                  formatMoney(totalPaidAfterPayment),
+                  formatMoney(totalPaid),
                   true
                 )}
 
                 ${printField(
                   "الملاحظات",
-                  selectedPayment.notes ||
+                  latestPayment.notes ||
                     "لا توجد ملاحظات"
                 )}
               </div>
 
               <div class="footer">
-                <div class="employee">
-                  الموظف المختص:
-                  <strong>
-                    ${escapeHtml(
-                      selectedPayment.employee_name ||
-                        "غير مسجل"
-                    )}
-                  </strong>
+                <div class="employees">
+                  <div class="employee-line">
+                    المحاسب:
+                    <strong>
+                      ${escapeHtml(
+                        latestPayment.accountant_name ||
+                          "غير مسجل"
+                      )}
+                    </strong>
+                  </div>
+
+                  ${
+                    latestPayment.assistant_name
+                      ? `
+                        <div class="employee-line">
+                          الموظف المساعد:
+                          <strong>
+                            ${escapeHtml(
+                              latestPayment.assistant_name
+                            )}
+                          </strong>
+                        </div>
+                      `
+                      : ""
+                  }
                 </div>
 
                 <div class="stamp">
@@ -427,15 +427,27 @@ export default function PaymentHistory({ fee, onClose }) {
           </section>
 
           <script>
-            window.addEventListener("load", function () {
+            function beginPrint() {
               setTimeout(function () {
                 window.print();
-              }, 300);
-            });
+              }, 250);
+            }
 
-            window.addEventListener("afterprint", function () {
-              window.close();
-            });
+            var logo = document.getElementById("schoolLogo");
+
+            if (logo.complete) {
+              beginPrint();
+            } else {
+              logo.onload = beginPrint;
+              logo.onerror = beginPrint;
+            }
+
+            window.addEventListener(
+              "afterprint",
+              function () {
+                window.close();
+              }
+            );
           </script>
         </body>
       </html>
@@ -464,7 +476,9 @@ export default function PaymentHistory({ fee, onClose }) {
       <div style={modalStyle}>
         <div style={headerStyle}>
           <div>
-            <h2 style={{ margin: 0 }}>طباعة وصل</h2>
+            <h2 style={{ margin: 0 }}>
+              طباعة آخر وصل
+            </h2>
 
             <div style={subTitleStyle}>
               {fee.full_name} — {fee.academic_year}
@@ -486,74 +500,54 @@ export default function PaymentHistory({ fee, onClose }) {
 
         {loading ? (
           <p style={loadingStyle}>
-            جاري تحميل الدفعات...
+            جاري تحميل آخر دفعة...
           </p>
-        ) : payments.length === 0 ? (
+        ) : !latestPayment ? (
           <div style={emptyStyle}>
             لا توجد دفعات مسجلة لهذا الطالب.
           </div>
         ) : (
           <>
-            <div style={paymentSelectorStyle}>
-              <label style={selectorLabelStyle}>
-                اختر الدفعة المطلوب طباعة وصلها
-              </label>
+            <section style={previewStyle}>
+              <div style={previewHeaderStyle}>
+                <img
+                  src={LOGO_PATH}
+                  alt=""
+                  style={logoStyle}
+                />
 
-              <select
-                value={selectedPaymentId}
-                onChange={(event) =>
-                  setSelectedPaymentId(event.target.value)
-                }
-                style={selectorStyle}
-              >
-                {payments.map((payment) => (
-                  <option
-                    key={payment.id}
-                    value={payment.id}
-                  >
-                    {formatDate(payment.payment_date)} —{" "}
-                    {formatMoney(payment.amount)}
-                  </option>
-                ))}
-              </select>
-            </div>
+                <h3 style={previewSchoolStyle}>
+                  مدرسة الكوفة الأهلية
+                </h3>
 
-            {selectedPayment && (
-              <section style={previewStyle}>
-                <div style={previewHeaderStyle}>
-                  <img
-                    src="/logo.png"
-                    alt=""
-                    style={logoStyle}
-                  />
-
-                  <h3 style={previewSchoolStyle}>
-                    مدرسة الكوفة الأهلية
-                  </h3>
-
-                  <div style={previewTitleStyle}>
-                    وصل قبض أجور دراسية
-                  </div>
+                <div style={previewTitleStyle}>
+                  وصل قبض أجور دراسية
                 </div>
+              </div>
 
-                <div style={previewBodyStyle}>
-                  <strong>
-                    الطالب: {fee.full_name}
-                  </strong>
+              <div style={previewBodyStyle}>
+                <strong>
+                  الطالب: {fee.full_name}
+                </strong>
 
+                <span>
+                  آخر دفعة: {formatMoney(currentAmount)}
+                </span>
+
+                <span>
+                  المحاسب:{" "}
+                  {latestPayment.accountant_name ||
+                    "غير مسجل"}
+                </span>
+
+                {latestPayment.assistant_name && (
                   <span>
-                    مبلغ الدفعة:{" "}
-                    {formatMoney(currentAmount)}
+                    الموظف المساعد:{" "}
+                    {latestPayment.assistant_name}
                   </span>
-
-                  <span>
-                    الموظف المختص:{" "}
-                    {selectedPayment.employee_name ||
-                      "غير مسجل"}
-                  </span>
-                </div>
-              </section>
-            )}
+                )}
+              </div>
+            </section>
 
             <div style={actionsStyle}>
               <button
@@ -566,10 +560,10 @@ export default function PaymentHistory({ fee, onClose }) {
 
               <button
                 type="button"
-                onClick={printReceipt}
+                onClick={printLatestReceipt}
                 style={printButtonStyle}
               >
-                طباعة الوصل
+                طباعة آخر وصل
               </button>
             </div>
           </>
@@ -802,7 +796,7 @@ const overlayStyle = {
 
 const modalStyle = {
   width: "100%",
-  maxWidth: "850px",
+  maxWidth: "780px",
   maxHeight: "92vh",
   overflowY: "auto",
   padding: "24px",
@@ -853,30 +847,6 @@ const emptyStyle = {
   textAlign: "center",
 };
 
-const paymentSelectorStyle = {
-  padding: "15px",
-  marginBottom: "16px",
-  border: "1px solid #e4e8ee",
-  borderRadius: "10px",
-  background: "#f7f9fc",
-};
-
-const selectorLabelStyle = {
-  display: "block",
-  marginBottom: "7px",
-  fontWeight: "bold",
-};
-
-const selectorStyle = {
-  width: "100%",
-  minHeight: "43px",
-  padding: "9px 11px",
-  border: "1px solid #cbd5e1",
-  borderRadius: "8px",
-  background: "#ffffff",
-  fontFamily: "inherit",
-};
-
 const previewStyle = {
   border: "1px solid #d7dee8",
   borderRadius: "12px",
@@ -892,8 +862,8 @@ const previewHeaderStyle = {
 
 const logoStyle = {
   display: "block",
-  width: "72px",
-  height: "72px",
+  width: "84px",
+  height: "84px",
   margin: "0 auto 5px",
   objectFit: "contain",
 };
