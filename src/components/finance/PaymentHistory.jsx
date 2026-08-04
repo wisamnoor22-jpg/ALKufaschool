@@ -243,9 +243,17 @@ export default function PaymentHistory({ fee, onClose }) {
             }
 
             .employee-line strong {
-              display: inline-block;
-              min-width: 230px;
-              padding-bottom: 4px;
+              display: inline;
+              min-width: 0;
+              padding-bottom: 0;
+              border-bottom: none;
+            }
+
+            .employee-line::after {
+              content: "";
+              display: block;
+              width: 230px;
+              margin-top: 18px;
               border-bottom: 1px solid #000000;
             }
 

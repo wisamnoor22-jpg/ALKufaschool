@@ -12,22 +12,22 @@ const FEES_API = "http://localhost:5000/fees";
 
 const sections = [
   {
-    id: "grade-fees",
-    title: "إدارة الأقساط الدراسية",
-    description: "تحديد مبلغ القسط لكل مرحلة دراسية",
-    icon: "⚙️",
-  },
-  {
     id: "payments",
     title: "تسديد الأقساط",
     description: "البحث عن الطالب وتسجيل دفعة جديدة",
-    icon: "💵",
+    code: "PY",
+  },
+  {
+    id: "grade-fees",
+    title: "إدارة الأقساط الدراسية",
+    description: "تحديد مبلغ القسط لكل مرحلة دراسية",
+    code: "FM",
   },
   {
     id: "reports",
     title: "التقارير المالية",
     description: "تقارير المقبوضات والمتبقي والتحصيل",
-    icon: "📊",
+    code: "RP",
   },
 ];
 
@@ -212,7 +212,7 @@ export default function Fees() {
       )}
 
       {!activeSection && (
-        <div style={sectionsGridStyle}>
+        <div className="section-cards" style={sectionsGridStyle}>
           {sections.map((section) => (
             <button
               key={section.id}
@@ -220,23 +220,19 @@ export default function Fees() {
               onClick={() =>
                 setActiveSection(section.id)
               }
-              style={sectionCardStyle}
+              className="section-card"
+              style={sectionButtonResetStyle}
             >
-              <span style={sectionIconStyle}>
-                {section.icon}
+              <span className="section-icon">
+                {section.code}
               </span>
 
               <div>
-                <h3 style={sectionTitleStyle}>
-                  {section.title}
-                </h3>
-
-                <p style={sectionDescriptionStyle}>
-                  {section.description}
-                </p>
+                <h3>{section.title}</h3>
+                <p>{section.description}</p>
               </div>
 
-              <span style={arrowStyle}>←</span>
+              <b>←</b>
             </button>
           ))}
         </div>
@@ -461,57 +457,16 @@ const backButtonStyle = {
 };
 
 const sectionsGridStyle = {
-  display: "grid",
+  direction: "rtl",
   gridTemplateColumns:
-    "repeat(auto-fit, minmax(260px, 1fr))",
-  gap: "18px",
+    "repeat(3, minmax(260px, 1fr))",
 };
 
-const sectionCardStyle = {
-  position: "relative",
-  display: "flex",
-  alignItems: "center",
-  gap: "16px",
-  minHeight: "135px",
-  padding: "22px",
-  background: "#fff",
-  color: "#222",
-  border: "1px solid #e5e9ef",
-  borderRadius: "15px",
-  boxShadow: "0 7px 20px rgba(0,0,0,.07)",
+const sectionButtonResetStyle = {
+  width: "100%",
+  fontFamily: "inherit",
   textAlign: "right",
   cursor: "pointer",
-};
-
-const sectionIconStyle = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  flexShrink: 0,
-  width: "55px",
-  height: "55px",
-  background: "#edf3fb",
-  borderRadius: "13px",
-  fontSize: "27px",
-};
-
-const sectionTitleStyle = {
-  margin: "0 0 7px",
-  color: "#1e3c72",
-};
-
-const sectionDescriptionStyle = {
-  margin: 0,
-  color: "#777",
-  lineHeight: 1.6,
-};
-
-const arrowStyle = {
-  position: "absolute",
-  left: "18px",
-  bottom: "15px",
-  color: "#1e3c72",
-  fontWeight: "bold",
 };
 
 const paymentsTopRowStyle = {
