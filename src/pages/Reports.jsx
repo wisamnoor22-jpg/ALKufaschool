@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import BackButton from "../components/common/BackButton";
+import ReportPrintHeader from "../components/common/ReportPrintHeader";
 import "../styles/reports.css";
+import "../styles/reportPrint.css";
 
 const API_BASE = "http://localhost:5000";
 
@@ -237,8 +239,19 @@ function StudentAttendanceReport({ onBack }) {
     URL.revokeObjectURL(url);
   };
 
+  const academicYear =
+    report.records.find((record) => record.academic_year)?.academic_year ||
+    students.find((student) => student.academic_year)?.academic_year ||
+    "";
+  const printDate =
+    effectiveRange.from === effectiveRange.to
+      ? formatDate(effectiveRange.from)
+      : `${formatDate(effectiveRange.from)} إلى ${formatDate(
+          effectiveRange.to
+        )}`;
+
   return (
-    <section className="reports-workspace student-report-workspace">
+    <section className="reports-workspace student-report-workspace report-print-document">
       <header className="reports-workspace-header">
         <button
           type="button"
@@ -346,6 +359,12 @@ function StudentAttendanceReport({ onBack }) {
 
       </section>
 
+      <ReportPrintHeader
+        title="تقرير حضور الطلاب"
+        date={printDate}
+        academicYear={academicYear}
+      />
+
       <section className="reports-summary-grid">
         <article className="reports-summary-card absent">
           <strong>{report.summary.absent_count}</strong>
@@ -366,15 +385,6 @@ function StudentAttendanceReport({ onBack }) {
           <strong>{report.summary.absent_students_count}</strong>
           <span>طلاب غائبون</span>
         </article>
-      </section>
-
-      <section className="reports-print-header">
-        <h1>مدرسة الكوفة</h1>
-        <h2>تقرير حضور الطلاب</h2>
-        <p>
-          الفترة: {formatDate(effectiveRange.from)} إلى{" "}
-          {formatDate(effectiveRange.to)}
-        </p>
       </section>
 
       <section className="reports-table-card">
@@ -663,9 +673,15 @@ function EmployeeAttendanceReport({ onBack }) {
       record.status === "excused" ||
       record.status === "late"
   );
+  const printDate =
+    effectiveRange.from === effectiveRange.to
+      ? formatDate(effectiveRange.from)
+      : `${formatDate(effectiveRange.from)} إلى ${formatDate(
+          effectiveRange.to
+        )}`;
 
   return (
-    <section className="reports-workspace employee-report-workspace">
+    <section className="reports-workspace employee-report-workspace report-print-document">
       <header className="reports-workspace-header">
         <button
           type="button"
@@ -757,6 +773,11 @@ function EmployeeAttendanceReport({ onBack }) {
         </div>
       </section>
 
+      <ReportPrintHeader
+        title="تقرير حضور الموظفين"
+        date={printDate}
+      />
+
       <section className="reports-summary-grid">
         <article className="reports-summary-card absent">
           <strong>{report.summary.absent_count}</strong>
@@ -777,15 +798,6 @@ function EmployeeAttendanceReport({ onBack }) {
           <strong>{report.summary.total_late_minutes}</strong>
           <span>مجموع دقائق التأخير</span>
         </article>
-      </section>
-
-      <section className="reports-print-header">
-        <h1>مدرسة الكوفة</h1>
-        <h2>تقرير حضور الموظفين</h2>
-        <p>
-          الفترة: {formatDate(effectiveRange.from)} إلى{" "}
-          {formatDate(effectiveRange.to)}
-        </p>
       </section>
 
       <section className="reports-table-card">

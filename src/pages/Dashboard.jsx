@@ -1,6 +1,8 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import ReportPrintHeader from "../components/common/ReportPrintHeader";
 import "../styles/Dashboard.css";
+import "../styles/reportPrint.css";
 import schoolLogo from "../images/logo.png";
 
 const employees = [
@@ -341,11 +343,16 @@ export default function Dashboard() {
 
       {attendanceOpen && (
         <div className="modal-overlay">
-          <div className="absence-modal printable-area">
-            <div className="modal-header">
+          <div className="absence-modal printable-area report-print-document">
+            <div className="modal-header report-screen-only">
               <div><h2>قائمة الطلاب الغائبين</h2><p>{dateText}</p></div>
               <button type="button" className="print-hide" onClick={() => setAttendanceOpen(false)}>×</button>
             </div>
+
+            <ReportPrintHeader
+              title="قائمة الطلاب الغائبين"
+              date={dateText}
+            />
 
             <table>
               <thead><tr><th>#</th><th>اسم الطالب</th><th>الصف</th><th>الشعبة</th><th>السبب</th></tr></thead>

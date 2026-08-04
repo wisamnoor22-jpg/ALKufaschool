@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import BackButton from "../components/common/BackButton";
+import ReportPrintHeader from "../components/common/ReportPrintHeader";
 import "../styles/attendance.css";
+import "../styles/reportPrint.css";
 
 const API_BASE = "http://localhost:5000";
 
@@ -374,6 +376,10 @@ function AttendanceWorkspace({
   const printReport = () => {
     window.print();
   };
+
+  const academicYear = isStudents
+    ? people.find((person) => person.academic_year)?.academic_year || ""
+    : "";
 
   return (
     <>
@@ -791,16 +797,12 @@ function AttendanceWorkspace({
               ×
             </button>
 
-            <div className="attendance-print-area">
-              <div className="attendance-report-school-name">
-                مدرسة الكوفة
-              </div>
-
-              <h2>تقرير {title}</h2>
-
-              <p className="attendance-report-date">
-                التاريخ: {date}
-              </p>
+            <div className="attendance-print-area report-print-document">
+              <ReportPrintHeader
+                title={`تقرير ${title}`}
+                date={date}
+                academicYear={academicYear}
+              />
 
               <div className="attendance-report-counts">
                 <div className="attendance-report-count absent">
