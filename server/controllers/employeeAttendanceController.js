@@ -271,12 +271,36 @@ const saveBulkAttendance = async (req, res) => {
     const normalized = new Map();
 
     for (const record of records) {
+      if (!record || typeof record !== "object" || Array.isArray(record)) {
+        return res.status(400).json({
+          message: "إحدى سجلات الحضور غير صحيحة",
+        });
+      }
+
       const employeeId = Number(record.employee_id);
       const status = String(record.status || "").trim();
       const notes = normalizeText(record.notes);
-      const checkInTime = record.check_in_time || null;
-      const checkOutTime = record.check_out_time || null;
-      const lateMinutes = Number(record.late_minutes || 0);
+      const hasCheckInTime = Object.prototype.hasOwnProperty.call(
+        record,
+        "check_in_time"
+      );
+      const hasCheckOutTime = Object.prototype.hasOwnProperty.call(
+        record,
+        "check_out_time"
+      );
+      const hasLateMinutes = Object.prototype.hasOwnProperty.call(
+        record,
+        "late_minutes"
+      );
+      const checkInTime = hasCheckInTime
+        ? record.check_in_time || null
+        : null;
+      const checkOutTime = hasCheckOutTime
+        ? record.check_out_time || null
+        : null;
+      const lateMinutes = hasLateMinutes
+        ? Number(record.late_minutes)
+        : 0;
 
       if (!Number.isInteger(employeeId) || employeeId <= 0) {
         return res.status(400).json({
@@ -290,15 +314,18 @@ const saveBulkAttendance = async (req, res) => {
         });
       }
 
-      if (!isValidTime(checkInTime) || !isValidTime(checkOutTime)) {
+      if (
+        (hasCheckInTime && !isValidTime(checkInTime)) ||
+        (hasCheckOutTime && !isValidTime(checkOutTime))
+      ) {
         return res.status(400).json({
           message: "صيغة وقت الحضور أو الانصراف غير صحيحة",
         });
       }
 
       if (
-        !Number.isInteger(lateMinutes) ||
-        lateMinutes < 0
+        hasLateMinutes &&
+        (!Number.isInteger(lateMinutes) || lateMinutes < 0)
       ) {
         return res.status(400).json({
           message: "عدد دقائق التأخير غير صحيح",
@@ -312,6 +339,7 @@ const saveBulkAttendance = async (req, res) => {
         check_in_time: checkInTime,
         check_out_time: checkOutTime,
         late_minutes: lateMinutes,
+        has_late_minutes: hasLateMinutes,
       });
     }
 
@@ -349,9 +377,18 @@ const saveBulkAttendance = async (req, res) => {
          DO UPDATE SET
            status = EXCLUDED.status,
            notes = EXCLUDED.notes,
-           check_in_time = EXCLUDED.check_in_time,
-           check_out_time = EXCLUDED.check_out_time,
-           late_minutes = EXCLUDED.late_minutes,
+           check_in_time = COALESCE(
+             EXCLUDED.check_in_time,
+             employee_attendance.check_in_time
+           ),
+           check_out_time = COALESCE(
+             EXCLUDED.check_out_time,
+             employee_attendance.check_out_time
+           ),
+           late_minutes = CASE
+             WHEN $8 THEN EXCLUDED.late_minutes
+             ELSE employee_attendance.late_minutes
+           END,
            updated_at = NOW()`,
         [
           row.employee_id,
@@ -361,6 +398,7 @@ const saveBulkAttendance = async (req, res) => {
           row.check_in_time,
           row.check_out_time,
           row.late_minutes,
+          row.has_late_minutes,
         ]
       );
     }

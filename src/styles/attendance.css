@@ -237,6 +237,10 @@
   margin-bottom: 15px;
 }
 
+.attendance-summary-grid.employee-attendance-summary {
+  grid-template-columns: repeat(5, 1fr);
+}
+
 .attendance-summary-card {
   padding: 16px;
   border: 1px solid #dfe7ef;
@@ -270,6 +274,10 @@
 
 .attendance-summary-card.absent {
   border-right: 5px solid #dc2626;
+}
+
+.attendance-summary-card.late {
+  border-right: 5px solid #d97706;
 }
 
 .attendance-absence-card,
@@ -372,6 +380,18 @@
   background: #f6fff8;
 }
 
+.attendance-person-row.late {
+  background: #fffbeb;
+}
+
+.attendance-person-row.employee {
+  grid-template-columns:
+    minmax(170px, 0.8fr)
+    auto
+    minmax(285px, 1fr)
+    minmax(170px, 0.7fr);
+}
+
 .attendance-person-info strong,
 .attendance-person-info span {
   display: block;
@@ -421,6 +441,38 @@
   border-color: #dc2626;
   background: #dc2626;
   color: #fff;
+}
+
+.attendance-status-actions button.active.late {
+  border-color: #d97706;
+  background: #d97706;
+  color: #fff;
+}
+
+.attendance-employee-times {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(82px, 1fr));
+  gap: 7px;
+}
+
+.attendance-employee-times label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: #475569;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.attendance-employee-times input {
+  width: 100%;
+  min-height: 40px;
+  padding: 7px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #1f2937;
+  font-family: inherit;
 }
 
 .attendance-note-input {
@@ -545,6 +597,10 @@
   .attendance-person-row {
     grid-template-columns: 1fr;
   }
+
+  .attendance-person-row.employee {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 650px) {
@@ -561,6 +617,11 @@
 
   .attendance-status-actions {
     flex-wrap: wrap;
+  }
+
+  .attendance-summary-grid.employee-attendance-summary,
+  .attendance-employee-times {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -691,7 +752,7 @@
 
 .attendance-report-counts {
   display: grid;
-  grid-template-columns: repeat(2, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 12px;
   margin: 18px 0 22px;
 }
@@ -734,6 +795,15 @@
 
 .attendance-report-count.excused strong {
   color: #166534;
+}
+
+.attendance-report-count.late {
+  border-right: 5px solid #d97706;
+  background: #fffbeb;
+}
+
+.attendance-report-count.late strong {
+  color: #b45309;
 }
 
 @media (max-width: 560px) {

@@ -23,7 +23,19 @@ const STATUS_LABELS = {
   present: "حاضر",
   excused: "مجاز",
   absent: "غائب",
+  late: "متأخر",
 };
+
+const createEmptyRecord = () => ({
+  status: "present",
+  notes: "",
+  check_in_time: "",
+  check_out_time: "",
+  late_minutes: 0,
+});
+
+const isValidTime = (value) =>
+  !value || /^([01]\d|2[0-3]):[0-5]\d$/.test(String(value));
 
 const getLocalDate = () => {
   const now = new Date();
@@ -53,6 +65,7 @@ function AttendanceWorkspace({
   const [section, setSection] = useState("الكل");
   const [employeeType, setEmployeeType] = useState("الكل");
   const [loading, setLoading] = useState(true);
+  const [attendanceLoaded, setAttendanceLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("success");
@@ -67,10 +80,7 @@ function AttendanceWorkspace({
     isStudents ? Number(person.enrollment_id) : Number(person.id);
 
   const getRecord = (person) =>
-    records[personKey(person)] || {
-      status: "present",
-      notes: "",
-    };
+    records[personKey(person)] || createEmptyRecord();
 
   const updateStatus = (person, status) => {
     const key = personKey(person);
@@ -78,7 +88,7 @@ function AttendanceWorkspace({
     setRecords((previous) => ({
       ...previous,
       [key]: {
-        ...(previous[key] || { notes: "" }),
+        ...(previous[key] || createEmptyRecord()),
         status,
       },
     }));
@@ -90,8 +100,20 @@ function AttendanceWorkspace({
     setRecords((previous) => ({
       ...previous,
       [key]: {
-        ...(previous[key] || { status: "present" }),
+        ...(previous[key] || createEmptyRecord()),
         notes,
+      },
+    }));
+  };
+
+  const updateEmployeeField = (person, field, value) => {
+    const key = personKey(person);
+
+    setRecords((previous) => ({
+      ...previous,
+      [key]: {
+        ...(previous[key] || createEmptyRecord()),
+        [field]: value,
       },
     }));
   };
@@ -133,16 +155,21 @@ function AttendanceWorkspace({
       loaded[key] = {
         status: record.status || "present",
         notes: record.notes || "",
+        check_in_time: record.check_in_time || "",
+        check_out_time: record.check_out_time || "",
+        late_minutes: Number(record.late_minutes || 0),
       };
     });
 
     setRecords(loaded);
+    setAttendanceLoaded(true);
   };
 
   useEffect(() => {
     const load = async () => {
       try {
         setLoading(true);
+        setAttendanceLoaded(false);
         setMessage("");
         await Promise.all([loadPeople(), loadAttendance()]);
       } catch (error) {
@@ -238,8 +265,17 @@ function AttendanceWorkspace({
     [people, records]
   );
 
-  const presentCount =
-    people.length - absentPeople.length - excusedPeople.length;
+  const latePeople = people.filter(
+    (person) => getRecord(person).status === "late"
+  );
+
+  const presentCount = people.filter(
+    (person) => getRecord(person).status === "present"
+  ).length;
+
+  const reportPeople = isStudents
+    ? [...absentPeople, ...excusedPeople]
+    : [...absentPeople, ...excusedPeople, ...latePeople];
 
   const markFromSearchAbsent = (person) => {
     updateStatus(person, "absent");
@@ -253,16 +289,54 @@ function AttendanceWorkspace({
       return;
     }
 
+    if (!attendanceLoaded) {
+      showMessage(
+        "تعذر التحقق من سجل الحضور الحالي. أعد تحميل الصفحة قبل الحفظ لحماية البيانات الموجودة.",
+        "error"
+      );
+      return;
+    }
+
     const payloadRecords = people.map((person) => {
       const record = getRecord(person);
 
-      return {
+      const payload = {
         [isStudents ? "student_enrollment_id" : "employee_id"]:
           personKey(person),
         status: record.status,
         notes: String(record.notes || "").trim(),
       };
+
+      if (!isStudents) {
+        payload.check_in_time = record.check_in_time || null;
+        payload.check_out_time = record.check_out_time || null;
+        payload.late_minutes = Number(record.late_minutes || 0);
+      }
+
+      return payload;
     });
+
+    if (!isStudents) {
+      const invalidRecord = people.find((person) => {
+        const record = getRecord(person);
+        const lateMinutes = Number(record.late_minutes || 0);
+
+        return (
+          !isValidTime(record.check_in_time) ||
+          !isValidTime(record.check_out_time) ||
+          !Number.isInteger(lateMinutes) ||
+          lateMinutes < 0
+        );
+      });
+
+      if (invalidRecord) {
+        showMessage(
+          `تحقق من أوقات الحضور والانصراف ودقائق التأخير للموظف ${invalidRecord.full_name}`,
+          "error"
+        );
+        return;
+      }
+    }
 
     try {
       setSaving(true);
@@ -446,7 +520,11 @@ function AttendanceWorkspace({
         )}
       </section>
 
-      <section className="attendance-summary-grid">
+      <section
+        className={`attendance-summary-grid ${
+          isStudents ? "" : "employee-attendance-summary"
+        }`}
+      >
         <div className="attendance-summary-card total">
           <strong>{people.length}</strong>
           <span>الإجمالي</span>
@@ -463,6 +541,12 @@ function AttendanceWorkspace({
           <strong>{absentPeople.length}</strong>
           <span>غائب</span>
         </div>
+        {!isStudents && (
+          <div className="attendance-summary-card late">
+            <strong>{latePeople.length}</strong>
+            <span>متأخر</span>
+          </div>
+        )}
       </section>
 
       <section className="card attendance-absence-card">
@@ -534,7 +618,9 @@ function AttendanceWorkspace({
                 return (
                   <article
                     key={personKey(person)}
-                    className={`attendance-person-row ${record.status}`}
+                    className={`attendance-person-row ${
+                      isStudents ? "" : "employee"
+                    } ${record.status}`}
                   >
                     <div className="attendance-person-info">
                       <strong>{person.full_name}</strong>
@@ -589,7 +675,74 @@ function AttendanceWorkspace({
                       >
                         غائب
                       </button>
+
+                      {!isStudents && (
+                        <button
+                          type="button"
+                          className={
+                            record.status === "late"
+                              ? "active late"
+                              : "late"
+                          }
+                          onClick={() =>
+                            updateStatus(person, "late")
+                          }
+                        >
+                          متأخر
+                        </button>
+                      )}
                     </div>
+
+                    {!isStudents && (
+                      <div className="attendance-employee-times">
+                        <label>
+                          <span>وقت الحضور</span>
+                          <input
+                            type="time"
+                            value={record.check_in_time || ""}
+                            onChange={(event) =>
+                              updateEmployeeField(
+                                person,
+                                "check_in_time",
+                                event.target.value
+                              )
+                            }
+                          />
+                        </label>
+
+                        <label>
+                          <span>وقت الانصراف</span>
+                          <input
+                            type="time"
+                            value={record.check_out_time || ""}
+                            onChange={(event) =>
+                              updateEmployeeField(
+                                person,
+                                "check_out_time",
+                                event.target.value
+                              )
+                            }
+                          />
+                        </label>
+
+                        <label>
+                          <span>دقائق التأخير</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={record.late_minutes ?? 0}
+                            onChange={(event) =>
+                              updateEmployeeField(
+                                person,
+                                "late_minutes",
+                                event.target.value
+                              )
+                            }
+                          />
+                        </label>
+                      </div>
+                    )}
 
                     <input
                       className="attendance-note-input"
@@ -615,7 +768,12 @@ function AttendanceWorkspace({
             type="button"
             className="attendance-save-button"
             onClick={saveAttendance}
-            disabled={saving || loading || people.length === 0}
+            disabled={
+              saving ||
+              loading ||
+              !attendanceLoaded ||
+              people.length === 0
+            }
           >
             {saving ? "جاري الحفظ..." : "حفظ الحضور"}
           </button>
@@ -654,24 +812,38 @@ function AttendanceWorkspace({
                   <strong>{excusedPeople.length}</strong>
                   <span>عدد المجازين</span>
                 </div>
+
+                {!isStudents && (
+                  <div className="attendance-report-count late">
+                    <strong>{latePeople.length}</strong>
+                    <span>عدد المتأخرين</span>
+                  </div>
+                )}
               </div>
 
-              <h3>تفاصيل الغياب والإجازات</h3>
+              <h3>
+                {isStudents
+                  ? "تفاصيل الغياب والإجازات"
+                  : "تفاصيل الغياب والإجازات والتأخير"}
+              </h3>
 
-              {absentPeople.length + excusedPeople.length > 0 ? (
+              {reportPeople.length > 0 ? (
                 <div className="attendance-report-table-wrapper">
                   <table className="attendance-report-table">
                     <thead>
                       <tr>
                         <th>الاسم</th>
                         {isStudents && <th>الشعبة</th>}
+                        {!isStudents && <th>الحضور</th>}
+                        {!isStudents && <th>الانصراف</th>}
+                        {!isStudents && <th>دقائق التأخير</th>}
                         <th>الحالة</th>
                         <th>الملاحظة</th>
                       </tr>
                     </thead>
 
                     <tbody>
-                      {[...absentPeople, ...excusedPeople].map((person) => {
+                      {reportPeople.map((person) => {
                         const record = getRecord(person);
 
                         return (
@@ -680,6 +852,14 @@ function AttendanceWorkspace({
 
                             {isStudents && (
                               <td>{person.section || "غير محددة"}</td>
+                            )}
+
+                            {!isStudents && (
+                              <>
+                                <td>{record.check_in_time || "—"}</td>
+                                <td>{record.check_out_time || "—"}</td>
+                                <td>{record.late_minutes || "—"}</td>
+                              </>
                             )}
 
                             <td>
@@ -698,7 +878,11 @@ function AttendanceWorkspace({
                   </table>
                 </div>
               ) : (
-                <p>لا يوجد غائبون أو مجازون لهذا اليوم</p>
+                <p>
+                  {isStudents
+                    ? "لا يوجد غائبون أو مجازون لهذا اليوم"
+                    : "لا توجد حالات غياب أو إجازة أو تأخير لهذا اليوم"}
+                </p>
               )}
             </div>
 
