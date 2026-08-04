@@ -85,17 +85,23 @@ export default function FeesTable({
                               : "pointer",
                         }}
                       >
-                        {remaining === 0
-                          ? "تم التسديد"
-                          : "تسديد قسط"}
+                        تسجيل دفعة
                       </button>
 
                       <button
                         type="button"
                         onClick={() => onHistory?.(fee)}
-                        style={historyButtonStyle}
+                        disabled={paid <= 0}
+                        style={{
+                          ...receiptButtonStyle,
+                          opacity: paid <= 0 ? 0.5 : 1,
+                          cursor:
+                            paid <= 0
+                              ? "not-allowed"
+                              : "pointer",
+                        }}
                       >
-                        كشف الحساب
+                        طباعة وصل
                       </button>
                     </div>
                   </td>
@@ -157,17 +163,16 @@ const paymentButtonStyle = {
   background: "#198754",
   color: "#fff",
   border: "none",
-  padding: "9px 14px",
-  borderRadius: "8px",
+  padding: "8px 12px",
+  borderRadius: "7px",
   fontWeight: "bold",
 };
 
-const historyButtonStyle = {
-  background: "#1e5fa8",
+const receiptButtonStyle = {
+  background: "#6f42c1",
   color: "#fff",
   border: "none",
-  padding: "9px 14px",
-  borderRadius: "8px",
-  cursor: "pointer",
+  padding: "8px 12px",
+  borderRadius: "7px",
   fontWeight: "bold",
 };
