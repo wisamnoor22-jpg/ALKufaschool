@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
 import "../styles/teachers.css";
 
-import BackButton from "../components/common/BackButton";
 import TeacherStats from "../components/teachers/TeacherStats";
 import TeacherTable from "../components/teachers/TeacherTable";
 import TeacherForm from "../components/teachers/TeacherForm";
@@ -12,12 +11,11 @@ const API_URL = "http://localhost:5000/employees";
 
 const EMPLOYEE_TYPES = [
   "الكل",
-  "كادر تدريسي",
-  "إداري",
-  "طبيب",
-  "عامل",
-  "حارس",
-  "سائق",
+  "معلمة",
+  "المدير",
+  "المعاون",
+  "مسؤول الحسابات",
+  "موظف الاستعلامات",
 ];
 
 export default function Teachers() {
@@ -26,6 +24,7 @@ export default function Teachers() {
   const [employees, setEmployees] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editingEmployee, setEditingEmployee] = useState(null);
   const [search, setSearch] = useState("");
   const [employeeType, setEmployeeType] = useState("الكل");
   const [message, setMessage] = useState("");
@@ -52,6 +51,8 @@ export default function Teachers() {
   };
 
   useEffect(() => {
+    // Fetching the initial external API state is the intended synchronization.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     loadEmployees();
   }, []);
 
@@ -64,6 +65,11 @@ export default function Teachers() {
         employee.full_name?.toLowerCase().includes(query) ||
         employee.employee_code?.toLowerCase().includes(query) ||
         employee.employee_type?.toLowerCase().includes(query) ||
+        employee.specialization?.toLowerCase().includes(query) ||
+        employee.work_shift?.toLowerCase().includes(query) ||
+        employee.first_name?.toLowerCase().includes(query) ||
+        employee.middle_name?.toLowerCase().includes(query) ||
+        employee.third_name?.toLowerCase().includes(query) ||
         employee.phone?.toLowerCase().includes(query) ||
         employee.address?.toLowerCase().includes(query);
 
@@ -75,22 +81,46 @@ export default function Teachers() {
     });
   }, [employees, search, employeeType]);
 
-  const handleSaved = (employee) => {
-    setEmployees((previous) => [employee, ...previous]);
+  const availableEmployeeTypes = useMemo(() => {
+    const legacyTypes = employees
+      .map((employee) => employee.employee_type)
+      .filter((type) => type && !EMPLOYEE_TYPES.includes(type));
+
+    return [...EMPLOYEE_TYPES, ...new Set(legacyTypes)];
+  }, [employees]);
+
+  const handleSaved = (employee, { isEditing } = {}) => {
+    setEmployees((previous) =>
+      isEditing
+        ? previous.map((item) => (item.id === employee.id ? employee : item))
+        : [employee, ...previous]
+    );
     setShowForm(false);
-    navigate(`/teachers/${employee.id}`);
+    setEditingEmployee(null);
+
+    if (!isEditing) {
+      navigate(`/teachers/${employee.id}`);
+    }
   };
 
   const handleView = (employee) => {
     navigate(`/teachers/${employee.id}`);
   };
 
+  const handleEdit = (employee) => {
+    setEditingEmployee(employee);
+    setShowForm(true);
+  };
+
+  const closeForm = () => {
+    setShowForm(false);
+    setEditingEmployee(null);
+  };
+
   return (
     <div className="main-content teachers-page" dir="rtl">
       <header className="teachers-page-header">
         <div className="teachers-header-copy">
-          <BackButton />
-
           <div>
             <h2>الكادر التدريسي والإداري</h2>
             <p>إدارة الموظفين والحضور والرواتب والتقارير</p>
@@ -100,7 +130,10 @@ export default function Teachers() {
         <button
           type="button"
           className="teachers-primary-button"
-          onClick={() => setShowForm(true)}
+          onClick={() => {
+            setEditingEmployee(null);
+            setShowForm(true);
+          }}
         >
           إضافة موظف جديد +
         </button>
@@ -110,21 +143,21 @@ export default function Teachers() {
 
       <TeacherStats total={employees.length} />
 
-      <section className="card teachers-filters">
+      <section className="card teachers-filters data-list-filters">
         <input
           type="search"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="ابحث بالاسم أو الرقم الوظيفي أو الهاتف..."
-          className="teachers-search-input"
+          className="teachers-search-input data-list-control data-list-search"
         />
 
         <select
           value={employeeType}
           onChange={(event) => setEmployeeType(event.target.value)}
-          className="teachers-filter-select"
+          className="teachers-filter-select data-list-control"
         >
-          {EMPLOYEE_TYPES.map((type) => (
+          {availableEmployeeTypes.map((type) => (
             <option key={type} value={type}>
               {type === "الكل" ? "جميع أنواع الموظفين" : type}
             </option>
@@ -132,15 +165,15 @@ export default function Teachers() {
         </select>
       </section>
 
-      <section className="card teachers-table-section">
+      <section className="card teachers-table-section data-list-card">
         {loading ? (
-          <p className="teachers-loading">جاري تحميل الموظفين...</p>
+          <p className="teachers-loading data-list-loading">جاري تحميل الموظفين...</p>
         ) : (
           <TeacherTable
             employees={filteredEmployees}
             onDelete={loadEmployees}
             onView={handleView}
-            onEdit={() => alert("سيتم إضافة التعديل في الخطوة القادمة")}
+            onEdit={handleEdit}
             onReport={() => alert("سيتم إضافة التقرير في الخطوة القادمة")}
           />
         )}
@@ -148,7 +181,9 @@ export default function Teachers() {
 
       {showForm && (
         <TeacherForm
-          onClose={() => setShowForm(false)}
+          key={editingEmployee?.id || "new-employee"}
+          employee={editingEmployee}
+          onClose={closeForm}
           onSaved={handleSaved}
         />
       )}

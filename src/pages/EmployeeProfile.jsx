@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useParams } from "react-router-dom";
 import "../styles/Dashboard.css";
 
 const API_URL = "http://localhost:5000";
@@ -18,8 +18,6 @@ export default function EmployeeProfile() {
  const params = useParams();
 const employeeId = params.employeeId || params.id;
   console.log("employeeId =", employeeId);
-  const navigate = useNavigate();
-
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -45,23 +43,7 @@ const employeeId = params.employeeId || params.id;
       ? customDocumentType.trim()
       : documentType;
 
-  useEffect(() => {
-    loadEmployee();
-  }, [employeeId]);
-
-  useEffect(() => {
-    if (activeTab === "documents") {
-      loadDocuments();
-    }
-  }, [activeTab, employeeId]);
-
-  useEffect(() => {
-    return () => {
-      stopCamera();
-    };
-  }, []);
-
-  const loadEmployee = async () => {
+  const loadEmployee = useCallback(async () => {
     try {
       setLoading(true);
       setMessage("");
@@ -86,9 +68,9 @@ console.log("Status:", response.status);
     } finally {
       setLoading(false);
     }
-  };
+  }, [employeeId]);
 
-  const loadDocuments = async () => {
+  const loadDocuments = useCallback(async () => {
     try {
       setDocumentsLoading(true);
       setMessage("");
@@ -109,7 +91,7 @@ console.log("Status:", response.status);
     } finally {
       setDocumentsLoading(false);
     }
-  };
+  }, [employeeId]);
 
   const resetDocumentForm = () => {
     setDocumentType("");
@@ -210,7 +192,7 @@ const startCamera = async () => {
   }
 };
 
-const stopCamera = () => {
+const stopCamera = useCallback(() => {
   if (videoRef.current) {
     videoRef.current.pause();
     videoRef.current.srcObject = null;
@@ -225,7 +207,27 @@ const stopCamera = () => {
   }
 
   setShowCamera(false);
-};
+}, []);
+
+  useEffect(() => {
+    // Loading the route resource is the intended effect synchronization.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadEmployee();
+  }, [loadEmployee]);
+
+  useEffect(() => {
+    if (activeTab === "documents") {
+      // Load this external resource only when its tab becomes active.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      loadDocuments();
+    }
+  }, [activeTab, loadDocuments]);
+
+  useEffect(() => {
+    return () => {
+      stopCamera();
+    };
+  }, [stopCamera]);
 
 const captureDocument = () => {
   const video = videoRef.current;
@@ -355,14 +357,6 @@ const captureDocument = () => {
   if (!employee) {
     return (
       <div className="main-content" dir="rtl">
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          style={backButtonStyle}
-        >
-          رجوع
-        </button>
-
         <div style={errorStyle}>
           {message || "الموظف غير موجود"}
         </div>
@@ -374,14 +368,6 @@ const captureDocument = () => {
     <div className="main-content" dir="rtl">
       <div style={headerStyle}>
         <div>
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            style={backButtonStyle}
-          >
-            رجوع
-          </button>
-
           <h2 style={{ margin: "15px 0 5px" }}>
             {employee.full_name}
           </h2>
@@ -453,10 +439,23 @@ const captureDocument = () => {
             value={employee.full_name}
           />
 
+          <Detail label="الاسم الأول" value={employee.first_name} />
+
+          <Detail label="الاسم الثاني" value={employee.middle_name} />
+
+          <Detail label="الاسم الثالث" value={employee.third_name} />
+
           <Detail
             label="نوع الموظف"
             value={employee.employee_type}
           />
+
+          <Detail
+            label="الاختصاص"
+            value={employee.specialization}
+          />
+
+          <Detail label="الشفت" value={employee.work_shift} />
 
           <Detail
             label="رقم الهاتف"
@@ -471,7 +470,9 @@ const captureDocument = () => {
           <Detail
             label="الراتب"
             value={
-              employee.salary
+              employee.salary !== null &&
+              employee.salary !== undefined &&
+              employee.salary !== ""
                 ? `${Number(employee.salary).toLocaleString()} د.ع`
                 : null
             }
@@ -599,20 +600,28 @@ const captureDocument = () => {
             </div>
           </form>
 
-          <div style={documentsCardStyle}>
-            <h3 style={{ marginTop: 0 }}>
-              المستندات المحفوظة
-            </h3>
+          <div className="data-list-card" style={documentsCardStyle}>
+            <div className="data-list-header">
+              <h3 style={{ marginTop: 0 }}>
+                المستندات المحفوظة
+              </h3>
+            </div>
 
             {documentsLoading ? (
-              <p>جاري تحميل المستندات...</p>
+              <p className="data-list-loading">جاري تحميل المستندات...</p>
             ) : documents.length === 0 ? (
-              <div style={emptyStyle}>
+              <div className="data-list-empty" style={emptyStyle}>
                 لا توجد مستندات لهذا الموظف.
               </div>
             ) : (
-              <div style={{ overflowX: "auto" }}>
-                <table style={tableStyle}>
+              <div
+                className="data-list-scroll"
+                style={{ overflowX: "auto" }}
+              >
+                <table
+                  className="data-list-table employee-documents-table"
+                  style={tableStyle}
+                >
                   <thead style={tableHeaderStyle}>
                     <tr>
                       <th style={cellStyle}>النوع</th>
@@ -644,12 +653,13 @@ const captureDocument = () => {
                         </td>
 
                         <td style={cellStyle}>
-                          <div style={documentActionsStyle}>
+                          <div className="data-list-actions" style={documentActionsStyle}>
                             <button
                               type="button"
                               onClick={() =>
                                 previewDocument(document)
                               }
+                              className="data-list-action"
                               style={previewButtonStyle}
                             >
                               معاينة
@@ -660,6 +670,7 @@ const captureDocument = () => {
                               onClick={() =>
                                 printDocument(document)
                               }
+                              className="data-list-action"
                               style={printButtonStyle}
                             >
                               طباعة
@@ -668,6 +679,7 @@ const captureDocument = () => {
                             <a
                               href={getDocumentUrl(document)}
                               download
+                              className="data-list-action"
                               style={downloadButtonStyle}
                             >
                               تنزيل
@@ -678,6 +690,7 @@ const captureDocument = () => {
                               onClick={() =>
                                 deleteDocument(document.id)
                               }
+                              className="data-list-action"
                               style={deleteButtonStyle}
                             >
                               حذف
@@ -703,7 +716,7 @@ const captureDocument = () => {
       )}
 
       {showCamera && (
-        <div style={cameraOverlayStyle}>
+        <div style={cameraOverlayStyle} role="dialog" aria-modal="true">
           <div style={cameraModalStyle}>
             <h3 style={{ marginTop: 0 }}>
               تصوير المستند
@@ -784,16 +797,6 @@ const headerStyle = {
   justifyContent: "space-between",
   alignItems: "flex-start",
   marginBottom: "20px",
-};
-
-const backButtonStyle = {
-  background: "#edf1f5",
-  color: "#1e3c72",
-  border: "none",
-  padding: "9px 15px",
-  borderRadius: "9px",
-  cursor: "pointer",
-  fontWeight: "bold",
 };
 
 const employeeCodeStyle = {

@@ -88,8 +88,8 @@ export default function PaymentHistory({ fee, onClose }) {
 
           <style>
             @page {
-              size: A4 landscape;
-              margin: 8mm;
+              size: A4 portrait;
+              margin: 6mm;
             }
 
             * {
@@ -111,55 +111,66 @@ export default function PaymentHistory({ fee, onClose }) {
               print-color-adjust: exact;
             }
 
+            .receipt-page {
+              width: 100%;
+              height: 284mm;
+              display: grid;
+              grid-template-rows: minmax(0, 1fr) 7mm minmax(0, 1fr);
+              gap: 2mm;
+            }
+
             .receipt {
               width: 100%;
-              min-height: 178mm;
-              border: 2px solid #000000;
+              height: 100%;
+              min-height: 0;
+              border: 1.5px solid #000000;
               background: #ffffff;
+              break-inside: avoid;
+              page-break-inside: avoid;
             }
 
             .receipt-header {
-              padding: 8px 18px 10px;
-              border-bottom: 2px solid #000000;
+              padding: 4px 12px 5px;
+              border-bottom: 1.5px solid #000000;
               text-align: center;
             }
 
             .logo {
               display: block;
-              width: 90px;
-              height: 90px;
-              margin: 0 auto 4px;
+              width: 48px;
+              height: 48px;
+              margin: 0 auto 2px;
               object-fit: contain;
             }
 
             .school-name {
               margin: 0;
-              font-size: 25px;
+              font-size: 18px;
               font-weight: 900;
             }
 
             .receipt-title {
-              margin-top: 3px;
-              font-size: 19px;
+              margin-top: 1px;
+              font-size: 14px;
               font-weight: 900;
             }
 
             .body {
               display: grid;
-              gap: 9px;
-              padding: 13px 18px 18px;
+              gap: 4px;
+              padding: 6px 10px 8px;
             }
 
             .grid-4 {
               display: grid;
               grid-template-columns: repeat(4, 1fr);
-              gap: 9px;
+              gap: 4px;
             }
 
             .grid-3 {
               display: grid;
               grid-template-columns: repeat(3, 1fr);
-              gap: 9px;
+              gap: 4px;
             }
 
             .grid-1 {
@@ -175,27 +186,28 @@ export default function PaymentHistory({ fee, onClose }) {
 
             .box-label {
               display: block;
-              padding: 6px;
+              padding: 3px 4px;
               border-bottom: 1px dashed #000000;
               background: #f2f2f2;
-              font-size: 12px;
+              font-size: 9px;
               font-weight: 900;
               text-align: center;
             }
 
             .box-value {
               display: block;
-              min-height: 30px;
-              padding: 7px;
-              font-size: 15px;
+              min-height: 21px;
+              padding: 4px;
+              font-size: 11px;
               font-weight: 900;
               text-align: center;
+              overflow-wrap: anywhere;
             }
 
             .field {
               display: grid;
-              grid-template-columns: 145px 1fr;
-              min-height: 43px;
+              grid-template-columns: 100px minmax(0, 1fr);
+              min-height: 27px;
               border: 1px dashed #000000;
               border-radius: 5px;
               overflow: hidden;
@@ -204,19 +216,22 @@ export default function PaymentHistory({ fee, onClose }) {
             .field-label {
               display: flex;
               align-items: center;
-              padding: 7px;
+              padding: 4px 5px;
               border-left: 1px dashed #000000;
               background: #f2f2f2;
-              font-size: 13px;
+              font-size: 9.5px;
               font-weight: 900;
             }
 
             .field-value {
               display: flex;
               align-items: center;
-              padding: 7px 10px;
-              font-size: 14px;
+              min-width: 0;
+              padding: 4px 6px;
+              font-size: 10.5px;
               font-weight: 900;
+              line-height: 1.25;
+              overflow-wrap: anywhere;
             }
 
             .numeric {
@@ -229,16 +244,16 @@ export default function PaymentHistory({ fee, onClose }) {
               display: flex;
               align-items: flex-end;
               justify-content: space-between;
-              gap: 30px;
-              margin-top: 14px;
-              padding-top: 8px;
+              gap: 16px;
+              margin-top: 3px;
+              padding-top: 2px;
             }
 
             .employees {
               display: grid;
-              gap: 11px;
-              min-width: 430px;
-              font-size: 14px;
+              gap: 4px;
+              min-width: 250px;
+              font-size: 10px;
               font-weight: 900;
             }
 
@@ -252,29 +267,63 @@ export default function PaymentHistory({ fee, onClose }) {
             .employee-line::after {
               content: "";
               display: block;
-              width: 230px;
-              margin-top: 18px;
+              width: 140px;
+              margin-top: 9px;
               border-bottom: 1px solid #000000;
             }
 
             .stamp {
-              width: 230px;
-              min-height: 70px;
+              width: 140px;
+              min-height: 35px;
               text-align: center;
-              font-size: 14px;
+              font-size: 10px;
               font-weight: 900;
             }
 
             .stamp-line {
               display: block;
-              margin-top: 40px;
+              margin-top: 20px;
               border-bottom: 1px solid #000000;
+            }
+
+            .cut-line {
+              position: relative;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              visibility: hidden;
+              break-inside: avoid;
+              page-break-inside: avoid;
+            }
+
+            .cut-line::before {
+              content: "";
+              position: absolute;
+              right: 8mm;
+              left: 8mm;
+              border-top: 1.5px dashed #000000;
+            }
+
+            .cut-line span {
+              position: relative;
+              z-index: 1;
+              padding: 0 8px;
+              background: #ffffff;
+              font-size: 16px;
+              line-height: 1;
+            }
+
+            @media print {
+              .cut-line {
+                visibility: visible;
+              }
             }
           </style>
         </head>
 
         <body>
-          <section class="receipt">
+          <main class="receipt-page">
+            <section class="receipt">
             <header class="receipt-header">
               <img
                 id="schoolLogo"
@@ -432,9 +481,25 @@ export default function PaymentHistory({ fee, onClose }) {
                 </div>
               </div>
             </div>
-          </section>
+            </section>
+
+            <div class="cut-line" aria-hidden="true">
+              <span>✂</span>
+            </div>
+          </main>
 
           <script>
+            var receiptPage = document.querySelector(".receipt-page");
+            var firstReceipt = receiptPage.querySelector(".receipt");
+            var secondReceipt = firstReceipt.cloneNode(true);
+            var secondLogo = secondReceipt.querySelector("#schoolLogo");
+
+            if (secondLogo) {
+              secondLogo.removeAttribute("id");
+            }
+
+            receiptPage.appendChild(secondReceipt);
+
             function beginPrint() {
               setTimeout(function () {
                 window.print();
@@ -482,7 +547,7 @@ export default function PaymentHistory({ fee, onClose }) {
   return (
     <div style={overlayStyle}>
       <div style={modalStyle}>
-        <div style={headerStyle}>
+        <div className="modal-sticky-header" style={headerStyle}>
           <div>
             <h2 style={{ margin: 0 }}>
               طباعة آخر وصل
@@ -495,8 +560,10 @@ export default function PaymentHistory({ fee, onClose }) {
 
           <button
             type="button"
+            className="modal-sticky-close"
             onClick={onClose}
             style={closeButtonStyle}
+            aria-label="إغلاق معاينة آخر وصل"
           >
             ×
           </button>

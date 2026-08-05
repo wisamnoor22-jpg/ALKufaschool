@@ -11,6 +11,8 @@ const feesRoutes = require("./routes/fees");
 const gradeFeesRoutes = require("./routes/gradeFees");
 const studentAttendanceRoutes = require("./routes/studentAttendance");
 const employeeAttendanceRoutes = require("./routes/employeeAttendance");
+const deletionArchiveRoutes = require("./routes/deletionArchive");
+const dashboardStatisticsRoutes = require("./routes/dashboardStatistics");
 
 const app = express();
 const PORT = Number(process.env.PORT || 5000);
@@ -46,6 +48,8 @@ app.use("/fees", feesRoutes);
 app.use("/grade-fees", gradeFeesRoutes);
 app.use("/student-attendance", studentAttendanceRoutes);
 app.use("/employee-attendance", employeeAttendanceRoutes);
+app.use("/deletion-archive", deletionArchiveRoutes);
+app.use("/dashboard", dashboardStatisticsRoutes);
 
 app.get("/", (req, res) => {
   res.json({

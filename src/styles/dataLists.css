@@ -1,0 +1,497 @@
+/*
+ * Shared on-screen list system.
+ * Values intentionally mirror the current students list. Print layouts are
+ * excluded so report templates and the student payment receipt stay intact.
+ */
+@media screen {
+  .data-list-filters {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 18px;
+    padding: 16px;
+    border: 1px solid var(--border-color, #dbe3ec);
+    border-radius: 14px;
+    background: var(--card-bg, #ffffff);
+  }
+
+  .data-list-filters > input,
+  .data-list-filters > select,
+  .data-list-filters input,
+  .data-list-filters select,
+  .data-list-control {
+    min-height: 44px;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color, #cbd5e1);
+    border-radius: 8px;
+    background: var(--input-bg, #ffffff);
+    color: var(--text-color, #1f2937);
+    font-family: inherit;
+    text-align: right;
+    outline: none;
+  }
+
+  .data-list-filters > input[type="search"],
+  .data-list-search {
+    flex: 1 1 260px;
+    min-width: 175px;
+  }
+
+  .data-list-filters input:focus,
+  .data-list-filters select:focus,
+  .data-list-control:focus {
+    border-color: #5d83b4;
+    box-shadow: 0 0 0 3px rgba(30, 60, 114, 0.12);
+  }
+
+  .data-list-card {
+    margin-bottom: 18px;
+    border: 1px solid var(--border-color, #dbe3ec);
+    border-radius: 14px;
+    background: var(--card-bg, #ffffff);
+    color: var(--text-color, #1f2937);
+    overflow: hidden;
+  }
+
+  .data-list-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--border-color, #e5edf5);
+    background: var(--card-bg, #ffffff);
+  }
+
+  .data-list-header h2,
+  .data-list-header h3 {
+    margin: 0;
+    color: var(--heading-color, #1e3c72);
+  }
+
+  .data-list-header p {
+    margin: 5px 0 0;
+    color: var(--muted-color, #64748b);
+  }
+
+  .data-list-header > span {
+    flex: 0 0 auto;
+    padding: 5px 10px;
+    border-radius: 999px;
+    background: var(--soft-bg, #f1f5f9);
+    color: var(--heading-color, #1e3c72);
+    font-weight: 800;
+  }
+
+  .data-list-scroll {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .data-list-table {
+    width: 100% !important;
+    min-width: var(--data-list-min-width, 760px) !important;
+    border-collapse: collapse !important;
+    direction: rtl;
+    color: var(--text-color, #1f2937);
+    background: var(--card-bg, #ffffff) !important;
+  }
+
+  .students-table {
+    --data-list-min-width: 1100px;
+  }
+
+  .teachers-table {
+    --data-list-min-width: 900px;
+  }
+
+  .fees-data-table {
+    --data-list-min-width: 950px;
+  }
+
+  .deletion-archive-table,
+  .employee-report-table {
+    --data-list-min-width: 1050px;
+  }
+
+  .employee-documents-table {
+    --data-list-min-width: 750px;
+  }
+
+  .attendance-report-table,
+  .report-screen-list {
+    --data-list-min-width: 600px;
+  }
+
+  .data-list-table thead,
+  .data-list-table thead tr {
+    background: var(--table-header-bg, #f5f7fa) !important;
+    color: var(--text-color, #1f2937) !important;
+  }
+
+  .data-list-table th,
+  .data-list-table td {
+    padding: 12px !important;
+    border: 0 !important;
+    border-bottom: 1px solid var(--border-color, #e5e7eb) !important;
+    background: transparent !important;
+    color: inherit;
+    text-align: right !important;
+    vertical-align: middle;
+  }
+
+  .data-list-table th {
+    border-bottom-width: 2px !important;
+    border-bottom-color: var(--border-color, #dbe3ec) !important;
+    color: var(--text-color, #1f2937) !important;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .data-list-table tbody tr {
+    border: 0 !important;
+    background: var(--card-bg, #ffffff) !important;
+    transition: background-color 0.16s ease;
+  }
+
+  .data-list-table tbody tr:hover {
+    background: var(--soft-bg, #f8fafc) !important;
+  }
+
+  .data-list-table tbody tr:last-child td {
+    border-bottom: 0 !important;
+  }
+
+  .data-list-name {
+    color: var(--heading-color, #1e3c72) !important;
+    font-weight: 800;
+  }
+
+  .data-list-actions {
+    display: flex !important;
+    align-items: center;
+    gap: 7px !important;
+    flex-wrap: wrap !important;
+  }
+
+  .data-list-action,
+  .data-list-actions button,
+  .data-list-actions a {
+    min-height: 34px;
+    padding: 7px 11px !important;
+    border: 0 !important;
+    border-radius: 7px !important;
+    font-family: inherit;
+    font-weight: 800;
+    line-height: 1.2;
+    text-decoration: none;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .data-list-actions button:disabled,
+  .data-list-action:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+
+  .data-list-empty,
+  .data-list-loading {
+    margin: 0;
+    padding: 34px !important;
+    color: var(--muted-color, #6b7280) !important;
+    text-align: center !important;
+  }
+
+  .data-list-rows {
+    padding: 0;
+  }
+
+  .data-list-row {
+    border: 0;
+    border-bottom: 1px solid var(--border-color, #e5e7eb) !important;
+    border-radius: 0;
+  }
+
+  .data-list-row:last-child {
+    border-bottom: 0 !important;
+  }
+
+  .data-list-select-row {
+    background: var(--card-bg, #ffffff) !important;
+    color: var(--text-color, #1f2937) !important;
+  }
+
+  .data-list-select-row:hover {
+    background: var(--soft-bg, #f8fafc) !important;
+  }
+
+  /* Attendance keeps its existing controls and data model while using the
+     same table rhythm, headers and responsive overflow as the students list. */
+  .attendance-page .attendance-search-panel {
+    overflow: visible;
+  }
+
+  .attendance-page .attendance-main-search {
+    flex: 1 1 320px;
+    min-width: 280px;
+  }
+
+  .attendance-page .attendance-date-field,
+  .attendance-page .attendance-filter-field {
+    flex: 0 1 180px;
+  }
+
+  .attendance-page .attendance-main-search label,
+  .attendance-page .attendance-date-field label,
+  .attendance-page .attendance-filter-field label,
+  .attendance-page .attendance-employee-times label {
+    color: var(--text-color, #334155);
+  }
+
+  .attendance-page .attendance-search-results {
+    margin: 0;
+  }
+
+  .attendance-page .attendance-search-results button,
+  .attendance-page .attendance-selected-person,
+  .attendance-page .attendance-person-row {
+    background: var(--card-bg, #ffffff) !important;
+    color: var(--text-color, #1f2937);
+    transition: background-color 0.16s ease;
+  }
+
+  .attendance-page .attendance-search-results button:hover,
+  .attendance-page .attendance-selected-person:hover,
+  .attendance-page .attendance-person-row:hover {
+    background: var(--soft-bg, #f8fafc) !important;
+  }
+
+  .attendance-page .attendance-section-title > span {
+    display: inline-flex;
+    width: auto;
+    min-width: 0;
+    height: auto;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+  }
+
+  .attendance-page .attendance-list-column-header {
+    display: grid;
+    align-items: center;
+    gap: 15px;
+    padding: 12px;
+    border-bottom: 2px solid var(--border-color, #dbe3ec);
+    background: var(--table-header-bg, #f5f7fa);
+    color: var(--text-color, #1f2937);
+    font-weight: 800;
+    white-space: nowrap;
+  }
+
+  .attendance-page .attendance-absence-list,
+  .attendance-page .attendance-records-list {
+    scrollbar-gutter: stable;
+  }
+
+  .attendance-page .attendance-absence-columns,
+  .attendance-page .attendance-selected-list {
+    min-width: 560px;
+  }
+
+  .attendance-page .attendance-absence-columns,
+  .attendance-page .attendance-selected-person {
+    grid-template-columns: minmax(190px, 1fr) max-content;
+  }
+
+  .attendance-page .attendance-selected-list,
+  .attendance-page .attendance-people-list {
+    display: block;
+    gap: 0;
+    padding: 0;
+  }
+
+  .attendance-page .attendance-selected-person {
+    display: grid;
+    align-items: center;
+    gap: 15px;
+    padding: 12px;
+    border-right: 0;
+    border-left: 0;
+    border-radius: 0;
+  }
+
+  .attendance-page .attendance-selected-person small,
+  .attendance-page .attendance-person-info span {
+    color: var(--muted-color, #64748b);
+  }
+
+  .attendance-page .attendance-remove-absence {
+    background: #d32f2f !important;
+    color: #ffffff !important;
+  }
+
+  .attendance-page .attendance-records-list.students .attendance-list-column-header,
+  .attendance-page .attendance-records-list.students .attendance-people-list {
+    min-width: 760px;
+  }
+
+  .attendance-page .attendance-records-list.employees .attendance-list-column-header,
+  .attendance-page .attendance-records-list.employees .attendance-people-list {
+    min-width: 1100px;
+  }
+
+  .attendance-page .attendance-people-columns.students,
+  .attendance-page .attendance-records-list.students .attendance-person-row {
+    grid-template-columns:
+      minmax(190px, 1fr)
+      minmax(236px, max-content)
+      minmax(180px, 0.8fr);
+  }
+
+  .attendance-page .attendance-people-columns.employees,
+  .attendance-page .attendance-records-list.employees .attendance-person-row {
+    grid-template-columns:
+      minmax(170px, 0.8fr)
+      minmax(315px, max-content)
+      minmax(285px, 1fr)
+      minmax(170px, 0.7fr);
+  }
+
+  .attendance-page .attendance-person-row {
+    gap: 15px;
+    padding: 12px;
+  }
+
+  .attendance-page .attendance-status-actions button {
+    background: var(--soft-bg, #f1f5f9) !important;
+    color: var(--text-color, #475569) !important;
+  }
+
+  .attendance-page .attendance-status-actions button.active.present {
+    background: #2563eb !important;
+    color: #ffffff !important;
+  }
+
+  .attendance-page .attendance-status-actions button.active.excused {
+    background: #16a34a !important;
+    color: #ffffff !important;
+  }
+
+  .attendance-page .attendance-status-actions button.active.absent {
+    background: #dc2626 !important;
+    color: #ffffff !important;
+  }
+
+  .attendance-page .attendance-status-actions button.active.late {
+    background: #d97706 !important;
+    color: #ffffff !important;
+  }
+
+  .attendance-page .attendance-records-list.employees .attendance-employee-times {
+    grid-template-columns: repeat(3, minmax(82px, 1fr));
+  }
+
+  .attendance-page .attendance-person-row .data-list-control {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .attendance-page .attendance-save-area {
+    border-color: var(--border-color, #e5edf5);
+    background: var(--soft-bg, #f8fafc);
+  }
+
+  :root[data-theme="dark"] .data-list-card,
+  :root[data-theme="dark"] .data-list-filters,
+  :root[data-theme="dark"] .data-list-header,
+  :root[data-theme="dark"] .data-list-table,
+  :root[data-theme="dark"] .data-list-table tbody tr {
+    background: var(--card-bg, #142231) !important;
+    color: var(--text-color, #e8eef5) !important;
+  }
+
+  :root[data-theme="dark"] .data-list-table thead,
+  :root[data-theme="dark"] .data-list-table thead tr {
+    background: var(--table-header-bg, #202f49) !important;
+  }
+
+  :root[data-theme="dark"] .data-list-table th {
+    color: var(--text-color, #e8eef5) !important;
+  }
+
+  :root[data-theme="dark"] .data-list-table tbody tr:hover {
+    background: var(--soft-bg, #1c2f42) !important;
+  }
+
+  :root[data-theme="dark"] .attendance-page .attendance-list-column-header {
+    background: var(--table-header-bg, #202f49);
+  }
+
+  :root[data-theme="dark"] .attendance-page .attendance-search-results button,
+  :root[data-theme="dark"] .attendance-page .attendance-selected-person,
+  :root[data-theme="dark"] .attendance-page .attendance-person-row {
+    background: var(--card-bg, #142231) !important;
+    color: var(--text-color, #e8eef5);
+  }
+
+  :root[data-theme="dark"] .attendance-page .attendance-search-results button:hover,
+  :root[data-theme="dark"] .attendance-page .attendance-selected-person:hover,
+  :root[data-theme="dark"] .attendance-page .attendance-person-row:hover {
+    background: var(--soft-bg, #1c2f42) !important;
+  }
+
+  :root[data-theme="dark"] .data-list-filters input,
+  :root[data-theme="dark"] .data-list-filters select,
+  :root[data-theme="dark"] .data-list-control {
+    background: var(--input-bg, #102030) !important;
+    color: var(--text-color, #e8eef5) !important;
+  }
+
+  @media (max-width: 700px) {
+    .data-list-filters {
+      align-items: stretch;
+      padding: 14px;
+    }
+
+    .data-list-filters > input,
+    .data-list-filters > select,
+    .data-list-filters > label,
+    .data-list-filters > div,
+    .data-list-search {
+      width: 100%;
+      min-width: 0;
+      flex-basis: 100%;
+    }
+
+    .data-list-filters input,
+    .data-list-filters select {
+      width: 100%;
+    }
+
+    .data-list-header {
+      align-items: flex-start;
+      padding: 14px;
+    }
+
+    .data-list-table th,
+    .data-list-table td {
+      padding: 11px 10px !important;
+    }
+
+    .data-list-actions {
+      min-width: max-content;
+    }
+
+    .attendance-page .attendance-main-search,
+    .attendance-page .attendance-date-field,
+    .attendance-page .attendance-filter-field {
+      min-width: 0;
+      flex-basis: 100%;
+    }
+  }
+}

@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import "../styles/Dashboard.css";
 import "../styles/students.css";
-import BackButton from "../components/common/BackButton";
 
 const API_URL = "http://localhost:5000/students";
 
@@ -21,6 +20,14 @@ const GRADES = [
 ];
 
 const SECTIONS = ["أ", "ب", "ج", "د"];
+
+const DELETE_REASONS = [
+  { value: "transferred", label: "انتقل إلى مدرسة أخرى." },
+  { value: "dismissed", label: "فُصل من المدرسة." },
+  { value: "graduated", label: "تخرج." },
+  { value: "withdrawn", label: "انسحب." },
+  { value: "other", label: "سبب آخر." },
+];
 
 const createEmptyForm = () => ({
   full_name: "",
@@ -57,6 +64,10 @@ export default function Students() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleteReason, setDeleteReason] = useState("");
+  const [deleteReasonDetails, setDeleteReasonDetails] = useState("");
+  const [deleteError, setDeleteError] = useState("");
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("success");
   const [search, setSearch] = useState("");
@@ -261,19 +272,54 @@ export default function Students() {
     }
   };
 
-  const handleDelete = async (student) => {
-    const confirmed = window.confirm(
-      `هل أنت متأكد من حذف الطالب: ${student.full_name}؟`
-    );
+  const openDeleteModal = (student) => {
+    setDeleteTarget(student);
+    setDeleteReason("");
+    setDeleteReasonDetails("");
+    setDeleteError("");
+  };
 
-    if (!confirmed) return;
+  const closeDeleteModal = () => {
+    if (deletingId) return;
+
+    setDeleteTarget(null);
+    setDeleteReason("");
+    setDeleteReasonDetails("");
+    setDeleteError("");
+  };
+
+  const handleDelete = async (event) => {
+    event.preventDefault();
+
+    if (!deleteTarget) return;
+
+    if (!deleteReason) {
+      setDeleteError("يرجى تحديد سبب حذف الطالب");
+      return;
+    }
+
+    if (deleteReason === "other" && !deleteReasonDetails.trim()) {
+      setDeleteError("يرجى كتابة سبب الحذف الآخر");
+      return;
+    }
 
     try {
-      setDeletingId(student.id);
+      setDeletingId(deleteTarget.id);
+      setDeleteError("");
       setMessage("");
 
-      const response = await fetch(`${API_URL}/${student.id}`, {
+      const response = await fetch(`${API_URL}/${deleteTarget.id}`, {
         method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          reason_code: deleteReason,
+          reason_details:
+            deleteReason === "other"
+              ? deleteReasonDetails.trim()
+              : "",
+        }),
       });
 
       const data = await response.json();
@@ -284,14 +330,17 @@ export default function Students() {
 
       setStudents((previousStudents) =>
         previousStudents.filter(
-          (currentStudent) => currentStudent.id !== student.id
+          (currentStudent) => currentStudent.id !== deleteTarget.id
         )
       );
 
-      showMessage("تم حذف الطالب بنجاح");
+      setDeleteTarget(null);
+      setDeleteReason("");
+      setDeleteReasonDetails("");
+      showMessage(data.message || "تم حذف الطالب وسجلاته المرتبطة بنجاح");
     } catch (error) {
       console.error(error);
-      showMessage(error.message, "error");
+      setDeleteError(error.message || "تعذر حذف الطالب");
     } finally {
       setDeletingId(null);
     }
@@ -304,7 +353,6 @@ export default function Students() {
     >
       <header className="topbar students-topbar">
         <div>
-          <BackButton />
           <p className="students-page-subtitle">
             الصف والشعبة والسنة الدراسية مرتبطة بالتسجيل السنوي
           </p>
@@ -344,19 +392,19 @@ export default function Students() {
         </div>
       </section>
 
-      <section className="card students-filters-card">
+      <section className="card students-filters-card data-list-filters">
         <input
           type="search"
           placeholder="ابحث باسم الطالب أو رقم الهاتف..."
           value={search}
           onChange={(event) => setSearch(event.target.value)}
-          className="students-filter-input students-search-input"
+          className="students-filter-input students-search-input data-list-control data-list-search"
         />
 
         <select
           value={filterGrade}
           onChange={(event) => setFilterGrade(event.target.value)}
-          className="students-filter-input"
+          className="students-filter-input data-list-control"
         >
           <option value="الكل">جميع الصفوف</option>
           {GRADES.map((grade) => (
@@ -369,7 +417,7 @@ export default function Students() {
         <select
           value={filterGender}
           onChange={(event) => setFilterGender(event.target.value)}
-          className="students-filter-input"
+          className="students-filter-input data-list-control"
         >
           <option value="الكل">الطلاب والطالبات</option>
           <option value="طالب">الطلاب</option>
@@ -381,7 +429,7 @@ export default function Students() {
           onChange={(event) =>
             setFilterAcademicYear(event.target.value)
           }
-          className="students-filter-input"
+          className="students-filter-input data-list-control"
         >
           <option value="الكل">جميع السنوات</option>
           {academicYears.map((academicYear) => (
@@ -392,11 +440,11 @@ export default function Students() {
         </select>
       </section>
 
-      <section className="card students-table-card">
+      <section className="card students-table-card data-list-card data-list-scroll">
         {loading ? (
-          <p className="students-loading">جاري تحميل الطلاب...</p>
+          <p className="students-loading data-list-loading">جاري تحميل الطلاب...</p>
         ) : (
-          <table className="students-table">
+          <table className="students-table data-list-table">
             <thead>
               <tr>
                 <th>الرقم</th>
@@ -416,7 +464,7 @@ export default function Students() {
                 filteredStudents.map((student) => (
                   <tr key={student.id}>
                     <td>{student.id}</td>
-                    <td className="students-name-cell">
+                    <td className="students-name-cell data-list-name">
                       {student.full_name}
                     </td>
                     <td>
@@ -450,7 +498,7 @@ export default function Students() {
                     </td>
                     <td>{student.phone || "غير مسجل"}</td>
                     <td>
-                      <div className="students-actions">
+                      <div className="students-actions data-list-actions">
                         <button
                           type="button"
                           onClick={() => openEditModal(student)}
@@ -461,7 +509,7 @@ export default function Students() {
 
                         <button
                           type="button"
-                          onClick={() => handleDelete(student)}
+                          onClick={() => openDeleteModal(student)}
                           disabled={deletingId === student.id}
                           className="students-delete-button"
                         >
@@ -475,7 +523,7 @@ export default function Students() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="9" className="students-empty-state">
+                    <td colSpan="9" className="students-empty-state data-list-empty">
                     لا توجد بيانات مطابقة
                   </td>
                 </tr>
@@ -488,14 +536,16 @@ export default function Students() {
       {isModalOpen && (
         <div className="students-modal-overlay">
           <div className="students-modal-content">
-            <button
-              type="button"
-              onClick={closeModal}
-              className="students-modal-close"
-              aria-label="إغلاق"
-            >
-              ×
-            </button>
+            <div className="modal-sticky-close-bar">
+              <button
+                type="button"
+                onClick={closeModal}
+                className="students-modal-close modal-sticky-close"
+                aria-label="إغلاق"
+              >
+                ×
+              </button>
+            </div>
 
             <h2>
               {isEditing
@@ -667,6 +717,107 @@ export default function Students() {
                   onClick={closeModal}
                   disabled={saving}
                   className="students-secondary-button"
+                >
+                  إلغاء
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {deleteTarget && (
+        <div className="students-modal-overlay">
+          <div
+            className="students-delete-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="student-delete-title"
+          >
+            <div className="modal-sticky-close-bar">
+              <button
+                type="button"
+                className="students-modal-close modal-sticky-close"
+                onClick={closeDeleteModal}
+                disabled={Boolean(deletingId)}
+                aria-label="إغلاق نافذة حذف الطالب"
+              >
+                ×
+              </button>
+            </div>
+
+            <h2 id="student-delete-title">تأكيد حذف الطالب</h2>
+            <p className="students-delete-student-name">
+              الطالب: <strong>{deleteTarget.full_name}</strong>
+            </p>
+
+            <div className="students-delete-warning" role="alert">
+              تحذير: سيؤدي حذف الطالب إلى حذف الرسوم وكشوف الحساب
+              والدفعات والإيصالات وسجلات الحضور والتسجيل المرتبطة به.
+              هذه العملية نهائية ولا يمكن التراجع عنها بعد التأكيد.
+            </div>
+
+            <form onSubmit={handleDelete}>
+              <fieldset className="students-delete-reasons">
+                <legend>سبب حذف الطالب</legend>
+
+                {DELETE_REASONS.map((reason) => (
+                  <label key={reason.value}>
+                    <input
+                      type="radio"
+                      name="delete_reason"
+                      value={reason.value}
+                      checked={deleteReason === reason.value}
+                      onChange={(event) => {
+                        setDeleteReason(event.target.value);
+                        setDeleteError("");
+                      }}
+                      disabled={Boolean(deletingId)}
+                    />
+                    <span>{reason.label}</span>
+                  </label>
+                ))}
+              </fieldset>
+
+              {deleteReason === "other" && (
+                <div className="students-delete-other-reason">
+                  <label htmlFor="student-delete-reason-details">
+                    اكتب سبب الحذف <span aria-hidden="true">*</span>
+                  </label>
+                  <textarea
+                    id="student-delete-reason-details"
+                    value={deleteReasonDetails}
+                    onChange={(event) => {
+                      setDeleteReasonDetails(event.target.value);
+                      setDeleteError("");
+                    }}
+                    maxLength="500"
+                    rows="4"
+                    required
+                    disabled={Boolean(deletingId)}
+                  />
+                </div>
+              )}
+
+              {deleteError && (
+                <div className="students-delete-error" role="alert">
+                  {deleteError}
+                </div>
+              )}
+
+              <div className="students-modal-actions">
+                <button
+                  type="submit"
+                  className="students-confirm-delete-button"
+                  disabled={Boolean(deletingId)}
+                >
+                  {deletingId ? "جاري الحذف..." : "تأكيد الحذف النهائي"}
+                </button>
+                <button
+                  type="button"
+                  className="students-secondary-button"
+                  onClick={closeDeleteModal}
+                  disabled={Boolean(deletingId)}
                 >
                   إلغاء
                 </button>

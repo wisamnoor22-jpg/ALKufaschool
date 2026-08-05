@@ -1,65 +1,89 @@
-import { useEffect, useMemo, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Link, useNavigate } from "react-router-dom";
 import ReportPrintHeader from "../components/common/ReportPrintHeader";
 import "../styles/Dashboard.css";
 import "../styles/reportPrint.css";
 import schoolLogo from "../images/logo.png";
 
-const employees = [
-  { id: 1, name: "أحمد علي حسن", time: "07:55", status: "present" },
-  { id: 2, name: "زهراء كريم جاسم", time: "08:08", status: "late" },
-  { id: 3, name: "حسين مهدي كاظم", time: "لم يحضر", status: "absent" },
-  { id: 4, name: "نور فاضل عباس", time: "07:51", status: "present" },
-  { id: 5, name: "علي رعد محسن", time: "08:03", status: "late" },
-  { id: 6, name: "مريم سعد هادي", time: "07:49", status: "present" },
-];
+const STATISTICS_URL = "http://localhost:5000/dashboard/statistics";
+const SCHOOL_TIME_ZONE = "Asia/Baghdad";
 
-const notifications = [
-  {
-    id: 1,
-    title: "تسجيل حضور متأخر",
-    summary: "الموظفة زهراء حضرت الساعة 08:08",
-    details: "تم تسجيل تأخير قدره 8 دقائق عن وقت الدوام الرسمي.",
-    path: "/teachers",
-    unread: true,
+const EMPTY_STATISTICS = {
+  students: {
+    total: 0,
+    activeTotal: 0,
+    male: 0,
+    female: 0,
+    addedThisMonth: 0,
+    byGrade: [],
   },
-  {
-    id: 2,
-    title: "قسط جديد",
-    summary: "تم تسجيل دفعة جديدة لطالب",
-    details: "تم استلام دفعة مالية جديدة وإضافتها إلى سجل الحسابات.",
-    path: "/fees",
-    unread: true,
+  employees: { total: 0, addedThisMonth: 0, byType: [] },
+  studentAttendance: {
+    totalActiveStudents: 0,
+    present: 0,
+    absentWithExcuse: null,
+    absentWithoutExcuse: 0,
+    onLeave: 0,
+    recordedStudents: 0,
+    attendanceRate: 0,
+    topAbsentGrade: null,
+    absenceByGrade: [],
+    limitations: [],
   },
-  {
-    id: 3,
-    title: "نسخة احتياطية ناجحة",
-    summary: "تم حفظ النسخة الاحتياطية",
-    details: "آخر نسخة احتياطية اكتملت بنجاح اليوم الساعة 02:30 ص.",
-    path: "/settings",
-    unread: false,
+  employeeAttendance: {
+    totalEmployees: 0,
+    present: 0,
+    absent: 0,
+    late: 0,
+    checkedOut: 0,
+    currentlyInside: 0,
+    totalLateMinutes: 0,
+    averageLateMinutes: 0,
+    latestCheckIn: null,
+    latestCheckOut: null,
   },
-];
+  finance: {
+    totalRequired: 0,
+    totalPaid: 0,
+    totalRemaining: 0,
+    fullyPaidStudents: 0,
+    studentsWithBalance: 0,
+    partiallyPaidStudents: 0,
+    unpaidStudents: 0,
+    paymentsTodayCount: 0,
+    paymentsTodayAmount: 0,
+    paymentsThisMonthCount: 0,
+    paymentsThisMonthAmount: 0,
+    collectionRate: 0,
+    highestOutstandingGrade: null,
+  },
+  archive: { total: 0 },
+  sectionErrors: {},
+};
 
-const absentStudents = [
-  { id: 1, name: "علي حسن كريم", grade: "الثالث الابتدائي", section: "أ", reason: "بدون عذر" },
-  { id: 2, name: "زهراء فاضل عباس", grade: "الخامس الابتدائي", section: "ب", reason: "إجازة مرضية" },
-  { id: 3, name: "حسين جواد كاظم", grade: "الرابع الابتدائي", section: "أ", reason: "بدون عذر" },
-];
+const numberFormatter = new Intl.NumberFormat("ar-IQ", {
+  maximumFractionDigits: 1,
+});
 
-const changesToday = [
-  { id: 1, label: "تم تسجيل 3 طلاب جدد", time: "10:42" },
-  { id: 2, label: "تم استلام 18 قسطًا", time: "10:15" },
-  { id: 3, label: "تم تعديل بيانات موظف", time: "09:35" },
-  { id: 4, label: "تم نقل طالب بين شعبتين", time: "09:10" },
-];
+const currencyFormatter = new Intl.NumberFormat("ar-IQ", {
+  style: "currency",
+  currency: "IQD",
+  maximumFractionDigits: 0,
+});
 
-const systemStatus = [
-  { id: 1, label: "قاعدة البيانات", state: "online" },
-  { id: 2, label: "الخادم", state: "online" },
-  { id: 3, label: "جهاز البصمة", state: "warning" },
-  { id: 4, label: "النسخة الاحتياطية", state: "online" },
-];
+const formatNumber = (value) =>
+  numberFormatter.format(Number.isFinite(Number(value)) ? Number(value) : 0);
+
+const formatCurrency = (value) =>
+  currencyFormatter.format(Number.isFinite(Number(value)) ? Number(value) : 0);
+
+const formatClockTime = (value) => value || "—";
 
 const sections = [
   { title: "الطلاب", description: "إدارة ملفات الطلبة", path: "/students", code: "ST" },
@@ -69,6 +93,13 @@ const sections = [
   { title: "الدرجات", description: "النتائج والتقييمات", path: "/results", code: "GR" },
   { title: "الجداول", description: "الجداول الدراسية", path: "/timetable", code: "SC" },
   { title: "التقارير", description: "مركز التقارير", path: "/reports", code: "RP" },
+  {
+    title: "سجل المحذوفات",
+    description: "الأرشيف الإداري للعناصر المحذوفة",
+    path: "/deletion-archive",
+    code: "DA",
+    showsArchiveCount: true,
+  },
   { title: "السجل", description: "آخر العمليات", path: "/history", code: "LG" },
   { title: "الإعدادات", description: "إعدادات النظام", path: "/settings", code: "SE" },
 ];
@@ -103,21 +134,101 @@ export default function Dashboard() {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [attendanceOpen, setAttendanceOpen] = useState(false);
   const [search, setSearch] = useState("");
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem("alkufa-theme") || "light";
-  });
+  const [statistics, setStatistics] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [statisticsError, setStatisticsError] = useState("");
+  const inFlightRequestRef = useRef(null);
+  const requestControllerRef = useRef(null);
+  const hasStatisticsRef = useRef(false);
+  const refreshStatistics = useCallback((initialLoad = false) => {
+    if (inFlightRequestRef.current) {
+      return inFlightRequestRef.current;
+    }
+
+    const controller = new AbortController();
+    requestControllerRef.current = controller;
+
+    if (initialLoad && !hasStatisticsRef.current) {
+      setLoading(true);
+    } else {
+      setRefreshing(true);
+    }
+
+    const request = (async () => {
+      try {
+        const response = await fetch(STATISTICS_URL, {
+          signal: controller.signal,
+          cache: "no-store",
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || "تعذر تحديث لوحة التحكم");
+        }
+
+        if (!controller.signal.aborted) {
+          hasStatisticsRef.current = true;
+          setStatistics(data);
+          setStatisticsError("");
+        }
+      } catch (error) {
+        if (error.name !== "AbortError") {
+          console.error(error);
+          setStatisticsError(
+            error.message || "تعذر تحديث إحصائيات لوحة التحكم"
+          );
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setLoading(false);
+          setRefreshing(false);
+        }
+
+        if (requestControllerRef.current === controller) {
+          requestControllerRef.current = null;
+          inFlightRequestRef.current = null;
+        }
+      }
+    })();
+
+    inFlightRequestRef.current = request;
+    return request;
+  }, []);
 
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    localStorage.setItem("alkufa-theme", theme);
-  }, [theme]);
+    const initialTimer = window.setTimeout(() => {
+      refreshStatistics(true);
+    }, 0);
+    const interval = window.setInterval(() => {
+      refreshStatistics();
+    }, 30_000);
 
-  const toggleTheme = () => {
-    setTheme((currentTheme) => (currentTheme === "light" ? "dark" : "light"));
-  };
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === "visible") {
+        refreshStatistics();
+      }
+    };
+
+    const refreshOnFocus = () => refreshStatistics();
+
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    window.addEventListener("focus", refreshOnFocus);
+
+    return () => {
+      window.clearTimeout(initialTimer);
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+      window.removeEventListener("focus", refreshOnFocus);
+      requestControllerRef.current?.abort();
+      requestControllerRef.current = null;
+      inFlightRequestRef.current = null;
+    };
+  }, [refreshStatistics]);
 
   const dateText = useMemo(() => {
     return new Intl.DateTimeFormat("ar-IQ", {
+      timeZone: SCHOOL_TIME_ZONE,
       weekday: "long",
       year: "numeric",
       month: "long",
@@ -137,13 +248,76 @@ export default function Dashboard() {
     });
   }, [search]);
 
-  const unreadCount = notifications.filter((item) => item.unread).length;
+  const stats = statistics || EMPTY_STATISTICS;
+  const partialErrorCount = Object.keys(stats.sectionErrors || {}).length;
+  const lastUpdatedText = statistics?.generatedAt
+    ? new Intl.DateTimeFormat("ar-IQ", {
+        timeZone: SCHOOL_TIME_ZONE,
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      }).format(new Date(statistics.generatedAt))
+    : "لم يتم التحديث بعد";
 
-  const statusText = {
-    present: "حاضر",
-    late: "متأخر",
-    absent: "غائب",
-  };
+  const notifications = [
+    {
+      id: "late-employees",
+      title: "تأخير الموظفين اليوم",
+      summary: `${formatNumber(stats.employeeAttendance.late)} موظف متأخر`,
+      details: `مجموع التأخير ${formatNumber(
+        stats.employeeAttendance.totalLateMinutes
+      )} دقيقة.`,
+      path: "/attendance",
+      unread: stats.employeeAttendance.late > 0,
+    },
+    {
+      id: "today-payments",
+      title: "دفعات اليوم",
+      summary: `${formatNumber(
+        stats.finance.paymentsTodayCount
+      )} دفعة مسجلة`,
+      details: `المجموع ${formatCurrency(
+        stats.finance.paymentsTodayAmount
+      )}.`,
+      path: "/fees",
+      unread: stats.finance.paymentsTodayCount > 0,
+    },
+    {
+      id: "dashboard-health",
+      title: "حالة تحديث الإحصائيات",
+      summary:
+        partialErrorCount > 0
+          ? `${formatNumber(partialErrorCount)} قسم يحتاج إعادة تحديث`
+          : "جميع الأقسام محدثة",
+      details: `آخر تحديث: ${lastUpdatedText}`,
+      path: "/dashboard",
+      unread: partialErrorCount > 0,
+    },
+  ];
+
+  const unreadCount = notifications.filter((item) => item.unread).length;
+  const dailyHighlights = [
+    {
+      id: "payments",
+      label: "الدفعات المسجلة اليوم",
+      value: formatNumber(stats.finance.paymentsTodayCount),
+    },
+    {
+      id: "students",
+      label: "طلاب أضيفوا هذا الشهر",
+      value: formatNumber(stats.students.addedThisMonth),
+    },
+    {
+      id: "employees",
+      label: "موظفون أضيفوا هذا الشهر",
+      value: formatNumber(stats.employees.addedThisMonth),
+    },
+    {
+      id: "archive",
+      label: "عناصر في سجل المحذوفات",
+      value: formatNumber(stats.archive.total),
+    },
+  ];
 
   return (
     <div className="founder-dashboard" dir="rtl">
@@ -210,51 +384,97 @@ export default function Dashboard() {
             )}
           </div>
 
-          <button
-            type="button"
-            className="theme-toggle"
-            onClick={toggleTheme}
-            aria-label={theme === "light" ? "تفعيل الوضع الداكن" : "تفعيل الوضع الفاتح"}
-            title={theme === "light" ? "الوضع الداكن" : "الوضع الفاتح"}
-          >
-            <span aria-hidden="true">{theme === "light" ? "☾" : "☀"}</span>
-          </button>
-
           <div className="date-chip">{dateText}</div>
           <button type="button" className="logout-button" onClick={() => navigate("/")}>تسجيل الخروج</button>
         </div>
       </header>
 
       <main className="dashboard-content">
+        <section className="dashboard-refresh-bar" aria-live="polite">
+          <div>
+            <strong>
+              {loading ? "جاري تحميل الإحصائيات..." : "الإحصائيات محدثة"}
+            </strong>
+            <span>آخر تحديث: {lastUpdatedText}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => refreshStatistics()}
+            disabled={loading || refreshing}
+          >
+            {refreshing ? "جاري التحديث..." : "تحديث الآن"}
+          </button>
+        </section>
+
+        {statisticsError && (
+          <div className="dashboard-error" role="alert">
+            <span>{statisticsError}</span>
+            <button type="button" onClick={() => refreshStatistics()}>
+              إعادة المحاولة
+            </button>
+          </div>
+        )}
+
+        {partialErrorCount > 0 && (
+          <div className="dashboard-partial-warning" role="status">
+            تعذر تحديث {formatNumber(partialErrorCount)} قسم، بينما بقيت بقية
+            الإحصائيات متاحة.
+          </div>
+        )}
+
         <section className="top-grid">
           <article className="panel employee-panel">
             <div className="panel-heading">
               <div>
                 <h2>حضور الموظفين اليوم</h2>
-                <p>الاسم يمينًا ووقت الحضور يسارًا</p>
+                <p>ملخص مباشر لسجل الحضور في تاريخ المدرسة</p>
               </div>
               <div className="employee-summary">
-                <span className="present">3 حاضر</span>
-                <span className="late">2 متأخر</span>
-                <span className="absent">1 غائب</span>
+                <span className="present">
+                  {formatNumber(stats.employeeAttendance.present)} حاضر
+                </span>
+                <span className="late">
+                  {formatNumber(stats.employeeAttendance.late)} متأخر
+                </span>
+                <span className="absent">
+                  {formatNumber(stats.employeeAttendance.absent)} غائب
+                </span>
               </div>
             </div>
 
-            <div className="employee-list">
-              {employees.map((employee) => (
-                <button
-                  type="button"
-                  key={employee.id}
-                  className={`employee-row ${employee.status}`}
-                  onClick={() => navigate("/teachers")}
-                >
-                  <div>
-                    <strong>{employee.name}</strong>
-                    <span>{statusText[employee.status]}</span>
-                  </div>
-                  <time>{employee.time}</time>
-                </button>
-              ))}
+            <div className="employee-metrics-grid">
+              <div className="dashboard-metric">
+                <span>إجمالي الموظفين</span>
+                <strong>{formatNumber(stats.employeeAttendance.totalEmployees)}</strong>
+              </div>
+              <div className="dashboard-metric inside">
+                <span>داخل المدرسة الآن</span>
+                <strong>{formatNumber(stats.employeeAttendance.currentlyInside)}</strong>
+              </div>
+              <div className="dashboard-metric">
+                <span>سجلوا وقت خروج</span>
+                <strong>{formatNumber(stats.employeeAttendance.checkedOut)}</strong>
+              </div>
+              <div className="dashboard-metric late-minutes">
+                <span>مجموع دقائق التأخير</span>
+                <strong>
+                  {formatNumber(stats.employeeAttendance.totalLateMinutes)} دقيقة
+                </strong>
+              </div>
+              <div className="dashboard-metric">
+                <span>متوسط التأخير</span>
+                <strong>
+                  {formatNumber(stats.employeeAttendance.averageLateMinutes)} دقيقة
+                </strong>
+              </div>
+              <div className="dashboard-metric">
+                <span>آخر دخول</span>
+                <strong>{formatClockTime(stats.employeeAttendance.latestCheckIn)}</strong>
+              </div>
+              <div className="dashboard-metric">
+                <span>آخر خروج</span>
+                <strong>{formatClockTime(stats.employeeAttendance.latestCheckOut)}</strong>
+              </div>
             </div>
           </article>
 
@@ -262,21 +482,76 @@ export default function Dashboard() {
             <div className="panel-heading">
               <div>
                 <h2>الحالة المالية للمدرسة</h2>
-                <p>ملخص الأقساط الحالية</p>
+                <p>ملخص السنة الدراسية {stats.finance.academicYear || "النشطة"}</p>
               </div>
-              <span className="trend">+6% هذا الشهر</span>
+              <span className="trend">
+                {formatNumber(stats.finance.collectionRate)}% تحصيل
+              </span>
             </div>
 
             <div className="financial-body">
-              <Donut value={82} color="#20a464" label="نسبة التحصيل" />
+              <Donut
+                value={stats.finance.collectionRate}
+                color="#20a464"
+                label="نسبة التحصيل"
+              />
               <div className="financial-values">
-                <div><span className="paid-dot" /><p>المقبوض</p><strong>82,000,000 د.ع</strong></div>
-                <div><span className="remaining-dot" /><p>المتبقي</p><strong>18,000,000 د.ع</strong></div>
-                <div className="payment-counts">
-                  <span>310 مسدد بالكامل</span>
-                  <span>95 مسدد جزئيًا</span>
-                  <span>65 غير مسدد</span>
+                <div>
+                  <span className="required-dot" />
+                  <p>إجمالي الرسوم المطلوبة</p>
+                  <strong>{formatCurrency(stats.finance.totalRequired)}</strong>
                 </div>
+                <div>
+                  <span className="paid-dot" />
+                  <p>إجمالي المدفوع</p>
+                  <strong>{formatCurrency(stats.finance.totalPaid)}</strong>
+                </div>
+                <div>
+                  <span className="remaining-dot" />
+                  <p>إجمالي المتبقي</p>
+                  <strong>{formatCurrency(stats.finance.totalRemaining)}</strong>
+                </div>
+                <div className="payment-counts">
+                  <span>
+                    {formatNumber(stats.finance.fullyPaidStudents)} مسدد بالكامل
+                  </span>
+                  <span>
+                    {formatNumber(stats.finance.partiallyPaidStudents)} مسدد جزئيًا
+                  </span>
+                  <span>
+                    {formatNumber(stats.finance.unpaidStudents)} غير مسدد
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <div className="finance-details-grid">
+              <div>
+                <span>دفعات اليوم</span>
+                <strong>{formatNumber(stats.finance.paymentsTodayCount)}</strong>
+                <small>{formatCurrency(stats.finance.paymentsTodayAmount)}</small>
+              </div>
+              <div>
+                <span>دفعات الشهر</span>
+                <strong>{formatNumber(stats.finance.paymentsThisMonthCount)}</strong>
+                <small>{formatCurrency(stats.finance.paymentsThisMonthAmount)}</small>
+              </div>
+              <div>
+                <span>طلاب عليهم رصيد</span>
+                <strong>{formatNumber(stats.finance.studentsWithBalance)}</strong>
+              </div>
+              <div>
+                <span>أعلى صف في المتبقي</span>
+                <strong>
+                  {stats.finance.highestOutstandingGrade?.grade || "—"}
+                </strong>
+                <small>
+                  {stats.finance.highestOutstandingGrade
+                    ? formatCurrency(
+                        stats.finance.highestOutstandingGrade.remaining
+                      )
+                    : "لا يوجد رصيد"}
+                </small>
               </div>
             </div>
           </article>
@@ -285,45 +560,159 @@ export default function Dashboard() {
         <section className="middle-grid">
           <button type="button" className="panel attendance-panel" onClick={() => setAttendanceOpen(true)}>
             <div className="panel-heading">
-              <div><h2>حضور الطلاب اليوم</h2><p>اضغط لعرض قائمة الغياب</p></div>
+              <div>
+                <h2>حضور الطلاب اليوم</h2>
+                <p>اضغط لعرض ملخص الغياب حسب الصف</p>
+              </div>
             </div>
             <div className="attendance-body">
-              <Donut value={96} color="#2ca66f" label="نسبة الحضور" />
+              <Donut
+                value={stats.studentAttendance.attendanceRate}
+                color="#2ca66f"
+                label="نسبة الحضور"
+              />
               <div className="attendance-numbers">
-                <span><b>452</b> حاضر</span>
-                <span><b>18</b> غائب</span>
+                <span>
+                  <b>{formatNumber(stats.studentAttendance.totalActiveStudents)}</b>
+                  إجمالي نشط
+                </span>
+                <span>
+                  <b>{formatNumber(stats.studentAttendance.present)}</b> حاضر
+                </span>
+                <span>
+                  <b>{formatNumber(stats.studentAttendance.absentWithoutExcuse)}</b>
+                  غائب دون عذر
+                </span>
+                <span>
+                  <b>{formatNumber(stats.studentAttendance.onLeave)}</b> مجاز
+                </span>
+                <span>
+                  <b>
+                    {stats.studentAttendance.absentWithExcuse === null
+                      ? "—"
+                      : formatNumber(stats.studentAttendance.absentWithExcuse)}
+                  </b>
+                  غائب بعذر
+                </span>
               </div>
+            </div>
+            <div className="attendance-top-grade">
+              <span>أكثر صف فيه غياب اليوم</span>
+              <strong>
+                {stats.studentAttendance.topAbsentGrade?.grade || "لا يوجد غياب"}
+              </strong>
             </div>
           </button>
 
           <article className="panel">
-            <div className="panel-heading"><div><h2>ماذا تغير اليوم؟</h2><p>آخر العمليات المهمة</p></div></div>
-            <div className="simple-list">
-              {changesToday.map((item) => (
-                <div key={item.id}><span>{item.label}</span><time>{item.time}</time></div>
-              ))}
+            <div className="panel-heading">
+              <div>
+                <h2>ماذا تغير اليوم؟</h2>
+                <p>مؤشرات محدثة من قاعدة البيانات</p>
+              </div>
             </div>
-          </article>
-
-          <article className="panel">
-            <div className="panel-heading"><div><h2>حالة الأنظمة</h2><p>المكونات الأساسية</p></div></div>
-            <div className="systems-list">
-              {systemStatus.map((item) => (
+            <div className="simple-list">
+              {dailyHighlights.map((item) => (
                 <div key={item.id}>
-                  <span className={`system-dot ${item.state}`} />
-                  <strong>{item.label}</strong>
-                  <small>{item.state === "online" ? "متصل" : "يحتاج متابعة"}</small>
+                  <span>{item.label}</span>
+                  <strong>{item.value}</strong>
                 </div>
               ))}
             </div>
           </article>
 
+          <article className="panel">
+            <div className="panel-heading">
+              <div>
+                <h2>حالة الأنظمة</h2>
+                <p>حالة مصادر لوحة التحكم</p>
+              </div>
+            </div>
+            <div className="systems-list">
+              <div>
+                <span className={`system-dot ${statistics ? "online" : "warning"}`} />
+                <strong>الخادم وقاعدة البيانات</strong>
+                <small>{statistics ? "متصل" : "بانتظار الاتصال"}</small>
+              </div>
+              <div>
+                <span className={`system-dot ${partialErrorCount ? "warning" : "online"}`} />
+                <strong>أقسام الإحصائيات</strong>
+                <small>{partialErrorCount ? "تحديث جزئي" : "محدثة"}</small>
+              </div>
+              <div>
+                <span className="system-dot online" />
+                <strong>توقيت المدرسة</strong>
+                <small>{statistics?.timeZone || SCHOOL_TIME_ZONE}</small>
+              </div>
+              <div>
+                <span className="system-dot warning" />
+                <strong>جهاز البصمة</strong>
+                <small>لا يوجد مصدر حالة مربوط</small>
+              </div>
+            </div>
+          </article>
+
           <article className="panel backup-panel">
             <div className="panel-heading"><div><h2>النسخة الاحتياطية</h2><p>حماية بيانات المدرسة</p></div></div>
-            <span className="backup-badge">ناجحة</span>
-            <strong>اليوم، 02:30 ص</strong>
-            <p>آخر نسخة احتياطية اكتملت دون أخطاء.</p>
+            <span className="backup-badge unavailable">غير مربوط</span>
+            <strong>لا توجد إحصائية نسخ احتياطي</strong>
+            <p>لم يُعثر على جدول أو خدمة تحفظ وقت وحالة آخر نسخة احتياطية.</p>
             <button type="button" onClick={() => navigate("/settings")}>إدارة النسخ الاحتياطية</button>
+          </article>
+        </section>
+
+        <section className="entity-statistics-grid">
+          <article className="panel entity-stat-card">
+            <div className="panel-heading">
+              <div>
+                <h2>إحصائيات الطلاب</h2>
+                <p>التوزيع الحالي حسب النوع والصف</p>
+              </div>
+            </div>
+            <div className="entity-summary">
+              <div><span>الإجمالي</span><strong>{formatNumber(stats.students.total)}</strong></div>
+              <div><span>النشطون</span><strong>{formatNumber(stats.students.activeTotal)}</strong></div>
+              <div><span>الطلاب</span><strong>{formatNumber(stats.students.male)}</strong></div>
+              <div><span>الطالبات</span><strong>{formatNumber(stats.students.female)}</strong></div>
+              <div><span>أضيفوا هذا الشهر</span><strong>{formatNumber(stats.students.addedThisMonth)}</strong></div>
+            </div>
+            <div className="distribution-list">
+              {stats.students.byGrade.length > 0 ? (
+                stats.students.byGrade.map((item) => (
+                  <div key={item.grade}>
+                    <span>{item.grade}</span>
+                    <strong>{formatNumber(item.count)}</strong>
+                  </div>
+                ))
+              ) : (
+                <p>لا توجد بيانات توزيع للصفوف.</p>
+              )}
+            </div>
+          </article>
+
+          <article className="panel entity-stat-card">
+            <div className="panel-heading">
+              <div>
+                <h2>إحصائيات الموظفين</h2>
+                <p>التوزيع حسب النوع أو الوظيفة</p>
+              </div>
+            </div>
+            <div className="entity-summary">
+              <div><span>إجمالي الموظفين</span><strong>{formatNumber(stats.employees.total)}</strong></div>
+              <div><span>أضيفوا هذا الشهر</span><strong>{formatNumber(stats.employees.addedThisMonth)}</strong></div>
+            </div>
+            <div className="distribution-list">
+              {stats.employees.byType.length > 0 ? (
+                stats.employees.byType.map((item) => (
+                  <div key={item.type}>
+                    <span>{item.type}</span>
+                    <strong>{formatNumber(item.count)}</strong>
+                  </div>
+                ))
+              ) : (
+                <p>لا توجد بيانات توزيع للموظفين.</p>
+              )}
+            </div>
           </article>
         </section>
 
@@ -333,7 +722,16 @@ export default function Dashboard() {
             {sections.map((item) => (
               <Link key={item.path} to={item.path} className="section-card">
                 <span className="section-icon">{item.code}</span>
-                <div><h3>{item.title}</h3><p>{item.description}</p></div>
+                <div>
+                  <h3>{item.title}</h3>
+                  <p>
+                    {item.showsArchiveCount
+                      ? loading && !statistics
+                        ? "جاري حساب العناصر المحذوفة..."
+                        : `${formatNumber(stats.archive.total)} عنصر محذوف`
+                      : item.description}
+                  </p>
+                </div>
                 <b>←</b>
               </Link>
             ))}
@@ -344,28 +742,44 @@ export default function Dashboard() {
       {attendanceOpen && (
         <div className="modal-overlay">
           <div className="absence-modal printable-area report-print-document">
-            <div className="modal-header report-screen-only">
-              <div><h2>قائمة الطلاب الغائبين</h2><p>{dateText}</p></div>
-              <button type="button" className="print-hide" onClick={() => setAttendanceOpen(false)}>×</button>
+            <div className="modal-header modal-sticky-header report-screen-only">
+              <div><h2>ملخص غياب الطلاب حسب الصف</h2><p>{dateText}</p></div>
+              <button type="button" className="modal-sticky-close print-hide" onClick={() => setAttendanceOpen(false)} aria-label="إغلاق ملخص غياب الطلاب">×</button>
             </div>
 
             <ReportPrintHeader
-              title="قائمة الطلاب الغائبين"
+              title="ملخص غياب الطلاب حسب الصف"
               date={dateText}
             />
 
-            <table>
-              <thead><tr><th>#</th><th>اسم الطالب</th><th>الصف</th><th>الشعبة</th><th>السبب</th></tr></thead>
+            <table className="data-list-table report-screen-list">
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>الصف</th>
+                  <th>غياب دون عذر</th>
+                  <th>مجازون</th>
+                  <th>الإجمالي</th>
+                </tr>
+              </thead>
               <tbody>
-                {absentStudents.map((student, index) => (
-                  <tr key={student.id}>
-                    <td>{index + 1}</td>
-                    <td>{student.name}</td>
-                    <td>{student.grade}</td>
-                    <td>{student.section}</td>
-                    <td>{student.reason}</td>
+                {stats.studentAttendance.absenceByGrade.length > 0 ? (
+                  stats.studentAttendance.absenceByGrade.map((item, index) => (
+                    <tr key={item.grade}>
+                      <td>{index + 1}</td>
+                      <td>{item.grade}</td>
+                      <td>{formatNumber(item.absentWithoutExcuse)}</td>
+                      <td>{formatNumber(item.onLeave)}</td>
+                      <td>{formatNumber(item.totalAbsent)}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td className="data-list-empty" colSpan="5">
+                      لا توجد حالات غياب مسجلة لهذا اليوم.
+                    </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
 

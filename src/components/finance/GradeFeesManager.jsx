@@ -214,8 +214,8 @@ export default function GradeFeesManager() {
         </div>
       )}
 
-      <div className="grade-fees-table-wrapper">
-        <table className="grade-fees-table">
+      <div className="grade-fees-table-wrapper data-list-card data-list-scroll">
+        <table className="grade-fees-table data-list-table">
           <thead>
             <tr>
               <th>المرحلة</th>
@@ -228,20 +228,20 @@ export default function GradeFeesManager() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="4" className="grade-fees-empty-state">
+                <td colSpan="4" className="grade-fees-empty-state data-list-empty">
                   جاري تحميل الرسوم...
                 </td>
               </tr>
             ) : fees.length === 0 ? (
               <tr>
-                <td colSpan="4" className="grade-fees-empty-state">
+                <td colSpan="4" className="grade-fees-empty-state data-list-empty">
                   لا توجد رسوم مسجلة
                 </td>
               </tr>
             ) : (
               fees.map((fee) => (
                 <tr key={fee.id}>
-                  <td className="grade-fees-name">{fee.grade}</td>
+                  <td className="grade-fees-name data-list-name">{fee.grade}</td>
 
                   <td>
                     <span className="grade-fees-year-badge">
@@ -254,7 +254,7 @@ export default function GradeFeesManager() {
                   </td>
 
                   <td>
-                    <div className="grade-fees-actions">
+                    <div className="grade-fees-actions data-list-actions">
                       <button
                         type="button"
                         className="grade-fees-edit-button"
@@ -282,14 +282,16 @@ export default function GradeFeesManager() {
       {isModalOpen && (
         <div className="grade-fees-modal-overlay">
           <div className="grade-fees-modal">
-            <button
-              type="button"
-              className="grade-fees-modal-close"
-              onClick={closeModal}
-              aria-label="إغلاق"
-            >
-              ×
-            </button>
+            <div className="modal-sticky-close-bar">
+              <button
+                type="button"
+                className="grade-fees-modal-close modal-sticky-close"
+                onClick={closeModal}
+                aria-label="إغلاق"
+              >
+                ×
+              </button>
+            </div>
 
             <h3>
               {editingFee

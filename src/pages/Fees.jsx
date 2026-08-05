@@ -1,5 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
 import "../styles/Dashboard.css";
 
 import FeesStats from "../components/finance/FeesStats";
@@ -32,8 +31,6 @@ const sections = [
 ];
 
 export default function Fees() {
-  const navigate = useNavigate();
-
   const [activeSection, setActiveSection] = useState("");
   const [fees, setFees] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -182,20 +179,18 @@ export default function Fees() {
   };
 
   return (
-    <div className="main-content" dir="rtl">
+    <div className="main-content fees-page" dir="rtl">
       <div style={headerStyle}>
         <div>
-          <button
-            type="button"
-            onClick={
-              activeSection
-                ? returnToSections
-                : () => navigate(-1)
-            }
-            style={backButtonStyle}
-          >
-            رجوع
-          </button>
+          {activeSection && (
+            <button
+              type="button"
+              onClick={returnToSections}
+              style={backButtonStyle}
+            >
+              رجوع
+            </button>
+          )}
 
           <h2 style={{ margin: "14px 0 0" }}>
             الحسابات والأقساط
@@ -296,7 +291,7 @@ export default function Fees() {
       {showQuickPayment && (
         <div style={quickOverlayStyle}>
           <div style={quickModalStyle}>
-            <div style={quickModalHeaderStyle}>
+            <div className="modal-sticky-header" style={quickModalHeaderStyle}>
               <div>
                 <h2 style={{ margin: 0 }}>
                   تسديد قسط
@@ -309,17 +304,20 @@ export default function Fees() {
 
               <button
                 type="button"
+                className="modal-sticky-close"
                 onClick={() => {
                   setShowQuickPayment(false);
                   setQuickSearch("");
                 }}
                 style={quickCloseButtonStyle}
+                aria-label="إغلاق نافذة تسديد القسط"
               >
                 ×
               </button>
             </div>
 
             <input
+              className="data-list-control data-list-search"
               value={quickSearch}
               onChange={(event) =>
                 setQuickSearch(event.target.value)
@@ -329,9 +327,9 @@ export default function Fees() {
               autoFocus
             />
 
-            <div style={quickStudentsListStyle}>
+            <div className="data-list-card data-list-rows" style={quickStudentsListStyle}>
               {quickPaymentFees.length === 0 ? (
-                <div style={quickEmptyStyle}>
+                <div className="data-list-empty" style={quickEmptyStyle}>
                   لا يوجد طالب لديه مبلغ متبقٍ
                 </div>
               ) : (
@@ -355,6 +353,7 @@ export default function Fees() {
                       onClick={() =>
                         chooseStudentForPayment(fee)
                       }
+                      className="data-list-row data-list-select-row"
                       style={quickStudentButtonStyle}
                     >
                       <div>
@@ -424,13 +423,14 @@ function SearchInput({
   placeholder,
 }) {
   return (
-    <div style={{ marginBottom: 20 }}>
+    <div className="data-list-filters" style={{ marginBottom: 20 }}>
       <input
         value={search}
         onChange={(event) =>
           setSearch(event.target.value)
         }
         placeholder={placeholder}
+        className="data-list-control data-list-search"
         style={searchStyle}
       />
     </div>

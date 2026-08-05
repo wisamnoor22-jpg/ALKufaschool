@@ -5,6 +5,7 @@ const {
   getEmployees,
   getEmployeeById,
   addEmployee,
+  updateEmployee,
   deleteEmployee,
 } = require("../controllers/employeesController");
 
@@ -30,6 +31,7 @@ router.post(
 router.delete("/documents/:id", deleteDocument);
 
 router.get("/:id", getEmployeeById);
+router.put("/:id", updateEmployee);
 router.delete("/:id", deleteEmployee);
 
 module.exports = router;

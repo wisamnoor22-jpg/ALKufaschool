@@ -4,8 +4,8 @@ export default function FeesTable({
   onHistory,
 }) {
   return (
-    <div style={containerStyle}>
-      <table style={tableStyle}>
+    <div className="data-list-card data-list-scroll" style={containerStyle}>
+      <table className="data-list-table fees-data-table" style={tableStyle}>
         <thead style={headerStyle}>
           <tr>
             <th style={cellStyle}>الطالب</th>
@@ -21,7 +21,7 @@ export default function FeesTable({
         <tbody>
           {fees.length === 0 ? (
             <tr>
-              <td colSpan="7" style={emptyStyle}>
+              <td className="data-list-empty" colSpan="7" style={emptyStyle}>
                 لا توجد أقساط مسجلة
               </td>
             </tr>
@@ -37,7 +37,7 @@ export default function FeesTable({
 
               return (
                 <tr key={fee.id} style={rowStyle}>
-                  <td style={cellStyle}>
+                  <td className="data-list-name" style={cellStyle}>
                     <strong>{fee.full_name}</strong>
                   </td>
 
@@ -71,11 +71,12 @@ export default function FeesTable({
                   </td>
 
                   <td style={cellStyle}>
-                    <div style={actionsStyle}>
+                    <div className="data-list-actions" style={actionsStyle}>
                       <button
                         type="button"
                         onClick={() => onPayment?.(fee)}
                         disabled={remaining === 0}
+                        className="data-list-action"
                         style={{
                           ...paymentButtonStyle,
                           opacity: remaining === 0 ? 0.5 : 1,
@@ -92,6 +93,7 @@ export default function FeesTable({
                         type="button"
                         onClick={() => onHistory?.(fee)}
                         disabled={paid <= 0}
+                        className="data-list-action"
                         style={{
                           ...receiptButtonStyle,
                           opacity: paid <= 0 ? 0.5 : 1,

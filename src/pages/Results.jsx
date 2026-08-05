@@ -1,5 +1,4 @@
 import { useRef, useState } from "react";
-import BackButton from "../components/common/BackButton";
 import "../styles/Results.css";
 
 const GRADES = [
@@ -57,8 +56,6 @@ export default function Results() {
     <main className="results-page" dir="rtl">
       <section className="results-container">
         <header className="results-header">
-          <BackButton />
-
           <div>
             <h1>إدارة الدرجات</h1>
             <p>عرض الدرجات أو إضافة درجات جديدة</p>

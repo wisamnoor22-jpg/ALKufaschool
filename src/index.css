@@ -59,6 +59,65 @@ button {
   width: 100%;
   min-height: 100vh;
 }
+
+/* Shared close controls for scrollable modal windows. */
+.modal-sticky-header,
+.modal-sticky-close-bar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: inherit;
+}
+
+.modal-sticky-header {
+  padding-top: 8px;
+}
+
+.modal-sticky-close-bar {
+  display: flex;
+  align-items: center;
+  min-height: 48px;
+  margin-bottom: 10px;
+  direction: ltr;
+}
+
+.modal-sticky-close {
+  position: static !important;
+  inset: auto !important;
+  z-index: 41;
+  display: inline-grid !important;
+  flex: 0 0 auto;
+  place-items: center;
+  width: 40px !important;
+  min-width: 40px;
+  height: 40px !important;
+  padding: 0 !important;
+  border: 1px solid rgba(30, 60, 114, 0.16) !important;
+  border-radius: 50% !important;
+  background: #ffffff !important;
+  color: #334155 !important;
+  box-shadow: 0 5px 16px rgba(15, 23, 42, 0.14);
+  font-size: 27px !important;
+  line-height: 1 !important;
+}
+
+.modal-sticky-close:hover:not(:disabled),
+.modal-sticky-close:focus-visible {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+.modal-sticky-close:focus-visible {
+  outline: 3px solid rgba(37, 99, 235, 0.28);
+  outline-offset: 2px;
+}
+
+@media print {
+  .modal-sticky-header,
+  .modal-sticky-close-bar {
+    position: static;
+  }
+}
 /* إصلاح الألوان الباهتة في الوضع الداكن */
 :root[data-theme="dark"],
 body.dark-mode {
@@ -145,4 +204,19 @@ body.dark-mode button:not(:disabled) {
 :root[data-theme="dark"] button:disabled,
 body.dark-mode button:disabled {
   opacity: 0.55 !important;
+}
+
+:root[data-theme="dark"] .modal-sticky-close,
+body.dark-mode .modal-sticky-close {
+  background: var(--soft-bg) !important;
+  color: var(--text-color) !important;
+  border-color: var(--border-color) !important;
+}
+
+:root[data-theme="dark"] .modal-sticky-close:hover:not(:disabled),
+:root[data-theme="dark"] .modal-sticky-close:focus-visible,
+body.dark-mode .modal-sticky-close:hover:not(:disabled),
+body.dark-mode .modal-sticky-close:focus-visible {
+  background: var(--table-header-bg) !important;
+  color: #ffffff !important;
 }

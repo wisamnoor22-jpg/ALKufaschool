@@ -166,13 +166,15 @@ export default function PaymentForm({
   return (
     <div style={overlayStyle}>
       <div style={modalStyle}>
-        <div style={headerStyle}>
+        <div className="modal-sticky-header" style={headerStyle}>
           <h2 style={{ margin: 0 }}>تسجيل دفعة</h2>
 
           <button
             type="button"
+            className="modal-sticky-close"
             onClick={onClose}
             style={closeButtonStyle}
+            aria-label="إغلاق نافذة تسجيل الدفعة"
           >
             ×
           </button>

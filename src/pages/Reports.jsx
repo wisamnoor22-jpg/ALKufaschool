@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import BackButton from "../components/common/BackButton";
 import ReportPrintHeader from "../components/common/ReportPrintHeader";
 import "../styles/reports.css";
 import "../styles/reportPrint.css";
@@ -283,7 +282,7 @@ function StudentAttendanceReport({ onBack }) {
 
       {message && <div className="reports-error-message">{message}</div>}
 
-      <section className="reports-filters-card">
+      <section className="reports-filters-card data-list-filters">
         <div className="reports-filter-group">
           <label>نوع التقرير</label>
           <select value={mode} onChange={(event) => setMode(event.target.value)}>
@@ -387,8 +386,8 @@ function StudentAttendanceReport({ onBack }) {
         </article>
       </section>
 
-      <section className="reports-table-card">
-        <div className="reports-table-header">
+      <section className="reports-table-card data-list-card">
+        <div className="reports-table-header data-list-header">
           <div>
             <h3>معاينة الغياب والإجازات</h3>
             <p>
@@ -406,8 +405,8 @@ function StudentAttendanceReport({ onBack }) {
           </span>
         </div>
 
-        <div className="reports-table-wrapper">
-          <table className="reports-data-table">
+        <div className="reports-table-wrapper data-list-scroll">
+          <table className="reports-data-table data-list-table">
             <thead>
               <tr>
                 <th>الاسم</th>
@@ -422,7 +421,7 @@ function StudentAttendanceReport({ onBack }) {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="reports-empty-cell">
+                  <td colSpan="6" className="reports-empty-cell data-list-loading">
                     جاري إعداد التقرير...
                   </td>
                 </tr>
@@ -439,7 +438,7 @@ function StudentAttendanceReport({ onBack }) {
                   )
                   .map((record) => (
                     <tr key={record.id}>
-                      <td className="reports-student-name">
+                      <td className="reports-student-name data-list-name">
                         {record.full_name}
                       </td>
                       <td>{record.grade || "غير محدد"}</td>
@@ -457,7 +456,7 @@ function StudentAttendanceReport({ onBack }) {
                   ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="reports-empty-cell">
+                  <td colSpan="6" className="reports-empty-cell data-list-empty">
                     لا يوجد غائبون أو مجازون في اليوم أو الفترة المحددة
                   </td>
                 </tr>
@@ -713,7 +712,7 @@ function EmployeeAttendanceReport({ onBack }) {
 
       {message && <div className="reports-error-message">{message}</div>}
 
-      <section className="reports-filters-card employee-report-filters">
+      <section className="reports-filters-card employee-report-filters data-list-filters">
         <div className="reports-filter-group">
           <label>نوع التقرير</label>
           <select
@@ -800,8 +799,8 @@ function EmployeeAttendanceReport({ onBack }) {
         </article>
       </section>
 
-      <section className="reports-table-card">
-        <div className="reports-table-header">
+      <section className="reports-table-card data-list-card">
+        <div className="reports-table-header data-list-header">
           <div>
             <h3>معاينة الحضور والتأخير</h3>
             <p>عرض غير قابل للتعديل قبل الطباعة</p>
@@ -809,8 +808,8 @@ function EmployeeAttendanceReport({ onBack }) {
           <span>{visibleRecords.length} سجل</span>
         </div>
 
-        <div className="reports-table-wrapper">
-          <table className="reports-data-table employee-report-table">
+        <div className="reports-table-wrapper data-list-scroll">
+          <table className="reports-data-table employee-report-table data-list-table">
             <thead>
               <tr>
                 <th>الاسم</th>
@@ -828,14 +827,14 @@ function EmployeeAttendanceReport({ onBack }) {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="9" className="reports-empty-cell">
+                  <td colSpan="9" className="reports-empty-cell data-list-loading">
                     جاري إعداد التقرير...
                   </td>
                 </tr>
               ) : visibleRecords.length > 0 ? (
                 visibleRecords.map((record) => (
                   <tr key={record.id}>
-                    <td className="reports-student-name">
+                    <td className="reports-student-name data-list-name">
                       {record.full_name}
                     </td>
                     <td>{record.employee_type || "غير محدد"}</td>
@@ -864,7 +863,7 @@ function EmployeeAttendanceReport({ onBack }) {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="9" className="reports-empty-cell">
+                  <td colSpan="9" className="reports-empty-cell data-list-empty">
                     لا توجد حالات غياب أو إجازة أو تأخير في الفترة
                     المحددة
                   </td>
@@ -950,8 +949,6 @@ export default function Reports() {
       {!selectedReport ? (
         <>
           <header className="reports-page-header">
-            <BackButton />
-
             <div>
               <h1>مركز التقارير</h1>
               <p>

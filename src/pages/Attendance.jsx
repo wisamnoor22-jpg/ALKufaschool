@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import BackButton from "../components/common/BackButton";
 import ReportPrintHeader from "../components/common/ReportPrintHeader";
 import "../styles/attendance.css";
 import "../styles/reportPrint.css";
@@ -412,7 +411,7 @@ function AttendanceWorkspace({
         </div>
       )}
 
-      <section className="card attendance-search-panel">
+      <section className="card attendance-search-panel data-list-filters">
         <div className="attendance-date-field">
           <label>تاريخ الحضور</label>
           <input
@@ -440,16 +439,19 @@ function AttendanceWorkspace({
           />
 
           {search.trim() && (
-            <div className="attendance-search-results">
+            <div className="attendance-search-results data-list-card data-list-rows">
               {searchResults.length > 0 ? (
                 searchResults.map((person) => (
                   <button
                     type="button"
                     key={personKey(person)}
+                    className="data-list-row"
                     onClick={() => markFromSearchAbsent(person)}
                   >
                     <div>
-                      <strong>{person.full_name}</strong>
+                      <strong className="data-list-name">
+                        {person.full_name}
+                      </strong>
                       <span>
                         {isStudents
                           ? `${person.grade || "صف غير محدد"} — ${
@@ -465,7 +467,7 @@ function AttendanceWorkspace({
                   </button>
                 ))
               ) : (
-                <p>لا توجد نتائج مطابقة</p>
+                <p className="data-list-empty">لا توجد نتائج مطابقة</p>
               )}
             </div>
           )}
@@ -555,8 +557,8 @@ function AttendanceWorkspace({
         )}
       </section>
 
-      <section className="card attendance-absence-card">
-        <div className="attendance-section-title">
+      <section className="card attendance-absence-card data-list-card">
+        <div className="attendance-section-title data-list-header">
           <div>
             <h3>قائمة الغياب اليوم</h3>
             <p>
@@ -566,44 +568,54 @@ function AttendanceWorkspace({
           <span>{absentPeople.length}</span>
         </div>
 
-        {absentPeople.length > 0 ? (
-          <div className="attendance-selected-list">
-            {absentPeople.map((person) => (
-              <div
-                key={personKey(person)}
-                className="attendance-selected-person"
-              >
-                <div>
-                  <strong>{person.full_name}</strong>
-                  <small>
-                    {isStudents
-                      ? `${person.grade || ""} ${
-                          person.section
-                            ? `— شعبة ${person.section}`
-                            : ""
-                        }`
-                      : person.employee_type || ""}
-                  </small>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => updateStatus(person, "present")}
-                >
-                  إزالة من الغياب
-                </button>
-              </div>
-            ))}
+        <div className="attendance-absence-list data-list-scroll">
+          <div className="attendance-list-column-header attendance-absence-columns">
+            <span>الاسم والبيانات</span>
+            <span>الإجراء</span>
           </div>
-        ) : (
-          <p className="attendance-empty-message">
-            لم يُضف أي اسم إلى قائمة الغياب
-          </p>
-        )}
+
+          {absentPeople.length > 0 ? (
+            <div className="attendance-selected-list data-list-rows">
+              {absentPeople.map((person) => (
+                <div
+                  key={personKey(person)}
+                  className="attendance-selected-person data-list-row"
+                >
+                  <div>
+                    <strong className="data-list-name">
+                      {person.full_name}
+                    </strong>
+                    <small>
+                      {isStudents
+                        ? `${person.grade || ""} ${
+                            person.section
+                              ? `— شعبة ${person.section}`
+                              : ""
+                          }`
+                        : person.employee_type || ""}
+                    </small>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="attendance-remove-absence data-list-action"
+                    onClick={() => updateStatus(person, "present")}
+                  >
+                    إزالة من الغياب
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="attendance-empty-message data-list-empty">
+              لم يُضف أي اسم إلى قائمة الغياب
+            </p>
+          )}
+        </div>
       </section>
 
-      <section className="card attendance-people-card">
-        <div className="attendance-section-title">
+      <section className="card attendance-people-card data-list-card">
+        <div className="attendance-section-title data-list-header">
           <div>
             <h3>
               قائمة {isStudents ? "الطلاب" : "الموظفين"}
@@ -613,33 +625,53 @@ function AttendanceWorkspace({
           <span>{filteredPeople.length}</span>
         </div>
 
-        {loading ? (
-          <p className="attendance-loading">جاري تحميل الأسماء...</p>
-        ) : (
-          <div className="attendance-people-list">
-            {filteredPeople.length > 0 ? (
-              filteredPeople.map((person) => {
-                const record = getRecord(person);
+        <div
+          className={`attendance-records-list data-list-scroll ${
+            isStudents ? "students" : "employees"
+          }`}
+        >
+          <div
+            className={`attendance-list-column-header attendance-people-columns ${
+              isStudents ? "students" : "employees"
+            }`}
+          >
+            <span>الاسم والبيانات</span>
+            <span>الحالة</span>
+            {!isStudents && <span>أوقات الدوام والتأخير</span>}
+            <span>الملاحظة</span>
+          </div>
 
-                return (
-                  <article
-                    key={personKey(person)}
-                    className={`attendance-person-row ${
-                      isStudents ? "" : "employee"
-                    } ${record.status}`}
-                  >
-                    <div className="attendance-person-info">
-                      <strong>{person.full_name}</strong>
-                      <span>
-                        {isStudents
-                          ? `${person.grade || "صف غير محدد"} — شعبة ${
-                              person.section || "غير محددة"
-                            }`
-                          : person.employee_type || "موظف"}
-                      </span>
-                    </div>
+          {loading ? (
+            <p className="attendance-loading data-list-loading">
+              جاري تحميل الأسماء...
+            </p>
+          ) : (
+            <div className="attendance-people-list data-list-rows">
+              {filteredPeople.length > 0 ? (
+                filteredPeople.map((person) => {
+                  const record = getRecord(person);
 
-                    <div className="attendance-status-actions">
+                  return (
+                    <article
+                      key={personKey(person)}
+                      className={`attendance-person-row data-list-row ${
+                        isStudents ? "" : "employee"
+                      } ${record.status}`}
+                    >
+                      <div className="attendance-person-info">
+                        <strong className="data-list-name">
+                          {person.full_name}
+                        </strong>
+                        <span>
+                          {isStudents
+                            ? `${person.grade || "صف غير محدد"} — شعبة ${
+                                person.section || "غير محددة"
+                              }`
+                            : person.employee_type || "موظف"}
+                        </span>
+                      </div>
+
+                      <div className="attendance-status-actions data-list-actions">
                       <button
                         type="button"
                         className={
@@ -697,13 +729,14 @@ function AttendanceWorkspace({
                           متأخر
                         </button>
                       )}
-                    </div>
+                      </div>
 
-                    {!isStudents && (
-                      <div className="attendance-employee-times">
+                      {!isStudents && (
+                        <div className="attendance-employee-times">
                         <label>
                           <span>وقت الحضور</span>
                           <input
+                            className="data-list-control"
                             type="time"
                             value={record.check_in_time || ""}
                             onChange={(event) =>
@@ -719,6 +752,7 @@ function AttendanceWorkspace({
                         <label>
                           <span>وقت الانصراف</span>
                           <input
+                            className="data-list-control"
                             type="time"
                             value={record.check_out_time || ""}
                             onChange={(event) =>
@@ -734,6 +768,7 @@ function AttendanceWorkspace({
                         <label>
                           <span>دقائق التأخير</span>
                           <input
+                            className="data-list-control"
                             type="number"
                             min="0"
                             step="1"
@@ -747,27 +782,28 @@ function AttendanceWorkspace({
                             }
                           />
                         </label>
-                      </div>
-                    )}
+                        </div>
+                      )}
 
-                    <input
-                      className="attendance-note-input"
-                      value={record.notes}
-                      onChange={(event) =>
-                        updateNotes(person, event.target.value)
-                      }
-                      placeholder="ملاحظة اختيارية"
-                    />
-                  </article>
-                );
-              })
-            ) : (
-              <p className="attendance-empty-message">
-                لا توجد أسماء مطابقة
-              </p>
-            )}
-          </div>
-        )}
+                      <input
+                        className="attendance-note-input data-list-control"
+                        value={record.notes}
+                        onChange={(event) =>
+                          updateNotes(person, event.target.value)
+                        }
+                        placeholder="ملاحظة اختيارية"
+                      />
+                    </article>
+                  );
+                })
+              ) : (
+                <p className="attendance-empty-message data-list-empty">
+                  لا توجد أسماء مطابقة
+                </p>
+              )}
+            </div>
+          )}
+        </div>
 
         <div className="attendance-save-area">
           <button
@@ -789,13 +825,16 @@ function AttendanceWorkspace({
       {reportOpen && (
         <div className="attendance-modal-overlay">
           <div className="attendance-report-modal">
-            <button
-              type="button"
-              className="attendance-modal-close"
-              onClick={() => setReportOpen(false)}
-            >
-              ×
-            </button>
+            <div className="modal-sticky-close-bar">
+              <button
+                type="button"
+                className="attendance-modal-close modal-sticky-close"
+                onClick={() => setReportOpen(false)}
+                aria-label="إغلاق تقرير الحضور"
+              >
+                ×
+              </button>
+            </div>
 
             <div className="attendance-print-area report-print-document">
               <ReportPrintHeader
@@ -830,8 +869,8 @@ function AttendanceWorkspace({
               </h3>
 
               {reportPeople.length > 0 ? (
-                <div className="attendance-report-table-wrapper">
-                  <table className="attendance-report-table">
+                <div className="attendance-report-table-wrapper data-list-card data-list-scroll">
+                  <table className="attendance-report-table data-list-table">
                     <thead>
                       <tr>
                         <th>الاسم</th>
@@ -914,8 +953,6 @@ export default function Attendance() {
       {!activeSection && (
         <>
           <header className="attendance-page-header">
-            <BackButton />
-
             <div className="attendance-heading">
               <h2>إدارة الحضور</h2>
               <p>اختر حضور الطلاب أو حضور الموظفين</p>
