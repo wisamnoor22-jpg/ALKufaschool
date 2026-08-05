@@ -337,7 +337,7 @@ export default function PaymentHistory({ fee, onClose }) {
               />
 
               <h1 class="school-name">
-                مدرسة الكوفة الأهلية
+                مدرسة الكوفة الأهلية التكميلية المختلطة
               </h1>
 
               <div class="receipt-title">
@@ -596,7 +596,7 @@ export default function PaymentHistory({ fee, onClose }) {
                 />
 
                 <h3 style={previewSchoolStyle}>
-                  مدرسة الكوفة الأهلية
+                  مدرسة الكوفة الأهلية التكميلية المختلطة
                 </h3>
 
                 <div style={previewTitleStyle}>

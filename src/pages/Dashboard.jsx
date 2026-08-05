@@ -352,7 +352,7 @@ export default function Dashboard() {
         <div className="brand-area">
           <img src={schoolLogo} alt="شعار المدرسة" />
           <div>
-            <h1>مدرسة الكوفة الأهلية</h1>
+            <h1>مدرسة الكوفة الأهلية التكميلية المختلطة</h1>
             <p>مرحبًا بك، بحساب المؤسس</p>
           </div>
         </div>

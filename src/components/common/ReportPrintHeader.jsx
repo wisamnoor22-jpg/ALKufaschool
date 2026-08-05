@@ -10,11 +10,11 @@ export default function ReportPrintHeader({
         <img
           className="report-print-logo"
           src="/school-logo.png"
-          alt="شعار مدرسة الكوفة الأهلية"
+          alt="شعار مدرسة الكوفة الأهلية التكميلية المختلطة"
         />
 
         <div className="report-print-heading">
-          <p className="report-print-school-name">مدرسة الكوفة الأهلية</p>
+          <p className="report-print-school-name">مدرسة الكوفة الأهلية التكميلية المختلطة</p>
           <h1>{title}</h1>
         </div>
 
@@ -41,7 +41,7 @@ export default function ReportPrintHeader({
       </header>
 
       <footer className="report-print-footer" aria-hidden="true">
-        <span>مدرسة الكوفة الأهلية</span>
+        <span>مدرسة الكوفة الأهلية التكميلية المختلطة</span>
         <span className="report-print-page-number" />
       </footer>
     </>

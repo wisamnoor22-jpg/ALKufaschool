@@ -16,7 +16,7 @@ export default function Login() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-header">
-          <h1>مدرسة الكوفة الأهلية</h1>
+          <h1>مدرسة الكوفة الأهلية التكميلية المختلطة</h1>
           <p>نظام الإدارة المدرسية الذكي</p>
         </div>
 
