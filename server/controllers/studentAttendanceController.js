@@ -6,6 +6,7 @@ const ALLOWED_STATUSES = new Set([
   "late",
   "excused",
 ]);
+const ALLOWED_SCHOOL_SHIFTS = new Set(["صباحي", "ظهري"]);
 
 let attendanceTablePromise = null;
 
@@ -116,6 +117,7 @@ const getAttendanceReport = async (req, res) => {
       section,
       search,
       status,
+      school_shift,
     } = req.query;
 
     if (!isValidDate(from) || !isValidDate(to)) {
@@ -135,6 +137,7 @@ const getAttendanceReport = async (req, res) => {
     const normalizedSection = normalizeOptionalText(section);
     const normalizedSearch = normalizeOptionalText(search);
     const normalizedStatus = normalizeOptionalText(status);
+    const normalizedShift = normalizeOptionalText(school_shift);
 
     if (
       normalizedStatus &&
@@ -143,6 +146,16 @@ const getAttendanceReport = async (req, res) => {
     ) {
       return res.status(400).json({
         message: "حالة الحضور المحددة غير صحيحة",
+      });
+    }
+
+    if (
+      normalizedShift &&
+      normalizedShift !== "الكل" &&
+      !ALLOWED_SCHOOL_SHIFTS.has(normalizedShift)
+    ) {
+      return res.status(400).json({
+        message: "وقت الدوام المحدد غير صحيح",
       });
     }
 
@@ -162,6 +175,13 @@ const getAttendanceReport = async (req, res) => {
       values.push(normalizedSection);
       conditions.push(
         `COALESCE(sec.name, s.section) = $${values.length}`
+      );
+    }
+
+    if (normalizedShift && normalizedShift !== "الكل") {
+      values.push(normalizedShift);
+      conditions.push(
+        `COALESCE(se.school_shift, s.school_shift) = $${values.length}`
       );
     }
 
@@ -185,6 +205,7 @@ const getAttendanceReport = async (req, res) => {
          se.student_id,
          s.full_name,
          s.phone,
+         COALESCE(se.school_shift, s.school_shift) AS school_shift,
          COALESCE(g.name, s.grade) AS grade,
          COALESCE(sec.name, s.section) AS section,
          ay.name AS academic_year,
@@ -242,6 +263,7 @@ const getAttendanceReport = async (req, res) => {
          se.student_id,
          sa.student_enrollment_id,
          s.full_name,
+         COALESCE(se.school_shift, s.school_shift) AS school_shift,
          COALESCE(g.name, s.grade) AS grade,
          COALESCE(sec.name, s.section) AS section,
          COUNT(*)::int AS absence_count
@@ -260,6 +282,8 @@ const getAttendanceReport = async (req, res) => {
          se.student_id,
          sa.student_enrollment_id,
          s.full_name,
+         se.school_shift,
+         s.school_shift,
          g.name,
          s.grade,
          sec.name,
@@ -281,6 +305,7 @@ const getAttendanceReport = async (req, res) => {
         section: normalizedSection || "الكل",
         search: normalizedSearch,
         status: normalizedStatus || "all",
+        school_shift: normalizedShift || "الكل",
       },
       summary: summaryResult.rows[0],
       records: result.rows,

@@ -90,6 +90,7 @@ const createEnrollment = async ({
   studentId,
   gradeName,
   sectionName,
+  schoolShift,
   client = pool,
 }) => {
   const academicYear = await getActiveAcademicYear(client);
@@ -107,21 +108,23 @@ const createEnrollment = async ({
        academic_year_id,
        grade_id,
        section_id,
+       school_shift,
        enrollment_status,
        result_status,
        promotion_status,
        enrollment_date
      )
-     VALUES ($1, $2, $3, $4, 'active', 'pending', 'not_processed', CURRENT_DATE)
+     VALUES ($1, $2, $3, $4, $5, 'active', 'pending', 'not_processed', CURRENT_DATE)
      ON CONFLICT (student_id, academic_year_id)
      DO UPDATE SET
        grade_id = EXCLUDED.grade_id,
        section_id = EXCLUDED.section_id,
+       school_shift = EXCLUDED.school_shift,
        enrollment_status = 'active',
        updated_at = NOW(),
        deleted_at = NULL
      RETURNING *`,
-    [studentId, academicYear.id, grade.id, section?.id || null]
+    [studentId, academicYear.id, grade.id, section?.id || null, schoolShift]
   );
 
   return {
@@ -135,6 +138,7 @@ const createEnrollment = async ({
 const updateCurrentSection = async ({
   studentId,
   sectionName,
+  schoolShift,
   client = pool,
 }) => {
   const academicYear = await getActiveAcademicYear(client);
@@ -166,12 +170,13 @@ const updateCurrentSection = async ({
   });
 
   const updatedResult = await client.query(
-    `UPDATE student_enrollments
+     `UPDATE student_enrollments
      SET section_id = $1,
+         school_shift = $2,
          updated_at = NOW()
-     WHERE id = $2
+     WHERE id = $3
      RETURNING *`,
-    [section?.id || null, enrollment.id]
+    [section?.id || null, schoolShift, enrollment.id]
   );
 
   return {
@@ -193,6 +198,7 @@ const getStudentWithCurrentEnrollment = async (
        COALESCE(sec.name, s.section) AS section,
        ay.name AS academic_year,
        se.id AS enrollment_id,
+       COALESCE(se.school_shift, s.school_shift) AS school_shift,
        se.enrollment_status,
        se.result_status,
        se.promotion_status
@@ -223,6 +229,7 @@ const getStudentsWithCurrentEnrollment = async (client = pool) => {
        COALESCE(sec.name, s.section) AS section,
        ay.name AS academic_year,
        se.id AS enrollment_id,
+       COALESCE(se.school_shift, s.school_shift) AS school_shift,
        se.enrollment_status,
        se.result_status,
        se.promotion_status

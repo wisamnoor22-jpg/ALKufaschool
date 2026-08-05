@@ -2,6 +2,7 @@ export default function ReportPrintHeader({
   title,
   date,
   academicYear = "",
+  shift = "",
 }) {
   return (
     <>
@@ -27,6 +28,13 @@ export default function ReportPrintHeader({
             <div>
               <dt>السنة الدراسية</dt>
               <dd>{academicYear}</dd>
+            </div>
+          )}
+
+          {shift && (
+            <div>
+              <dt>الدوام</dt>
+              <dd>{shift}</dd>
             </div>
           )}
         </dl>

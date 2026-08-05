@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import "../styles/Dashboard.css";
 import "../styles/students.css";
 
@@ -32,6 +33,7 @@ const DELETE_REASONS = [
 const createEmptyForm = () => ({
   full_name: "",
   gender: "",
+  school_shift: "",
   birth_date: "",
   phone: "",
   address: "",
@@ -57,6 +59,7 @@ const translateEnrollmentStatus = (status) => {
 };
 
 export default function Students() {
+  const navigate = useNavigate();
   const [students, setStudents] = useState([]);
   const [form, setForm] = useState(createEmptyForm());
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -73,16 +76,17 @@ export default function Students() {
   const [search, setSearch] = useState("");
   const [filterGrade, setFilterGrade] = useState("الكل");
   const [filterGender, setFilterGender] = useState("الكل");
+  const [filterShift, setFilterShift] = useState("الكل");
   const [filterAcademicYear, setFilterAcademicYear] = useState("الكل");
 
   const isEditing = Boolean(selectedStudent);
 
-  const showMessage = (text, type = "success") => {
+  const showMessage = useCallback((text, type = "success") => {
     setMessage(text);
     setMessageType(type);
-  };
+  }, []);
 
-  const fetchStudents = async () => {
+  const fetchStudents = useCallback(async () => {
     try {
       setLoading(true);
       setMessage("");
@@ -101,11 +105,12 @@ export default function Students() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [showMessage]);
 
   useEffect(() => {
-    fetchStudents();
-  }, []);
+    const timer = window.setTimeout(fetchStudents, 0);
+    return () => window.clearTimeout(timer);
+  }, [fetchStudents]);
 
   const academicYears = useMemo(
     () => [
@@ -133,6 +138,9 @@ export default function Students() {
       const matchesGender =
         filterGender === "الكل" || student.gender === filterGender;
 
+      const matchesShift =
+        filterShift === "الكل" || student.school_shift === filterShift;
+
       const matchesAcademicYear =
         filterAcademicYear === "الكل" ||
         student.academic_year === filterAcademicYear;
@@ -141,6 +149,7 @@ export default function Students() {
         matchesSearch &&
         matchesGrade &&
         matchesGender &&
+        matchesShift &&
         matchesAcademicYear
       );
     });
@@ -149,6 +158,7 @@ export default function Students() {
     search,
     filterGrade,
     filterGender,
+    filterShift,
     filterAcademicYear,
   ]);
 
@@ -173,6 +183,7 @@ export default function Students() {
     setForm({
       full_name: student.full_name || "",
       gender: student.gender || "",
+      school_shift: student.school_shift || "صباحي",
       birth_date: formatDateForInput(student.birth_date),
       phone: student.phone || "",
       address: student.address || "",
@@ -204,6 +215,19 @@ export default function Students() {
       return;
     }
 
+    if (!form.school_shift) {
+      showMessage("يرجى اختيار وقت الدوام", "error");
+      return;
+    }
+
+    if (form.gender === "طالبة" && form.school_shift === "ظهري") {
+      showMessage(
+        "الدوام الظهري مخصص للطلاب الذكور فقط؛ اختر الدوام الصباحي للطالبة",
+        "error"
+      );
+      return;
+    }
+
     try {
       setSaving(true);
       setMessage("");
@@ -215,6 +239,7 @@ export default function Students() {
       const payload = {
         full_name: form.full_name.trim(),
         gender: form.gender,
+        school_shift: form.school_shift,
         birth_date: form.birth_date || null,
         phone: form.phone.trim(),
         address: form.address.trim(),
@@ -438,6 +463,16 @@ export default function Students() {
             </option>
           ))}
         </select>
+
+        <select
+          value={filterShift}
+          onChange={(event) => setFilterShift(event.target.value)}
+          className="students-filter-input data-list-control"
+        >
+          <option value="الكل">جميع الدوامات</option>
+          <option value="صباحي">صباحي</option>
+          <option value="ظهري">ظهري</option>
+        </select>
       </section>
 
       <section className="card students-table-card data-list-card data-list-scroll">
@@ -450,6 +485,7 @@ export default function Students() {
                 <th>الرقم</th>
                 <th>الاسم الكامل</th>
                 <th>النوع</th>
+                <th>وقت الدوام</th>
                 <th>الصف الحالي</th>
                 <th>الشعبة</th>
                 <th>السنة الدراسية</th>
@@ -465,7 +501,13 @@ export default function Students() {
                   <tr key={student.id}>
                     <td>{student.id}</td>
                     <td className="students-name-cell data-list-name">
-                      {student.full_name}
+                      <button
+                        type="button"
+                        className="students-profile-link"
+                        onClick={() => navigate(`/students/${student.id}`)}
+                      >
+                        {student.full_name}
+                      </button>
                     </td>
                     <td>
                       <span
@@ -478,6 +520,7 @@ export default function Students() {
                         {student.gender || "غير محدد"}
                       </span>
                     </td>
+                    <td>{student.school_shift || "صباحي"}</td>
                     <td>{student.grade || "غير محدد"}</td>
                     <td>
                       <span className="students-section-badge">
@@ -523,7 +566,7 @@ export default function Students() {
                 ))
               ) : (
                 <tr>
-                    <td colSpan="9" className="students-empty-state data-list-empty">
+                    <td colSpan="10" className="students-empty-state data-list-empty">
                     لا توجد بيانات مطابقة
                   </td>
                 </tr>
@@ -586,6 +629,26 @@ export default function Students() {
                       <option value="طالب">طالب</option>
                       <option value="طالبة">طالبة</option>
                     </select>
+                  </div>
+
+                  <div className="students-form-group">
+                    <label>وقت الدوام *</label>
+                    <select
+                      name="school_shift"
+                      value={form.school_shift}
+                      onChange={handleChange}
+                      required
+                    >
+                      <option value="">اختر وقت الدوام</option>
+                      <option value="صباحي">صباحي</option>
+                      <option value="ظهري">ظهري</option>
+                    </select>
+                    {form.gender === "طالبة" &&
+                      form.school_shift === "ظهري" && (
+                        <small className="students-field-error">
+                          الدوام الظهري مخصص للطلاب الذكور فقط. اختر صباحي.
+                        </small>
+                      )}
                   </div>
 
                   <div className="students-form-group">

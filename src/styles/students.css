@@ -173,7 +173,7 @@
 .students-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 1100px;
+  min-width: 1200px;
   color: var(--text-color, #1f2937);
 }
 
@@ -303,6 +303,20 @@
   background: var(--card-bg, #fff);
   color: var(--text-color, #1f2937);
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+}
+
+.students-profile-link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  cursor: pointer;
+}
+
+.students-profile-link:hover {
+  text-decoration: underline;
 }
 
 .students-delete-modal {
@@ -588,4 +602,61 @@
 :root[data-theme="dark"] .students-gender-badge.male {
   background: #17375b;
   color: #93c5fd;
+}
+
+.student-profile-page {
+  color: var(--text-color, #1f2937);
+}
+
+.student-profile-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.student-profile-header h1 {
+  margin: 0;
+  color: var(--heading-color, #1e3c72);
+}
+
+.student-profile-header p {
+  margin: 6px 0 0;
+  color: var(--muted-color, #6b7280);
+}
+
+.student-profile-shift {
+  padding: 9px 14px;
+  border-radius: 999px;
+  background: var(--soft-bg, #eef2f7);
+  color: var(--heading-color, #1e3c72);
+  font-weight: 900;
+}
+
+.student-profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.student-profile-grid article {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 15px;
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 11px;
+  background: var(--card-bg, #ffffff);
+}
+
+.student-profile-grid span {
+  color: var(--muted-color, #6b7280);
+  font-size: 14px;
+}
+
+.students-field-error {
+  color: #b91c1c;
+  font-weight: 700;
 }

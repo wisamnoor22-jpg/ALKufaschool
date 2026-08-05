@@ -54,6 +54,8 @@ const STUDENTS_QUERY = `
   active_enrollments AS (
     SELECT DISTINCT ON (se.student_id)
       se.student_id,
+      s.gender,
+      COALESCE(se.school_shift, s.school_shift, 'صباحي') AS school_shift,
       COALESCE(g.name, NULLIF(TRIM(s.grade), ''), 'غير محدد') AS grade
     FROM student_enrollments se
     JOIN students s ON s.id = se.student_id
@@ -74,6 +76,24 @@ const STUDENTS_QUERY = `
   SELECT
     (SELECT COUNT(*)::integer FROM students) AS total,
     (SELECT COUNT(*)::integer FROM active_enrollments) AS active_total,
+    (
+      SELECT COUNT(*)::integer
+      FROM active_enrollments
+      WHERE school_shift = 'صباحي'
+        AND LOWER(COALESCE(gender, '')) IN ('طالب', 'ذكر', 'male')
+    ) AS morning_male,
+    (
+      SELECT COUNT(*)::integer
+      FROM active_enrollments
+      WHERE school_shift = 'صباحي'
+        AND LOWER(COALESCE(gender, '')) IN ('طالبة', 'أنثى', 'female')
+    ) AS morning_female,
+    (
+      SELECT COUNT(*)::integer
+      FROM active_enrollments
+      WHERE school_shift = 'ظهري'
+        AND LOWER(COALESCE(gender, '')) IN ('طالب', 'ذكر', 'male')
+    ) AS afternoon_male,
     (
       SELECT COUNT(*)::integer
       FROM students
@@ -114,6 +134,13 @@ const EMPLOYEES_QUERY = `
       COUNT(*)::integer AS count
     FROM employees
     GROUP BY 1
+  ),
+  employee_shifts AS (
+    SELECT
+      COALESCE(NULLIF(TRIM(work_shift), ''), 'غير محدد') AS work_shift,
+      COUNT(*)::integer AS count
+    FROM employees
+    GROUP BY 1
   )
   SELECT
     (SELECT COUNT(*)::integer FROM employees) AS total,
@@ -132,7 +159,17 @@ const EMPLOYEES_QUERY = `
         FROM employee_types
       ),
       '[]'::json
-    ) AS by_type
+    ) AS by_type,
+    COALESCE(
+      (
+        SELECT JSON_AGG(
+          JSON_BUILD_OBJECT('shift', work_shift, 'count', count)
+          ORDER BY count DESC, work_shift
+        )
+        FROM employee_shifts
+      ),
+      '[]'::json
+    ) AS by_shift
 `;
 
 const EMPLOYEE_ATTENDANCE_QUERY = `
@@ -162,7 +199,37 @@ const EMPLOYEE_ATTENDANCE_QUERY = `
       0
     ) AS average_late_minutes,
     TO_CHAR(MAX(a.check_in_time), 'HH24:MI') AS latest_check_in,
-    TO_CHAR(MAX(a.check_out_time), 'HH24:MI') AS latest_check_out
+    TO_CHAR(MAX(a.check_out_time), 'HH24:MI') AS latest_check_out,
+    COALESCE(
+      (
+        SELECT JSON_AGG(
+          JSON_BUILD_OBJECT(
+            'workShift', work_shift,
+            'total', total,
+            'present', present,
+            'late', late,
+            'absent', absent
+          )
+          ORDER BY work_shift
+        )
+        FROM (
+          SELECT
+            COALESCE(NULLIF(TRIM(e2.work_shift), ''), 'غير محدد')
+              AS work_shift,
+            COUNT(e2.id)::integer AS total,
+            COUNT(*) FILTER (WHERE a2.status = 'present')::integer
+              AS present,
+            COUNT(*) FILTER (WHERE a2.status = 'late')::integer AS late,
+            COUNT(*) FILTER (
+              WHERE a2.id IS NULL OR a2.status IN ('absent', 'excused')
+            )::integer AS absent
+          FROM employees e2
+          LEFT JOIN today_attendance a2 ON a2.employee_id = e2.id
+          GROUP BY 1
+        ) AS employee_shift_rows
+      ),
+      '[]'::json
+    ) AS by_shift
   FROM employees e
   LEFT JOIN today_attendance a ON a.employee_id = e.id
 `;
@@ -180,6 +247,8 @@ const STUDENT_ATTENDANCE_QUERY = `
     SELECT DISTINCT ON (se.student_id)
       se.id AS enrollment_id,
       se.student_id,
+      s.gender,
+      COALESCE(se.school_shift, s.school_shift, 'صباحي') AS school_shift,
       COALESCE(g.name, NULLIF(TRIM(s.grade), ''), 'غير محدد') AS grade
     FROM student_enrollments se
     JOIN students s ON s.id = se.student_id
@@ -190,6 +259,10 @@ const STUDENT_ATTENDANCE_QUERY = `
         NOT EXISTS (SELECT 1 FROM active_year)
         OR se.academic_year_id = (SELECT id FROM active_year)
       )
+      AND (
+        COALESCE(se.school_shift, s.school_shift, 'صباحي') <> 'ظهري'
+        OR LOWER(COALESCE(s.gender, '')) IN ('طالب', 'ذكر', 'male')
+      )
     ORDER BY se.student_id, se.id DESC
   ),
   today_records AS (
@@ -198,7 +271,11 @@ const STUDENT_ATTENDANCE_QUERY = `
     WHERE sa.attendance_date = $1::date
   ),
   attendance_rows AS (
-    SELECT ae.student_id, ae.grade, tr.status
+    SELECT
+      ae.student_id,
+      ae.grade,
+      ae.school_shift,
+      tr.status
     FROM active_enrollments ae
     LEFT JOIN today_records tr
       ON tr.student_enrollment_id = ae.enrollment_id
@@ -218,6 +295,29 @@ const STUDENT_ATTENDANCE_QUERY = `
     HAVING COUNT(*) FILTER (
       WHERE status IN ('absent', 'excused')
     ) > 0
+  ),
+  attendance_by_shift AS (
+    SELECT
+      school_shift,
+      COUNT(*)::integer AS total,
+      COUNT(*) FILTER (WHERE status IN ('present', 'late'))::integer
+        AS present,
+      COUNT(*) FILTER (WHERE status = 'absent')::integer
+        AS absent_without_excuse,
+      COUNT(*) FILTER (WHERE status = 'excused')::integer
+        AS on_leave,
+      COUNT(*) FILTER (WHERE status IS NOT NULL)::integer
+        AS recorded,
+      COALESCE(
+        ROUND(
+          100.0 * COUNT(*) FILTER (WHERE status IN ('present', 'late'))
+          / NULLIF(COUNT(*), 0),
+          1
+        ),
+        0
+      ) AS attendance_rate
+    FROM attendance_rows
+    GROUP BY school_shift
   )
   SELECT
     COUNT(*)::integer AS total_active_students,
@@ -251,7 +351,25 @@ const STUDENT_ATTENDANCE_QUERY = `
         FROM absence_by_grade
       ),
       '[]'::json
-    ) AS absence_by_grade
+    ) AS absence_by_grade,
+    COALESCE(
+      (
+        SELECT JSON_AGG(
+          JSON_BUILD_OBJECT(
+            'schoolShift', school_shift,
+            'total', total,
+            'present', present,
+            'absentWithoutExcuse', absent_without_excuse,
+            'onLeave', on_leave,
+            'recorded', recorded,
+            'attendanceRate', attendance_rate
+          )
+          ORDER BY school_shift
+        )
+        FROM attendance_by_shift
+      ),
+      '[]'::json
+    ) AS by_shift
   FROM attendance_rows
 `;
 
@@ -400,6 +518,9 @@ const defaults = {
     activeTotal: 0,
     male: 0,
     female: 0,
+    morningMale: 0,
+    morningFemale: 0,
+    afternoonMale: 0,
     addedThisMonth: 0,
     byGrade: [],
     academicYear: null,
@@ -408,6 +529,7 @@ const defaults = {
     total: 0,
     addedThisMonth: 0,
     byType: [],
+    byShift: [],
   },
   studentAttendance: {
     totalActiveStudents: 0,
@@ -419,6 +541,7 @@ const defaults = {
     attendanceRate: 0,
     topAbsentGrade: null,
     absenceByGrade: [],
+    byShift: [],
     limitations: [
       "لا توجد حالة مستقلة للغياب بعذر في بنية الحضور الحالية؛ الحالة excused مستخدمة للمجازين.",
     ],
@@ -434,6 +557,7 @@ const defaults = {
     averageLateMinutes: 0,
     latestCheckIn: null,
     latestCheckOut: null,
+    byShift: [],
   },
   finance: {
     totalRequired: 0,
@@ -464,6 +588,9 @@ const sectionDefinitions = (context) => [
       activeTotal: numberOrZero(row.active_total),
       male: numberOrZero(row.male),
       female: numberOrZero(row.female),
+      morningMale: numberOrZero(row.morning_male),
+      morningFemale: numberOrZero(row.morning_female),
+      afternoonMale: numberOrZero(row.afternoon_male),
       addedThisMonth: numberOrZero(row.added_this_month),
       byGrade: Array.isArray(row.by_grade) ? row.by_grade : [],
       academicYear: row.academic_year || null,
@@ -477,6 +604,7 @@ const sectionDefinitions = (context) => [
       total: numberOrZero(row.total),
       addedThisMonth: numberOrZero(row.added_this_month),
       byType: Array.isArray(row.by_type) ? row.by_type : [],
+      byShift: Array.isArray(row.by_shift) ? row.by_shift : [],
     }),
   },
   {
@@ -498,6 +626,7 @@ const sectionDefinitions = (context) => [
         attendanceRate: roundPercentage(row.attendance_rate),
         topAbsentGrade: absenceByGrade[0] || null,
         absenceByGrade,
+        byShift: Array.isArray(row.by_shift) ? row.by_shift : [],
         limitations: defaults.studentAttendance.limitations,
       };
     },
@@ -517,6 +646,7 @@ const sectionDefinitions = (context) => [
       averageLateMinutes: numberOrZero(row.average_late_minutes),
       latestCheckIn: row.latest_check_in || null,
       latestCheckOut: row.latest_check_out || null,
+      byShift: Array.isArray(row.by_shift) ? row.by_shift : [],
     }),
   },
   {

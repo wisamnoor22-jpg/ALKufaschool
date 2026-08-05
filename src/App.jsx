@@ -8,6 +8,7 @@ import AppNavigationBar from "./components/common/AppNavigationBar";
 import Login from "./pages/login";
 import Dashboard from "./pages/Dashboard";
 import Students from "./pages/students";
+import StudentProfile from "./pages/StudentProfile";
 import Teachers from "./pages/Teachers";
 import EmployeeProfile from "./pages/EmployeeProfile";
 import Fees from "./pages/Fees";
@@ -29,6 +30,7 @@ function App() {
           <Route path="/" element={<Login />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/students" element={<Students />} />
+          <Route path="/students/:studentId" element={<StudentProfile />} />
           <Route path="/teachers" element={<Teachers />} />
           <Route
             path="/teachers/:employeeId"

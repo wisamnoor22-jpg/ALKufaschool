@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import ReportPrintHeader from "../components/common/ReportPrintHeader";
 import "../styles/attendance.css";
 import "../styles/reportPrint.css";
@@ -64,7 +64,9 @@ function AttendanceWorkspace({
   const [search, setSearch] = useState("");
   const [grade, setGrade] = useState("الكل");
   const [section, setSection] = useState("الكل");
+  const [schoolShift, setSchoolShift] = useState("الكل");
   const [employeeType, setEmployeeType] = useState("الكل");
+  const [employeeShift, setEmployeeShift] = useState("الكل");
   const [loading, setLoading] = useState(true);
   const [attendanceLoaded, setAttendanceLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -72,16 +74,21 @@ function AttendanceWorkspace({
   const [messageType, setMessageType] = useState("success");
   const [reportOpen, setReportOpen] = useState(false);
 
-  const showMessage = (text, kind = "success") => {
+  const showMessage = useCallback((text, kind = "success") => {
     setMessage(text);
     setMessageType(kind);
-  };
+  }, []);
 
-  const personKey = (person) =>
-    isStudents ? Number(person.enrollment_id) : Number(person.id);
+  const personKey = useCallback(
+    (person) =>
+      isStudents ? Number(person.enrollment_id) : Number(person.id),
+    [isStudents]
+  );
 
-  const getRecord = (person) =>
-    records[personKey(person)] || createEmptyRecord();
+  const getRecord = useCallback(
+    (person) => records[personKey(person)] || createEmptyRecord(),
+    [personKey, records]
+  );
 
   const updateStatus = (person, status) => {
     const key = personKey(person);
@@ -119,7 +126,7 @@ function AttendanceWorkspace({
     }));
   };
 
-  const loadPeople = async () => {
+  const loadPeople = useCallback(async () => {
     const response = await fetch(`${API_BASE}${peopleUrl}`);
     const data = await response.json();
 
@@ -134,9 +141,9 @@ function AttendanceWorkspace({
         ? list.filter((person) => Number(person.enrollment_id) > 0)
         : list
     );
-  };
+  }, [isStudents, peopleUrl]);
 
-  const loadAttendance = async () => {
+  const loadAttendance = useCallback(async () => {
     const response = await fetch(
       `${API_BASE}${attendanceUrl}?date=${encodeURIComponent(date)}`
     );
@@ -164,7 +171,7 @@ function AttendanceWorkspace({
 
     setRecords(loaded);
     setAttendanceLoaded(true);
-  };
+  }, [attendanceUrl, date, isStudents]);
 
   useEffect(() => {
     const load = async () => {
@@ -182,7 +189,7 @@ function AttendanceWorkspace({
     };
 
     load();
-  }, [date, type]);
+  }, [date, loadAttendance, loadPeople, showMessage, type]);
 
   const grades = useMemo(
     () =>
@@ -226,14 +233,23 @@ function AttendanceWorkspace({
         const matchesSection =
           section === "الكل" || person.section === section;
 
-        return matchesSearch && matchesGrade && matchesSection;
+        const matchesShift =
+          schoolShift === "الكل" ||
+          person.school_shift === schoolShift;
+
+        return (
+          matchesSearch && matchesGrade && matchesSection && matchesShift
+        );
       }
 
       const matchesType =
         employeeType === "الكل" ||
         person.employee_type === employeeType;
 
-      return matchesSearch && matchesType;
+      const matchesShift =
+        employeeShift === "الكل" || person.work_shift === employeeShift;
+
+      return matchesSearch && matchesType && matchesShift;
     });
   }, [
     people,
@@ -241,7 +257,9 @@ function AttendanceWorkspace({
     isStudents,
     grade,
     section,
+    schoolShift,
     employeeType,
+    employeeShift,
   ]);
 
   const searchResults = useMemo(() => {
@@ -252,25 +270,25 @@ function AttendanceWorkspace({
 
   const absentPeople = useMemo(
     () =>
-      people.filter(
+      filteredPeople.filter(
         (person) => getRecord(person).status === "absent"
       ),
-    [people, records]
+    [filteredPeople, getRecord]
   );
 
   const excusedPeople = useMemo(
     () =>
-      people.filter(
+      filteredPeople.filter(
         (person) => getRecord(person).status === "excused"
       ),
-    [people, records]
+    [filteredPeople, getRecord]
   );
 
-  const latePeople = people.filter(
+  const latePeople = filteredPeople.filter(
     (person) => getRecord(person).status === "late"
   );
 
-  const presentCount = people.filter(
+  const presentCount = filteredPeople.filter(
     (person) => getRecord(person).status === "present"
   ).length;
 
@@ -379,6 +397,13 @@ function AttendanceWorkspace({
   const academicYear = isStudents
     ? people.find((person) => person.academic_year)?.academic_year || ""
     : "";
+  const reportShiftLabel = isStudents
+    ? schoolShift === "الكل"
+      ? "جميع الدوامات"
+      : schoolShift
+    : employeeShift === "الكل"
+      ? "جميع الشفتات"
+      : employeeShift;
 
   return (
     <>
@@ -456,8 +481,10 @@ function AttendanceWorkspace({
                         {isStudents
                           ? `${person.grade || "صف غير محدد"} — ${
                               person.section || "شعبة غير محددة"
-                            }`
-                          : person.employee_type || "نوع غير محدد"}
+                            } — ${person.school_shift || "صباحي"}`
+                          : `${person.employee_type || "نوع غير محدد"} — ${
+                              person.work_shift || "شفت غير محدد"
+                            }`}
                       </span>
                     </div>
 
@@ -507,24 +534,51 @@ function AttendanceWorkspace({
                 ))}
               </select>
             </div>
+
+            <div className="attendance-filter-field">
+              <label>وقت الدوام</label>
+              <select
+                value={schoolShift}
+                onChange={(event) => setSchoolShift(event.target.value)}
+              >
+                <option value="الكل">جميع الدوامات</option>
+                <option value="صباحي">صباحي</option>
+                <option value="ظهري">ظهري</option>
+              </select>
+            </div>
           </>
         ) : (
-          <div className="attendance-filter-field">
-            <label>نوع الموظف</label>
-            <select
-              value={employeeType}
-              onChange={(event) =>
-                setEmployeeType(event.target.value)
-              }
-            >
-              <option value="الكل">جميع الموظفين</option>
-              {employeeTypes.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-          </div>
+          <>
+            <div className="attendance-filter-field">
+              <label>نوع الموظف</label>
+              <select
+                value={employeeType}
+                onChange={(event) =>
+                  setEmployeeType(event.target.value)
+                }
+              >
+                <option value="الكل">جميع الموظفين</option>
+                {employeeTypes.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="attendance-filter-field">
+              <label>شفت الموظف</label>
+              <select
+                value={employeeShift}
+                onChange={(event) => setEmployeeShift(event.target.value)}
+              >
+                <option value="الكل">جميع الشفتات</option>
+                <option value="صباحي">صباحي</option>
+                <option value="ظهري">ظهري</option>
+                <option value="صباحي وظهري">صباحي وظهري</option>
+              </select>
+            </div>
+          </>
         )}
       </section>
 
@@ -534,7 +588,7 @@ function AttendanceWorkspace({
         }`}
       >
         <div className="attendance-summary-card total">
-          <strong>{people.length}</strong>
+          <strong>{filteredPeople.length}</strong>
           <span>الإجمالي</span>
         </div>
         <div className="attendance-summary-card present">
@@ -591,8 +645,10 @@ function AttendanceWorkspace({
                             person.section
                               ? `— شعبة ${person.section}`
                               : ""
-                          }`
-                        : person.employee_type || ""}
+                          } — ${person.school_shift || "صباحي"}`
+                        : `${person.employee_type || ""} — ${
+                            person.work_shift || "شفت غير محدد"
+                          }`}
                     </small>
                   </div>
 
@@ -666,8 +722,10 @@ function AttendanceWorkspace({
                           {isStudents
                             ? `${person.grade || "صف غير محدد"} — شعبة ${
                                 person.section || "غير محددة"
-                              }`
-                            : person.employee_type || "موظف"}
+                              } — ${person.school_shift || "صباحي"}`
+                            : `${person.employee_type || "موظف"} — ${
+                                person.work_shift || "شفت غير محدد"
+                              }`}
                         </span>
                       </div>
 
@@ -841,6 +899,7 @@ function AttendanceWorkspace({
                 title={`تقرير ${title}`}
                 date={date}
                 academicYear={academicYear}
+                shift={reportShiftLabel}
               />
 
               <div className="attendance-report-counts">
@@ -874,6 +933,7 @@ function AttendanceWorkspace({
                     <thead>
                       <tr>
                         <th>الاسم</th>
+                        <th>{isStudents ? "وقت الدوام" : "الشفت"}</th>
                         {isStudents && <th>الشعبة</th>}
                         {!isStudents && <th>الحضور</th>}
                         {!isStudents && <th>الانصراف</th>}
@@ -890,6 +950,11 @@ function AttendanceWorkspace({
                         return (
                           <tr key={personKey(person)}>
                             <td>{person.full_name}</td>
+                            <td>
+                              {isStudents
+                                ? person.school_shift || "صباحي"
+                                : person.work_shift || "غير محدد"}
+                            </td>
 
                             {isStudents && (
                               <td>{person.section || "غير محددة"}</td>

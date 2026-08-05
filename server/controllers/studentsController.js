@@ -10,6 +10,8 @@ const DELETE_REASONS = {
   withdrawn: "انسحب.",
   other: "سبب آخر.",
 };
+const ALLOWED_GENDERS = new Set(["طالب", "طالبة"]);
+const ALLOWED_SCHOOL_SHIFTS = new Set(["صباحي", "ظهري"]);
 const {
   createEnrollment,
   updateCurrentSection,
@@ -25,6 +27,31 @@ const sendError = (res, error, fallbackMessage) => {
   });
 };
 
+const normalizeText = (value) =>
+  typeof value === "string" ? value.trim() : "";
+
+const validateStudentShift = (genderValue, schoolShiftValue) => {
+  const gender = normalizeText(genderValue);
+  const schoolShift = normalizeText(schoolShiftValue);
+
+  if (!ALLOWED_GENDERS.has(gender)) {
+    return { error: "نوع الطالب غير صحيح" };
+  }
+
+  if (!ALLOWED_SCHOOL_SHIFTS.has(schoolShift)) {
+    return { error: "وقت الدوام مطلوب ويجب أن يكون صباحي أو ظهري" };
+  }
+
+  if (gender === "طالبة" && schoolShift === "ظهري") {
+    return {
+      error:
+        "الدوام الظهري مخصص للطلاب الذكور فقط؛ اختر الدوام الصباحي للطالبة",
+    };
+  }
+
+  return { value: { gender, school_shift: schoolShift } };
+};
+
 const addStudent = async (req, res) => {
   const client = await pool.connect();
 
@@ -37,6 +64,7 @@ const addStudent = async (req, res) => {
       address,
       grade,
       section,
+      school_shift,
     } = req.body;
 
     if (!full_name?.trim()) {
@@ -51,6 +79,12 @@ const addStudent = async (req, res) => {
       });
     }
 
+    const shiftValidation = validateStudentShift(gender, school_shift);
+
+    if (shiftValidation.error) {
+      return res.status(400).json({ message: shiftValidation.error });
+    }
+
     await client.query("BEGIN");
 
     const studentResult = await client.query(
@@ -61,18 +95,20 @@ const addStudent = async (req, res) => {
          phone,
          address,
          grade,
-         section
+         section,
+         school_shift
        )
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
       [
         full_name.trim(),
-        gender || null,
+        shiftValidation.value.gender,
         birth_date || null,
         phone || null,
         address || null,
         grade.trim(),
         section?.trim() || null,
+        shiftValidation.value.school_shift,
       ]
     );
 
@@ -82,6 +118,7 @@ const addStudent = async (req, res) => {
       studentId: student.id,
       gradeName: grade,
       sectionName: section,
+      schoolShift: shiftValidation.value.school_shift,
       client,
     });
 
@@ -112,6 +149,20 @@ const getStudents = async (req, res) => {
   }
 };
 
+const getStudentById = async (req, res) => {
+  try {
+    const student = await getStudentWithCurrentEnrollment(req.params.id);
+
+    if (!student) {
+      return res.status(404).json({ message: "الطالب غير موجود" });
+    }
+
+    return res.json(student);
+  } catch (error) {
+    return sendError(res, error, "حدث خطأ في جلب ملف الطالب");
+  }
+};
+
 const updateStudent = async (req, res) => {
   const client = await pool.connect();
 
@@ -124,12 +175,19 @@ const updateStudent = async (req, res) => {
       phone,
       address,
       section,
+      school_shift,
     } = req.body;
 
     if (!full_name?.trim()) {
       return res.status(400).json({
         message: "اسم الطالب مطلوب",
       });
+    }
+
+    const shiftValidation = validateStudentShift(gender, school_shift);
+
+    if (shiftValidation.error) {
+      return res.status(400).json({ message: shiftValidation.error });
     }
 
     await client.query("BEGIN");
@@ -154,15 +212,17 @@ const updateStudent = async (req, res) => {
            birth_date = $3,
            phone = $4,
            address = $5,
-           section = $6
-       WHERE id = $7`,
+           section = $6,
+           school_shift = $7
+       WHERE id = $8`,
       [
         full_name.trim(),
-        gender || null,
+        shiftValidation.value.gender,
         birth_date || null,
         phone || null,
         address || null,
         section?.trim() || null,
+        shiftValidation.value.school_shift,
         id,
       ]
     );
@@ -170,6 +230,7 @@ const updateStudent = async (req, res) => {
     await updateCurrentSection({
       studentId: id,
       sectionName: section,
+      schoolShift: shiftValidation.value.school_shift,
       client,
     });
 
@@ -410,6 +471,9 @@ const deleteStudent = async (req, res) => {
 module.exports = {
   addStudent,
   getStudents,
+  getStudentById,
   updateStudent,
   deleteStudent,
+  validateStudentShift,
+  ALLOWED_SCHOOL_SHIFTS,
 };

@@ -20,10 +20,13 @@ const EMPTY_STATISTICS = {
     activeTotal: 0,
     male: 0,
     female: 0,
+    morningMale: 0,
+    morningFemale: 0,
+    afternoonMale: 0,
     addedThisMonth: 0,
     byGrade: [],
   },
-  employees: { total: 0, addedThisMonth: 0, byType: [] },
+  employees: { total: 0, addedThisMonth: 0, byType: [], byShift: [] },
   studentAttendance: {
     totalActiveStudents: 0,
     present: 0,
@@ -34,6 +37,7 @@ const EMPTY_STATISTICS = {
     attendanceRate: 0,
     topAbsentGrade: null,
     absenceByGrade: [],
+    byShift: [],
     limitations: [],
   },
   employeeAttendance: {
@@ -47,6 +51,7 @@ const EMPTY_STATISTICS = {
     averageLateMinutes: 0,
     latestCheckIn: null,
     latestCheckOut: null,
+    byShift: [],
   },
   finance: {
     totalRequired: 0,
@@ -476,6 +481,20 @@ export default function Dashboard() {
                 <strong>{formatClockTime(stats.employeeAttendance.latestCheckOut)}</strong>
               </div>
             </div>
+            <div className="distribution-list shift-distribution" aria-label="حضور الموظفين حسب الشفت">
+              {stats.employeeAttendance.byShift.length > 0 ? (
+                stats.employeeAttendance.byShift.map((item) => (
+                  <div key={item.workShift}>
+                    <span>{item.workShift}</span>
+                    <strong>
+                      {formatNumber(Number(item.present) + Number(item.late))} حاضر · {formatNumber(item.absent)} غائب
+                    </strong>
+                  </div>
+                ))
+              ) : (
+                <p>لا توجد بيانات حضور موزعة حسب الشفت.</p>
+              )}
+            </div>
           </article>
 
           <article className="panel financial-panel" onClick={() => navigate("/fees")}>
@@ -602,6 +621,22 @@ export default function Dashboard() {
                 {stats.studentAttendance.topAbsentGrade?.grade || "لا يوجد غياب"}
               </strong>
             </div>
+            <div className="distribution-list shift-distribution" aria-label="حضور الطلاب حسب الدوام">
+              {stats.studentAttendance.byShift.length > 0 ? (
+                stats.studentAttendance.byShift.map((item) => (
+                  <div key={item.schoolShift}>
+                    <span>{item.schoolShift}</span>
+                    <strong>
+                      {formatNumber(item.present)} حاضر · {formatNumber(
+                        Number(item.absentWithoutExcuse) + Number(item.onLeave)
+                      )} غائب
+                    </strong>
+                  </div>
+                ))
+              ) : (
+                <p>لا توجد بيانات حضور موزعة حسب الدوام.</p>
+              )}
+            </div>
           </button>
 
           <article className="panel">
@@ -674,6 +709,9 @@ export default function Dashboard() {
               <div><span>النشطون</span><strong>{formatNumber(stats.students.activeTotal)}</strong></div>
               <div><span>الطلاب</span><strong>{formatNumber(stats.students.male)}</strong></div>
               <div><span>الطالبات</span><strong>{formatNumber(stats.students.female)}</strong></div>
+              <div><span>طلاب صباحي</span><strong>{formatNumber(stats.students.morningMale)}</strong></div>
+              <div><span>طالبات صباحي</span><strong>{formatNumber(stats.students.morningFemale)}</strong></div>
+              <div><span>طلاب ظهري</span><strong>{formatNumber(stats.students.afternoonMale)}</strong></div>
               <div><span>أضيفوا هذا الشهر</span><strong>{formatNumber(stats.students.addedThisMonth)}</strong></div>
             </div>
             <div className="distribution-list">
@@ -711,6 +749,18 @@ export default function Dashboard() {
                 ))
               ) : (
                 <p>لا توجد بيانات توزيع للموظفين.</p>
+              )}
+            </div>
+            <div className="distribution-list shift-distribution" aria-label="توزيع الموظفين حسب الشفت">
+              {stats.employees.byShift.length > 0 ? (
+                stats.employees.byShift.map((item) => (
+                  <div key={item.shift}>
+                    <span>{item.shift}</span>
+                    <strong>{formatNumber(item.count)}</strong>
+                  </div>
+                ))
+              ) : (
+                <p>لا توجد بيانات توزيع حسب الشفت.</p>
               )}
             </div>
           </article>

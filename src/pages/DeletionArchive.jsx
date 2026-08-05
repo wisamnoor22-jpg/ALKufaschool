@@ -32,6 +32,7 @@ const FIELD_LABELS = {
   employee_code: "الرقم الوظيفي",
   full_name: "الاسم الكامل",
   gender: "النوع",
+  school_shift: "وقت الدوام",
   birth_date: "تاريخ الميلاد",
   phone: "الهاتف",
   address: "العنوان",

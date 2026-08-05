@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import ReportPrintHeader from "../components/common/ReportPrintHeader";
 import "../styles/reports.css";
 import "../styles/reportPrint.css";
@@ -79,6 +79,7 @@ function StudentAttendanceReport({ onBack }) {
   const [toDate, setToDate] = useState(monthRange.end);
   const [grade, setGrade] = useState("الكل");
   const [section, setSection] = useState("الكل");
+  const [schoolShift, setSchoolShift] = useState("الكل");
   const [students, setStudents] = useState([]);
   const [report, setReport] = useState({
     summary: {
@@ -120,7 +121,7 @@ function StudentAttendanceReport({ onBack }) {
     );
   }, [students, grade]);
 
-  const loadStudents = async () => {
+  const loadStudents = useCallback(async () => {
     try {
       const response = await fetch(`${API_BASE}/students`);
       const data = await response.json();
@@ -134,9 +135,9 @@ function StudentAttendanceReport({ onBack }) {
       console.error(error);
       setMessage(error.message || "تعذر جلب بيانات الطلاب");
     }
-  };
+  }, []);
 
-  const loadReport = async () => {
+  const loadReport = useCallback(async () => {
     if (!effectiveRange.from || !effectiveRange.to) {
       setMessage("حدد التاريخ أو الفترة المطلوبة");
       return;
@@ -156,6 +157,7 @@ function StudentAttendanceReport({ onBack }) {
         to: effectiveRange.to,
         grade,
         section,
+        school_shift: schoolShift,
       });
 
       const response = await fetch(
@@ -189,19 +191,22 @@ function StudentAttendanceReport({ onBack }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [effectiveRange.from, effectiveRange.to, grade, schoolShift, section]);
 
   useEffect(() => {
-    loadStudents();
-  }, []);
+    const timer = window.setTimeout(loadStudents, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadStudents]);
 
   useEffect(() => {
-    loadReport();
-  }, [mode, singleDate, fromDate, toDate, grade, section]);
+    const timer = window.setTimeout(loadReport, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadReport, mode, singleDate, fromDate, toDate, grade, section, schoolShift]);
 
   const exportCsv = () => {
     const headers = [
       "الاسم",
+      "وقت الدوام",
       "الصف",
       "الشعبة",
       "التاريخ",
@@ -211,6 +216,7 @@ function StudentAttendanceReport({ onBack }) {
 
     const rows = report.records.map((record) => [
       record.full_name || "",
+      record.school_shift || "",
       record.grade || "",
       record.section || "",
       record.attendance_date || "",
@@ -356,12 +362,25 @@ function StudentAttendanceReport({ onBack }) {
           </select>
         </div>
 
+        <div className="reports-filter-group">
+          <label>وقت الدوام</label>
+          <select
+            value={schoolShift}
+            onChange={(event) => setSchoolShift(event.target.value)}
+          >
+            <option value="الكل">جميع الدوامات</option>
+            <option value="صباحي">صباحي</option>
+            <option value="ظهري">ظهري</option>
+          </select>
+        </div>
+
       </section>
 
       <ReportPrintHeader
         title="تقرير حضور الطلاب"
         date={printDate}
         academicYear={academicYear}
+        shift={schoolShift === "الكل" ? "جميع الدوامات" : schoolShift}
       />
 
       <section className="reports-summary-grid">
@@ -410,6 +429,7 @@ function StudentAttendanceReport({ onBack }) {
             <thead>
               <tr>
                 <th>الاسم</th>
+                <th>وقت الدوام</th>
                 <th>الصف</th>
                 <th>الشعبة</th>
                 <th>التاريخ</th>
@@ -421,7 +441,7 @@ function StudentAttendanceReport({ onBack }) {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="reports-empty-cell data-list-loading">
+                  <td colSpan="7" className="reports-empty-cell data-list-loading">
                     جاري إعداد التقرير...
                   </td>
                 </tr>
@@ -441,6 +461,7 @@ function StudentAttendanceReport({ onBack }) {
                       <td className="reports-student-name data-list-name">
                         {record.full_name}
                       </td>
+                      <td>{record.school_shift || "صباحي"}</td>
                       <td>{record.grade || "غير محدد"}</td>
                       <td>{record.section || "غير محددة"}</td>
                       <td>{formatDate(record.attendance_date)}</td>
@@ -456,7 +477,7 @@ function StudentAttendanceReport({ onBack }) {
                   ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="reports-empty-cell data-list-empty">
+                  <td colSpan="7" className="reports-empty-cell data-list-empty">
                     لا يوجد غائبون أو مجازون في اليوم أو الفترة المحددة
                   </td>
                 </tr>
@@ -483,7 +504,8 @@ function StudentAttendanceReport({ onBack }) {
                   <strong>{student.full_name}</strong>
                   <span>
                     {student.grade || "صف غير محدد"} — شعبة{" "}
-                    {student.section || "غير محددة"}
+                    {student.section || "غير محددة"} —{" "}
+                    {student.school_shift || "صباحي"}
                   </span>
                 </div>
                 <b>{student.absence_count} غيابات</b>
@@ -509,6 +531,7 @@ function EmployeeAttendanceReport({ onBack }) {
   const [fromDate, setFromDate] = useState(monthRange.start);
   const [toDate, setToDate] = useState(monthRange.end);
   const [employeeType, setEmployeeType] = useState("الكل");
+  const [workShift, setWorkShift] = useState("الكل");
   const [employees, setEmployees] = useState([]);
   const [report, setReport] = useState({
     summary: {
@@ -543,7 +566,7 @@ function EmployeeAttendanceReport({ onBack }) {
     [employees]
   );
 
-  const loadEmployees = async () => {
+  const loadEmployees = useCallback(async () => {
     try {
       const response = await fetch(`${API_BASE}/employees`);
       const data = await response.json();
@@ -557,9 +580,9 @@ function EmployeeAttendanceReport({ onBack }) {
       console.error(error);
       setMessage(error.message || "تعذر جلب بيانات الموظفين");
     }
-  };
+  }, []);
 
-  const loadReport = async () => {
+  const loadReport = useCallback(async () => {
     if (!effectiveRange.from || !effectiveRange.to) {
       setMessage("حدد التاريخ أو الفترة المطلوبة");
       return;
@@ -578,6 +601,7 @@ function EmployeeAttendanceReport({ onBack }) {
         from: effectiveRange.from,
         to: effectiveRange.to,
         employee_type: employeeType,
+        work_shift: workShift,
       });
 
       const response = await fetch(
@@ -611,20 +635,23 @@ function EmployeeAttendanceReport({ onBack }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [effectiveRange.from, effectiveRange.to, employeeType, workShift]);
 
   useEffect(() => {
-    loadEmployees();
-  }, []);
+    const timer = window.setTimeout(loadEmployees, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadEmployees]);
 
   useEffect(() => {
-    loadReport();
-  }, [mode, singleDate, fromDate, toDate, employeeType]);
+    const timer = window.setTimeout(loadReport, 0);
+    return () => window.clearTimeout(timer);
+  }, [loadReport, mode, singleDate, fromDate, toDate, employeeType, workShift]);
 
   const exportCsv = () => {
     const headers = [
       "الاسم",
       "نوع الموظف",
+      "الشفت",
       "التاريخ",
       "وقت الحضور",
       "وقت الانصراف",
@@ -637,6 +664,7 @@ function EmployeeAttendanceReport({ onBack }) {
     const rows = report.records.map((record) => [
       record.full_name || "",
       record.employee_type || "",
+      record.work_shift || "",
       record.attendance_date || "",
       record.check_in_time || "",
       record.check_out_time || "",
@@ -770,11 +798,25 @@ function EmployeeAttendanceReport({ onBack }) {
             ))}
           </select>
         </div>
+
+        <div className="reports-filter-group">
+          <label>شفت الموظف</label>
+          <select
+            value={workShift}
+            onChange={(event) => setWorkShift(event.target.value)}
+          >
+            <option value="الكل">جميع الشفتات</option>
+            <option value="صباحي">صباحي</option>
+            <option value="ظهري">ظهري</option>
+            <option value="صباحي وظهري">صباحي وظهري</option>
+          </select>
+        </div>
       </section>
 
       <ReportPrintHeader
         title="تقرير حضور الموظفين"
         date={printDate}
+        shift={workShift === "الكل" ? "جميع الشفتات" : workShift}
       />
 
       <section className="reports-summary-grid">
@@ -814,6 +856,7 @@ function EmployeeAttendanceReport({ onBack }) {
               <tr>
                 <th>الاسم</th>
                 <th>نوع الموظف</th>
+                <th>الشفت</th>
                 <th>التاريخ</th>
                 <th>الحضور</th>
                 <th>الانصراف</th>
@@ -827,7 +870,7 @@ function EmployeeAttendanceReport({ onBack }) {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="9" className="reports-empty-cell data-list-loading">
+                  <td colSpan="10" className="reports-empty-cell data-list-loading">
                     جاري إعداد التقرير...
                   </td>
                 </tr>
@@ -838,6 +881,7 @@ function EmployeeAttendanceReport({ onBack }) {
                       {record.full_name}
                     </td>
                     <td>{record.employee_type || "غير محدد"}</td>
+                    <td>{record.work_shift || "غير محدد"}</td>
                     <td>{formatDate(record.attendance_date)}</td>
                     <td>{record.check_in_time || "—"}</td>
                     <td>{record.check_out_time || "—"}</td>
@@ -863,7 +907,7 @@ function EmployeeAttendanceReport({ onBack }) {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="9" className="reports-empty-cell data-list-empty">
+                  <td colSpan="10" className="reports-empty-cell data-list-empty">
                     لا توجد حالات غياب أو إجازة أو تأخير في الفترة
                     المحددة
                   </td>
@@ -889,7 +933,10 @@ function EmployeeAttendanceReport({ onBack }) {
               <article key={employee.employee_id}>
                 <div>
                   <strong>{employee.full_name}</strong>
-                  <span>{employee.employee_type || "موظف"}</span>
+                  <span>
+                    {employee.employee_type || "موظف"} —{" "}
+                    {employee.work_shift || "شفت غير محدد"}
+                  </span>
                 </div>
                 <b>
                   {employee.late_count} تأخيرات —{" "}

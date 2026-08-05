@@ -18,7 +18,7 @@ export default function StudentsTable({
         style={{
           width: "100%",
           borderCollapse: "collapse",
-          minWidth: "850px",
+          minWidth: "950px",
         }}
       >
         <thead>
@@ -31,6 +31,7 @@ export default function StudentsTable({
             <th style={cellStyle}>الرقم</th>
             <th style={cellStyle}>الاسم الكامل</th>
             <th style={cellStyle}>النوع</th>
+            <th style={cellStyle}>وقت الدوام</th>
             <th style={cellStyle}>الصف</th>
             <th style={cellStyle}>الشعبة</th>
             <th style={cellStyle}>الهاتف</th>
@@ -59,6 +60,7 @@ export default function StudentsTable({
                 </td>
 
                 <td style={cellStyle}>{student.gender}</td>
+                <td style={cellStyle}>{student.school_shift || "صباحي"}</td>
                 <td style={cellStyle}>{student.grade || "غير محدد"}</td>
                 <td style={cellStyle}>{student.section || "غير محددة"}</td>
                 <td style={cellStyle}>{student.phone || "غير مسجل"}</td>
@@ -88,7 +90,7 @@ export default function StudentsTable({
           ) : (
             <tr>
               <td
-                colSpan="8"
+                colSpan="9"
                 style={{
                   textAlign: "center",
                   padding: "30px",

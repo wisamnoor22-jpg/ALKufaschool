@@ -6,6 +6,11 @@ const ALLOWED_STATUSES = new Set([
   "excused",
   "late",
 ]);
+const ALLOWED_WORK_SHIFTS = new Set([
+  "صباحي",
+  "ظهري",
+  "صباحي وظهري",
+]);
 
 let attendanceTablePromise = null;
 
@@ -126,7 +131,7 @@ const getAttendanceReport = async (req, res) => {
   try {
     await ensureAttendanceTable();
 
-    const { from, to, employee_type } = req.query;
+    const { from, to, employee_type, work_shift } = req.query;
 
     if (!isValidDate(from) || !isValidDate(to)) {
       return res.status(400).json({
@@ -147,6 +152,17 @@ const getAttendanceReport = async (req, res) => {
     ];
 
     const normalizedType = normalizeText(employee_type);
+    const normalizedShift = normalizeText(work_shift);
+
+    if (
+      normalizedShift &&
+      normalizedShift !== "الكل" &&
+      !ALLOWED_WORK_SHIFTS.has(normalizedShift)
+    ) {
+      return res.status(400).json({
+        message: "شفت الموظف المحدد غير صحيح",
+      });
+    }
 
     if (normalizedType && normalizedType !== "الكل") {
       values.push(normalizedType);
@@ -155,12 +171,18 @@ const getAttendanceReport = async (req, res) => {
       );
     }
 
+    if (normalizedShift && normalizedShift !== "الكل") {
+      values.push(normalizedShift);
+      conditions.push(`COALESCE(e.work_shift, '') = $${values.length}`);
+    }
+
     const result = await pool.query(
       `SELECT
          ea.id,
          ea.employee_id,
          e.full_name,
          e.employee_type,
+         e.work_shift,
          ea.attendance_date::text AS attendance_date,
          ea.status,
          ea.notes,
@@ -210,6 +232,7 @@ const getAttendanceReport = async (req, res) => {
          ea.employee_id,
          e.full_name,
          e.employee_type,
+         e.work_shift,
          COUNT(*)::int AS late_count,
          COALESCE(SUM(ea.late_minutes), 0)::int
            AS total_late_minutes
@@ -221,7 +244,8 @@ const getAttendanceReport = async (req, res) => {
        GROUP BY
          ea.employee_id,
          e.full_name,
-         e.employee_type
+         e.employee_type,
+         e.work_shift
        HAVING COUNT(*) >= 3
        ORDER BY
          late_count DESC,
@@ -235,6 +259,7 @@ const getAttendanceReport = async (req, res) => {
         from,
         to,
         employee_type: normalizedType || "الكل",
+        work_shift: normalizedShift || "الكل",
       },
       summary: summaryResult.rows[0],
       records: result.rows,
