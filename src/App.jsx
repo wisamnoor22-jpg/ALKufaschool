@@ -17,6 +17,7 @@ import Reports from "./pages/Reports";
 import Results from "./pages/Results";
 import DeletionArchive from "./pages/DeletionArchive";
 import Payroll from "./pages/Payroll";
+import Timetables from "./pages/Timetables";
 
 import "./App.css";
 import "./styles/dataLists.css";
@@ -30,19 +31,31 @@ function App() {
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/dashboard" element={<Dashboard />} />
+
           <Route path="/students" element={<Students />} />
-          <Route path="/students/:studentId" element={<StudentProfile />} />
+          <Route
+            path="/students/:studentId"
+            element={<StudentProfile />}
+          />
+
           <Route path="/teachers" element={<Teachers />} />
           <Route
             path="/teachers/:employeeId"
             element={<EmployeeProfile />}
           />
+
           <Route path="/fees" element={<Fees />} />
           <Route path="/attendance" element={<Attendance />} />
           <Route path="/reports" element={<Reports />} />
           <Route path="/payroll" element={<Payroll />} />
           <Route path="/results" element={<Results />} />
-          <Route path="/deletion-archive" element={<DeletionArchive />} />
+
+          <Route path="/timetable" element={<Timetables />} />
+
+          <Route
+            path="/deletion-archive"
+            element={<DeletionArchive />}
+          />
         </Routes>
       </div>
     </Router>
