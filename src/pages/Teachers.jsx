@@ -112,6 +112,10 @@ export default function Teachers() {
     setShowForm(true);
   };
 
+  const handleReport = (employee) => {
+    navigate(`/reports?report=payroll&employee_id=${employee.id}`);
+  };
+
   const closeForm = () => {
     setShowForm(false);
     setEditingEmployee(null);
@@ -174,7 +178,7 @@ export default function Teachers() {
             onDelete={loadEmployees}
             onView={handleView}
             onEdit={handleEdit}
-            onReport={() => alert("سيتم إضافة التقرير في الخطوة القادمة")}
+            onReport={handleReport}
           />
         )}
       </section>

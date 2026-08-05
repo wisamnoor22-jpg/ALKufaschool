@@ -518,6 +518,71 @@
   }
 }
 
+@media screen {
+  :root[data-theme="dark"] .reports-page,
+  :root[data-theme="dark"] .report-card,
+  :root[data-theme="dark"] .reports-filters-card,
+  :root[data-theme="dark"] .reports-summary-card,
+  :root[data-theme="dark"] .reports-table-card,
+  :root[data-theme="dark"] .reports-warning-card,
+  :root[data-theme="dark"] .reports-coming-card {
+    border-color: var(--border-color);
+    background: var(--card-bg);
+    color: var(--text-color);
+  }
+
+  :root[data-theme="dark"] .report-card-features span,
+  :root[data-theme="dark"] .report-card-code,
+  :root[data-theme="dark"] .reports-workspace-code,
+  :root[data-theme="dark"] .reports-table-header > span {
+    background: var(--soft-bg);
+    color: var(--heading-color);
+  }
+
+  :root[data-theme="dark"] .reports-inner-back {
+    border-color: var(--border-color);
+    background: var(--card-bg);
+    color: var(--heading-color);
+  }
+
+  :root[data-theme="dark"] .reports-filter-group label,
+  :root[data-theme="dark"] .reports-page-header p,
+  :root[data-theme="dark"] .reports-workspace-header p,
+  :root[data-theme="dark"] .report-card p,
+  :root[data-theme="dark"] .reports-summary-card span,
+  :root[data-theme="dark"] .reports-table-header p,
+  :root[data-theme="dark"] .reports-coming-card p {
+    color: var(--muted-color);
+  }
+
+  :root[data-theme="dark"] .reports-frequent-grid article {
+    border-color: #7f1d1d;
+    background: var(--danger-bg);
+  }
+
+  :root[data-theme="dark"] .reports-error-message {
+    border-color: #991b1b;
+    background: var(--danger-bg);
+    color: var(--danger-color);
+  }
+
+  :root[data-theme="dark"] .reports-status-badge.absent {
+    background: #4c1d1d;
+    color: #fecaca;
+  }
+
+  :root[data-theme="dark"] .reports-status-badge.excused,
+  :root[data-theme="dark"] .reports-status-badge.present {
+    background: #123b2b;
+    color: #bbf7d0;
+  }
+
+  :root[data-theme="dark"] .reports-status-badge.late {
+    background: #3f3208;
+    color: #fde68a;
+  }
+}
+
 @media print {
   @page {
     size: A4 portrait;

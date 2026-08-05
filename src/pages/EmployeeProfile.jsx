@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
+import PayrollReport from "../components/payroll/PayrollReport";
 import "../styles/Dashboard.css";
 
 const API_URL = "http://localhost:5000";
@@ -384,11 +385,11 @@ const captureDocument = () => {
           style={{
             ...messageStyle,
             background: message.includes("بنجاح")
-              ? "#e8f5e9"
-              : "#fff3cd",
+              ? "var(--success-bg, #e8f5e9)"
+              : "var(--warning-bg, #fff3cd)",
             color: message.includes("بنجاح")
-              ? "#1b5e20"
-              : "#664d03",
+              ? "var(--success-color, #1b5e20)"
+              : "var(--warning-color, #664d03)",
           }}
         >
           {message}
@@ -477,6 +478,19 @@ const captureDocument = () => {
                 : null
             }
           />
+
+          {employee.employee_type === "معلمة" && (
+            <Detail
+              label="الأجر اليومي (الراتب ÷ 22)"
+              value={
+                Number.isFinite(Number(employee.salary))
+                  ? `${(Number(employee.salary) / 22).toLocaleString("ar-IQ", {
+                      maximumFractionDigits: 2,
+                    })} د.ع`
+                  : null
+              }
+            />
+          )}
 
           <Detail
             label="رقم البصمة"
@@ -707,12 +721,24 @@ const captureDocument = () => {
         </div>
       )}
 
-      {["attendance", "salary", "reports"].includes(
-        activeTab
-      ) && (
+      {activeTab === "attendance" && (
         <div style={emptyStyle}>
           سيتم تجهيز هذا القسم لاحقًا.
         </div>
+      )}
+
+      {activeTab === "salary" && (
+        <PayrollReport
+          title="تفاصيل الراتب"
+          employeeId={employeeId}
+        />
+      )}
+
+      {activeTab === "reports" && (
+        <PayrollReport
+          title="تقرير الكادر والراتب"
+          employeeId={employeeId}
+        />
       )}
 
       {showCamera && (
@@ -771,8 +797,8 @@ function TabButton({ label, active, onClick }) {
         borderRadius: "8px",
         cursor: "pointer",
         fontWeight: "bold",
-        background: active ? "#1e3c72" : "#edf1f5",
-        color: active ? "#fff" : "#333",
+        background: active ? "var(--primary-bg, #1e3c72)" : "var(--soft-bg, #edf1f5)",
+        color: active ? "#fff" : "var(--text-color, #333)",
       }}
     >
       {label}
@@ -800,7 +826,7 @@ const headerStyle = {
 };
 
 const employeeCodeStyle = {
-  color: "#777",
+  color: "var(--muted-color, #777)",
   fontWeight: "bold",
 };
 
@@ -827,15 +853,16 @@ const detailsGridStyle = {
 
 const detailCardStyle = {
   padding: "16px",
-  background: "#fff",
+  background: "var(--card-bg, #fff)",
+  color: "var(--text-color, #1f2937)",
   borderRadius: "11px",
-  border: "1px solid #e6eaf0",
+  border: "1px solid var(--border-color, #e6eaf0)",
   boxShadow: "0 4px 12px rgba(0,0,0,.05)",
 };
 
 const detailLabelStyle = {
   display: "block",
-  color: "#777",
+  color: "var(--muted-color, #777)",
   fontSize: "13px",
 };
 
@@ -846,7 +873,9 @@ const detailValueStyle = {
 
 const uploadCardStyle = {
   padding: "20px",
-  background: "#fff",
+  background: "var(--card-bg, #fff)",
+  color: "var(--text-color, #1f2937)",
+  border: "1px solid var(--border-color, #e6eaf0)",
   borderRadius: "14px",
   marginBottom: "20px",
   boxShadow: "0 5px 16px rgba(0,0,0,.07)",
@@ -868,7 +897,9 @@ const labelStyle = {
 const inputStyle = {
   width: "100%",
   padding: "11px",
-  border: "1px solid #ccc",
+  border: "1px solid var(--border-color, #ccc)",
+  background: "var(--input-bg, #fff)",
+  color: "var(--text-color, #1f2937)",
   borderRadius: "8px",
   boxSizing: "border-box",
 };
@@ -902,7 +933,9 @@ const cameraButtonStyle = {
 
 const documentsCardStyle = {
   padding: "20px",
-  background: "#fff",
+  background: "var(--card-bg, #fff)",
+  color: "var(--text-color, #1f2937)",
+  border: "1px solid var(--border-color, #e6eaf0)",
   borderRadius: "14px",
   boxShadow: "0 5px 16px rgba(0,0,0,.07)",
 };
@@ -919,7 +952,7 @@ const tableHeaderStyle = {
 };
 
 const rowStyle = {
-  borderBottom: "1px solid #eee",
+  borderBottom: "1px solid var(--border-color, #eee)",
 };
 
 const cellStyle = {
@@ -971,16 +1004,16 @@ const deleteButtonStyle = {
 const emptyStyle = {
   textAlign: "center",
   padding: "45px 20px",
-  color: "#777",
-  background: "#f7f9fc",
+  color: "var(--muted-color, #777)",
+  background: "var(--soft-bg, #f7f9fc)",
   borderRadius: "12px",
 };
 
 const errorStyle = {
   marginTop: "20px",
   padding: "15px",
-  background: "#ffebee",
-  color: "#b71c1c",
+  background: "var(--danger-bg, #ffebee)",
+  color: "var(--danger-color, #b71c1c)",
   borderRadius: "9px",
 };
 
@@ -998,7 +1031,8 @@ const cameraOverlayStyle = {
 const cameraModalStyle = {
   width: "100%",
   maxWidth: "760px",
-  background: "#fff",
+  background: "var(--card-bg, #fff)",
+  color: "var(--text-color, #1f2937)",
   padding: "20px",
   borderRadius: "15px",
 };
@@ -1018,8 +1052,8 @@ const cameraActionsStyle = {
 };
 
 const cancelButtonStyle = {
-  background: "#e5e7eb",
-  color: "#222",
+  background: "var(--secondary-bg, #e5e7eb)",
+  color: "var(--text-color, #222)",
   border: "none",
   padding: "10px 17px",
   borderRadius: "8px",

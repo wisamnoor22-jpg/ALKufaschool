@@ -1,9 +1,9 @@
 .grade-fees-manager {
   padding: 20px;
-  border: 1px solid #dfe7ef;
+  border: 1px solid var(--border-color, #dfe7ef);
   border-radius: 15px;
-  background: #ffffff;
-  color: #1f2937;
+  background: var(--card-bg, #ffffff);
+  color: var(--text-color, #1f2937);
   box-shadow: 0 8px 24px rgba(30, 60, 114, 0.08);
 }
 
@@ -18,12 +18,12 @@
 
 .grade-fees-header h2 {
   margin: 0;
-  color: #163c70;
+  color: var(--heading-color, #163c70);
 }
 
 .grade-fees-header p {
   margin: 6px 0 0;
-  color: #64748b;
+  color: var(--muted-color, #64748b);
 }
 
 .grade-fees-add-button {
@@ -64,7 +64,7 @@
 
 .grade-fees-table-wrapper {
   overflow-x: auto;
-  border: 1px solid #dfe7ef;
+  border: 1px solid var(--border-color, #dfe7ef);
   border-radius: 12px;
 }
 
@@ -72,29 +72,29 @@
   width: 100%;
   min-width: 760px;
   border-collapse: collapse;
-  color: #1f2937;
+  color: var(--text-color, #1f2937);
 }
 
 .grade-fees-table thead {
-  background: #203653;
+  background: var(--table-header-bg, #203653);
 }
 
 .grade-fees-table th {
   padding: 13px 14px;
-  background: #203653;
+  background: var(--table-header-bg, #203653);
   color: #ffffff;
   text-align: right;
 }
 
 .grade-fees-table td {
   padding: 13px 14px;
-  background: #ffffff;
-  color: #334155;
+  background: var(--card-bg, #ffffff);
+  color: var(--text-color, #334155);
   text-align: right;
 }
 
 .grade-fees-table tbody tr {
-  border-bottom: 1px solid #e5edf5;
+  border-bottom: 1px solid var(--border-color, #e5edf5);
 }
 
 .grade-fees-table tbody tr:last-child {
@@ -102,7 +102,7 @@
 }
 
 .grade-fees-name {
-  color: #163c70 !important;
+  color: var(--heading-color, #163c70) !important;
   font-weight: 800;
 }
 
@@ -146,8 +146,8 @@
 
 .grade-fees-empty-state {
   padding: 42px !important;
-  background: #ffffff !important;
-  color: #64748b !important;
+  background: var(--card-bg, #ffffff) !important;
+  color: var(--muted-color, #64748b) !important;
   text-align: center !important;
 }
 
@@ -167,16 +167,16 @@
   width: 100%;
   max-width: 520px;
   padding: 26px;
-  border: 1px solid #dfe7ef;
+  border: 1px solid var(--border-color, #dfe7ef);
   border-radius: 15px;
-  background: #ffffff;
-  color: #1f2937;
+  background: var(--card-bg, #ffffff);
+  color: var(--text-color, #1f2937);
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
 }
 
 .grade-fees-modal h3 {
   margin: 0 0 20px;
-  color: #163c70;
+  color: var(--heading-color, #163c70);
   text-align: center;
 }
 
@@ -199,7 +199,7 @@
 }
 
 .grade-fees-form-group label {
-  color: #334155;
+  color: var(--text-color, #334155);
   font-weight: 700;
 }
 
@@ -207,10 +207,10 @@
 .grade-fees-form-group select {
   min-height: 44px;
   padding: 10px 12px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border-color, #cbd5e1);
   border-radius: 9px;
-  background: #ffffff;
-  color: #1f2937;
+  background: var(--input-bg, #ffffff);
+  color: var(--text-color, #1f2937);
   font-family: inherit;
   text-align: right;
   outline: none;
@@ -246,8 +246,8 @@
 }
 
 .grade-fees-cancel-button {
-  background: #e5e7eb;
-  color: #374151;
+  background: var(--soft-bg, #e5e7eb);
+  color: var(--text-color, #374151);
 }
 
 .grade-fees-save-button:disabled,
@@ -277,4 +277,9 @@
   .grade-fees-cancel-button {
     width: 100%;
   }
+}
+
+:root[data-theme="dark"] .grade-fees-year-badge {
+  background: #172f50;
+  color: #bfdbfe;
 }

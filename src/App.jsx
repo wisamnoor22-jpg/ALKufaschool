@@ -16,6 +16,7 @@ import Attendance from "./pages/Attendance";
 import Reports from "./pages/Reports";
 import Results from "./pages/Results";
 import DeletionArchive from "./pages/DeletionArchive";
+import Payroll from "./pages/Payroll";
 
 import "./App.css";
 import "./styles/dataLists.css";
@@ -39,6 +40,7 @@ function App() {
           <Route path="/fees" element={<Fees />} />
           <Route path="/attendance" element={<Attendance />} />
           <Route path="/reports" element={<Reports />} />
+          <Route path="/payroll" element={<Payroll />} />
           <Route path="/results" element={<Results />} />
           <Route path="/deletion-archive" element={<DeletionArchive />} />
         </Routes>

@@ -343,6 +343,27 @@
   color: #fecaca;
 }
 
+:root[data-theme="dark"] .deletion-type.student {
+  background: #172f50;
+  color: #bfdbfe;
+}
+
+:root[data-theme="dark"] .deletion-type.employee {
+  background: #123b2b;
+  color: #bbf7d0;
+}
+
+:root[data-theme="dark"] .deletion-type.employee_document {
+  background: #351c4f;
+  color: #e9d5ff;
+}
+
+:root[data-theme="dark"] .deletion-type.grade_fee,
+:root[data-theme="dark"] .deletion-type {
+  background: #3f3208;
+  color: #fde68a;
+}
+
 @media (max-width: 1050px) {
   .deletion-archive-filters {
     grid-template-columns: repeat(2, minmax(0, 1fr));

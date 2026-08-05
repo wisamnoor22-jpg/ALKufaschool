@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const FEES_API_URL = "http://localhost:5000/fees";
 const EMPLOYEES_API_URL = "http://localhost:5000/employees";
@@ -31,11 +31,7 @@ export default function PaymentForm({
     0
   );
 
-  useEffect(() => {
-    loadEmployees();
-  }, []);
-
-  const loadEmployees = async () => {
+  const loadEmployees = useCallback(async () => {
     try {
       setLoadingEmployees(true);
       setMessage("");
@@ -80,7 +76,15 @@ export default function PaymentForm({
     } finally {
       setLoadingEmployees(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const loadTimer = window.setTimeout(() => {
+      loadEmployees();
+    }, 0);
+
+    return () => window.clearTimeout(loadTimer);
+  }, [loadEmployees]);
 
   const selectedEmployee = useMemo(() => {
     return employees.find(
@@ -343,7 +347,7 @@ export default function PaymentForm({
 const overlayStyle = {
   position: "fixed",
   inset: 0,
-  background: "rgba(0,0,0,0.55)",
+  background: "var(--overlay-bg, rgba(0,0,0,0.55))",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
@@ -356,7 +360,9 @@ const modalStyle = {
   maxWidth: "760px",
   maxHeight: "90vh",
   overflowY: "auto",
-  background: "#fff",
+  background: "var(--card-bg, #fff)",
+  color: "var(--text-color, #1f2937)",
+  border: "1px solid var(--border-color, #dbe3ec)",
   borderRadius: "16px",
   padding: "24px",
   direction: "rtl",
@@ -381,7 +387,7 @@ const studentCardStyle = {
   gap: "7px",
   padding: "14px",
   marginBottom: "15px",
-  background: "#f7f9fc",
+  background: "var(--soft-bg, #f7f9fc)",
   borderRadius: "10px",
 };
 
@@ -401,7 +407,9 @@ const labelStyle = {
 const inputStyle = {
   width: "100%",
   padding: "11px",
-  border: "1px solid #ccc",
+  border: "1px solid var(--border-color, #ccc)",
+  background: "var(--input-bg, #fff)",
+  color: "var(--text-color, #1f2937)",
   borderRadius: "8px",
   boxSizing: "border-box",
   fontFamily: "inherit",
@@ -413,7 +421,7 @@ const summaryStyle = {
   gap: "15px",
   marginTop: "18px",
   padding: "14px",
-  background: "#f7f9fc",
+  background: "var(--soft-bg, #f7f9fc)",
   borderRadius: "9px",
   fontSize: "17px",
 };
@@ -436,8 +444,8 @@ const saveButtonStyle = {
 };
 
 const cancelButtonStyle = {
-  background: "#e5e7eb",
-  color: "#222",
+  background: "var(--secondary-bg, #e5e7eb)",
+  color: "var(--text-color, #222)",
   border: "none",
   padding: "11px 20px",
   borderRadius: "8px",
@@ -446,8 +454,8 @@ const cancelButtonStyle = {
 };
 
 const messageStyle = {
-  background: "#ffebee",
-  color: "#b71c1c",
+  background: "var(--danger-bg, #ffebee)",
+  color: "var(--danger-color, #b71c1c)",
   padding: "11px",
   borderRadius: "8px",
   marginBottom: "15px",

@@ -15,7 +15,7 @@ const attendanceSections = [
   {
     id: "employees",
     title: "حضور الموظفين",
-    description: "البحث عن الموظفين وتسجيل الحضور والغياب والإجازات",
+    description: "البحث عن الموظفين وتسجيل الحضور والغياب والتأخير",
     code: "HR",
   },
 ];
@@ -294,7 +294,7 @@ function AttendanceWorkspace({
 
   const reportPeople = isStudents
     ? [...absentPeople, ...excusedPeople]
-    : [...absentPeople, ...excusedPeople, ...latePeople];
+    : [...absentPeople, ...latePeople];
 
   const markFromSearchAbsent = (person) => {
     updateStatus(person, "absent");
@@ -595,10 +595,12 @@ function AttendanceWorkspace({
           <strong>{presentCount}</strong>
           <span>حاضر</span>
         </div>
-        <div className="attendance-summary-card excused">
-          <strong>{excusedPeople.length}</strong>
-          <span>مجاز</span>
-        </div>
+        {isStudents && (
+          <div className="attendance-summary-card excused">
+            <strong>{excusedPeople.length}</strong>
+            <span>مجاز</span>
+          </div>
+        )}
         <div className="attendance-summary-card absent">
           <strong>{absentPeople.length}</strong>
           <span>غائب</span>
@@ -744,19 +746,21 @@ function AttendanceWorkspace({
                         حاضر
                       </button>
 
-                      <button
-                        type="button"
-                        className={
-                          record.status === "excused"
-                            ? "active excused"
-                            : "excused"
-                        }
-                        onClick={() =>
-                          updateStatus(person, "excused")
-                        }
-                      >
-                        مجاز
-                      </button>
+                      {isStudents && (
+                        <button
+                          type="button"
+                          className={
+                            record.status === "excused"
+                              ? "active excused"
+                              : "excused"
+                          }
+                          onClick={() =>
+                            updateStatus(person, "excused")
+                          }
+                        >
+                          مجاز
+                        </button>
+                      )}
 
                       <button
                         type="button"
@@ -908,10 +912,12 @@ function AttendanceWorkspace({
                   <span>عدد الغياب</span>
                 </div>
 
-                <div className="attendance-report-count excused">
-                  <strong>{excusedPeople.length}</strong>
-                  <span>عدد المجازين</span>
-                </div>
+                {isStudents && (
+                  <div className="attendance-report-count excused">
+                    <strong>{excusedPeople.length}</strong>
+                    <span>عدد المجازين</span>
+                  </div>
+                )}
 
                 {!isStudents && (
                   <div className="attendance-report-count late">
@@ -924,7 +930,7 @@ function AttendanceWorkspace({
               <h3>
                 {isStudents
                   ? "تفاصيل الغياب والإجازات"
-                  : "تفاصيل الغياب والإجازات والتأخير"}
+                  : "تفاصيل الغياب والتأخير"}
               </h3>
 
               {reportPeople.length > 0 ? (
@@ -987,7 +993,7 @@ function AttendanceWorkspace({
                 <p>
                   {isStudents
                     ? "لا يوجد غائبون أو مجازون لهذا اليوم"
-                    : "لا توجد حالات غياب أو إجازة أو تأخير لهذا اليوم"}
+                    : "لا توجد حالات غياب أو تأخير لهذا اليوم"}
                 </p>
               )}
             </div>

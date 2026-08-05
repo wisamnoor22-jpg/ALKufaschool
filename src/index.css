@@ -2,6 +2,26 @@
   font-family: Tahoma, Arial, sans-serif;
   color: #243447;
   background-color: #eef4f8;
+  --page-bg: #eef4f8;
+  --card-bg: #ffffff;
+  --soft-bg: #f4f7fb;
+  --input-bg: #ffffff;
+  --text-color: #243447;
+  --heading-color: #163c70;
+  --muted-color: #64748b;
+  --border-color: #dbe3ec;
+  --table-header-bg: #203653;
+  --primary-bg: #1e3c72;
+  --primary-hover: #28558f;
+  --secondary-bg: #e5e7eb;
+  --success-bg: #ecfdf5;
+  --success-color: #166534;
+  --warning-bg: #fffbeb;
+  --warning-color: #92400e;
+  --danger-bg: #fef2f2;
+  --danger-color: #b91c1c;
+  --overlay-bg: rgba(15, 23, 42, 0.68);
+  --surface-shadow: 0 12px 34px rgba(26, 58, 92, 0.1);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -130,6 +150,41 @@ body.dark-mode {
   --muted-color: #a9b7c6;
   --border-color: #30465b;
   --table-header-bg: #203653;
+  --primary-bg: #2f6ea5;
+  --primary-hover: #3d82bb;
+  --secondary-bg: #26384a;
+  --success-bg: #123b2b;
+  --success-color: #86efac;
+  --warning-bg: #3f3208;
+  --warning-color: #fde68a;
+  --danger-bg: #451a1a;
+  --danger-color: #fecaca;
+  --overlay-bg: rgba(2, 8, 23, 0.78);
+  --surface-shadow: 0 14px 38px rgba(0, 0, 0, 0.34);
+  --fees-total-color: #5eead4;
+  --fees-paid-color: #4ade80;
+  --fees-remaining-color: #f87171;
+}
+
+@media screen {
+  :root[data-theme="dark"] html,
+  :root[data-theme="dark"] body,
+  body.dark-mode {
+    background-color: var(--page-bg) !important;
+    color: var(--text-color);
+  }
+
+  :root[data-theme="dark"] option,
+  body.dark-mode option {
+    background: var(--input-bg);
+    color: var(--text-color);
+  }
+
+  :root[data-theme="dark"] ::selection,
+  body.dark-mode ::selection {
+    background: #315d86;
+    color: #ffffff;
+  }
 }
 
 /* النصوص */

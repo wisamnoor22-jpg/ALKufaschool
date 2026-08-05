@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import ReportPrintHeader from "../components/common/ReportPrintHeader";
+import PayrollReport from "../components/payroll/PayrollReport";
 import "../styles/reports.css";
 import "../styles/reportPrint.css";
 
@@ -19,7 +21,7 @@ const REPORT_SECTIONS = [
     code: "HR",
     title: "تقرير حضور الموظفين",
     description:
-      "تقارير الحضور والانصراف والتأخير والغياب والإجازات للموظفين.",
+      "تقارير الحضور والانصراف والتأخير والغياب للموظفين.",
     features: ["وقت الحضور والانصراف", "حساب التأخير", "تقارير شهرية"],
   },
   {
@@ -29,6 +31,14 @@ const REPORT_SECTIONS = [
     description:
       "تقارير الدفعات والمبالغ المدفوعة والمتبقية والوصولات المالية.",
     features: ["دفعات اليوم والشهر", "المتبقي والمسدد", "تصدير Excel"],
+  },
+  {
+    id: "payroll",
+    code: "PY",
+    title: "تقرير الرواتب",
+    description:
+      "كشف الرواتب الشهرية والحضور والغياب والتأخير والاستقطاعات وصافي الراتب.",
+    features: ["المعلمات والإداريون", "تصفية شهرية", "طباعة وتصدير Excel"],
   },
 ];
 
@@ -536,7 +546,6 @@ function EmployeeAttendanceReport({ onBack }) {
   const [report, setReport] = useState({
     summary: {
       absent_count: 0,
-      excused_count: 0,
       late_count: 0,
       total_late_minutes: 0,
     },
@@ -616,7 +625,6 @@ function EmployeeAttendanceReport({ onBack }) {
       setReport({
         summary: {
           absent_count: Number(data.summary?.absent_count || 0),
-          excused_count: Number(data.summary?.excused_count || 0),
           late_count: Number(data.summary?.late_count || 0),
           total_late_minutes: Number(
             data.summary?.total_late_minutes || 0
@@ -697,7 +705,6 @@ function EmployeeAttendanceReport({ onBack }) {
   const visibleRecords = report.records.filter(
     (record) =>
       record.status === "absent" ||
-      record.status === "excused" ||
       record.status === "late"
   );
   const printDate =
@@ -823,11 +830,6 @@ function EmployeeAttendanceReport({ onBack }) {
         <article className="reports-summary-card absent">
           <strong>{report.summary.absent_count}</strong>
           <span>الغائبون</span>
-        </article>
-
-        <article className="reports-summary-card excused">
-          <strong>{report.summary.excused_count}</strong>
-          <span>المجازون</span>
         </article>
 
         <article className="reports-summary-card late">
@@ -985,7 +987,14 @@ function ReportPlaceholder({ report, onBack }) {
 }
 
 export default function Reports() {
-  const [activeReport, setActiveReport] = useState("");
+  const [searchParams] = useSearchParams();
+  const requestedReport = searchParams.get("report") || "";
+  const requestedEmployeeId = searchParams.get("employee_id");
+  const [activeReport, setActiveReport] = useState(
+    REPORT_SECTIONS.some((report) => report.id === requestedReport)
+      ? requestedReport
+      : ""
+  );
 
   const selectedReport = REPORT_SECTIONS.find(
     (report) => report.id === activeReport
@@ -1035,6 +1044,12 @@ export default function Reports() {
         <StudentAttendanceReport onBack={() => setActiveReport("")} />
       ) : selectedReport.id === "employee-attendance" ? (
         <EmployeeAttendanceReport onBack={() => setActiveReport("")} />
+      ) : selectedReport.id === "payroll" ? (
+        <PayrollReport
+          title={requestedEmployeeId ? "تقرير راتب الموظف" : "تقرير الرواتب"}
+          employeeId={requestedEmployeeId}
+          onBack={() => setActiveReport("")}
+        />
       ) : (
         <ReportPlaceholder
           report={selectedReport}

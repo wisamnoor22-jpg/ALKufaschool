@@ -183,7 +183,7 @@ const EMPLOYEE_ATTENDANCE_QUERY = `
     COUNT(*) FILTER (WHERE a.status = 'present')::integer AS present,
     COUNT(*) FILTER (WHERE a.status = 'late')::integer AS late,
     COUNT(*) FILTER (
-      WHERE a.id IS NULL OR a.status IN ('absent', 'excused')
+      WHERE a.id IS NULL OR a.status = 'absent'
     )::integer AS absent,
     COUNT(*) FILTER (WHERE a.check_out_time IS NOT NULL)::integer AS checked_out,
     COUNT(*) FILTER (
@@ -221,7 +221,7 @@ const EMPLOYEE_ATTENDANCE_QUERY = `
               AS present,
             COUNT(*) FILTER (WHERE a2.status = 'late')::integer AS late,
             COUNT(*) FILTER (
-              WHERE a2.id IS NULL OR a2.status IN ('absent', 'excused')
+              WHERE a2.id IS NULL OR a2.status = 'absent'
             )::integer AS absent
           FROM employees e2
           LEFT JOIN today_attendance a2 ON a2.employee_id = e2.id

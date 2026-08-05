@@ -34,9 +34,9 @@
 }
 
 .attendance-back-button {
-  border: 1px solid #d8e0e8;
-  background: #fff;
-  color: #1e3c72;
+  border: 1px solid var(--border-color, #d8e0e8);
+  background: var(--card-bg, #fff);
+  color: var(--heading-color, #1e3c72);
 }
 
 .attendance-report-button {
@@ -804,6 +804,43 @@
 
 .attendance-report-count.late strong {
   color: #b45309;
+}
+
+@media screen {
+  :root[data-theme="dark"] .attendance-section-code,
+  :root[data-theme="dark"] .attendance-report-count {
+    border-color: var(--border-color);
+    background: var(--soft-bg);
+    color: var(--heading-color);
+  }
+
+  :root[data-theme="dark"] .attendance-report-modal,
+  :root[data-theme="dark"] .attendance-report-table td {
+    border-color: var(--border-color);
+    background: var(--card-bg);
+    color: var(--text-color);
+  }
+
+  :root[data-theme="dark"] .attendance-report-school-name,
+  :root[data-theme="dark"] .attendance-report-date {
+    color: var(--heading-color);
+  }
+
+  :root[data-theme="dark"] .attendance-report-count span {
+    color: var(--muted-color);
+  }
+
+  :root[data-theme="dark"] .attendance-report-count.absent {
+    background: var(--danger-bg);
+  }
+
+  :root[data-theme="dark"] .attendance-report-count.excused {
+    background: var(--success-bg);
+  }
+
+  :root[data-theme="dark"] .attendance-report-count.late {
+    background: var(--warning-bg);
+  }
 }
 
 @media (max-width: 560px) {

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const API_URL = "http://localhost:5000/fees";
 const LOGO_PATH = "/school-logo.png";
@@ -8,11 +8,7 @@ export default function PaymentHistory({ fee, onClose }) {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState("");
 
-  useEffect(() => {
-    loadPayments();
-  }, [fee.id]);
-
-  const loadPayments = async () => {
+  const loadPayments = useCallback(async () => {
     try {
       setLoading(true);
       setMessage("");
@@ -37,7 +33,15 @@ export default function PaymentHistory({ fee, onClose }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [fee.id]);
+
+  useEffect(() => {
+    const loadTimer = window.setTimeout(() => {
+      loadPayments();
+    }, 0);
+
+    return () => window.clearTimeout(loadTimer);
+  }, [loadPayments]);
 
   const latestPayment = payments[0] || null;
 
@@ -863,7 +867,7 @@ const overlayStyle = {
   inset: 0,
   zIndex: 1200,
   padding: "20px",
-  background: "rgba(0,0,0,0.55)",
+  background: "var(--overlay-bg, rgba(0,0,0,0.55))",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
@@ -876,7 +880,9 @@ const modalStyle = {
   overflowY: "auto",
   padding: "24px",
   borderRadius: "16px",
-  background: "#fff",
+  background: "var(--card-bg, #fff)",
+  color: "var(--text-color, #1f2937)",
+  border: "1px solid var(--border-color, #dbe3ec)",
   direction: "rtl",
 };
 
@@ -889,7 +895,7 @@ const headerStyle = {
 
 const subTitleStyle = {
   marginTop: "7px",
-  color: "#777",
+  color: "var(--muted-color, #777)",
   fontWeight: "bold",
 };
 
@@ -904,8 +910,8 @@ const messageStyle = {
   padding: "11px",
   marginBottom: "15px",
   borderRadius: "8px",
-  background: "#ffebee",
-  color: "#b71c1c",
+  background: "var(--danger-bg, #ffebee)",
+  color: "var(--danger-color, #b71c1c)",
   fontWeight: "bold",
 };
 
@@ -917,21 +923,21 @@ const loadingStyle = {
 const emptyStyle = {
   padding: "35px",
   borderRadius: "10px",
-  background: "#f7f9fc",
-  color: "#777",
+  background: "var(--soft-bg, #f7f9fc)",
+  color: "var(--muted-color, #777)",
   textAlign: "center",
 };
 
 const previewStyle = {
-  border: "1px solid #d7dee8",
+  border: "1px solid var(--border-color, #d7dee8)",
   borderRadius: "12px",
   overflow: "hidden",
-  background: "#ffffff",
+  background: "var(--card-bg, #ffffff)",
 };
 
 const previewHeaderStyle = {
   padding: "15px",
-  borderBottom: "1px solid #d7dee8",
+  borderBottom: "1px solid var(--border-color, #d7dee8)",
   textAlign: "center",
 };
 
@@ -945,7 +951,7 @@ const logoStyle = {
 
 const previewSchoolStyle = {
   margin: 0,
-  color: "#163c70",
+  color: "var(--heading-color, #163c70)",
   fontSize: "21px",
 };
 
@@ -971,8 +977,8 @@ const closeActionButtonStyle = {
   padding: "10px 18px",
   border: "none",
   borderRadius: "8px",
-  background: "#e5e7eb",
-  color: "#222",
+  background: "var(--secondary-bg, #e5e7eb)",
+  color: "var(--text-color, #222)",
   cursor: "pointer",
   fontWeight: "bold",
 };

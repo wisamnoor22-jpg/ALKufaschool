@@ -1,8 +1,8 @@
 .results-page {
   min-height: 100vh;
   padding: 30px;
-  background: #f4f7fb;
-  color: #1f2937;
+  background: var(--page-bg, #f4f7fb);
+  color: var(--text-color, #1f2937);
 }
 
 .results-container {
@@ -20,13 +20,13 @@
 .results-header h1,
 .results-subheader h2 {
   margin: 0;
-  color: #163c70;
+  color: var(--heading-color, #163c70);
 }
 
 .results-header p,
 .results-subheader p {
   margin: 5px 0 0;
-  color: #64748b;
+  color: var(--muted-color, #64748b);
 }
 
 .results-cards-grid {
@@ -40,10 +40,10 @@
   position: relative;
   min-height: 250px;
   padding: 26px;
-  border: 1px solid #dfe7ef;
+  border: 1px solid var(--border-color, #dfe7ef);
   border-radius: 18px;
-  background: #ffffff;
-  color: #1f2937;
+  background: var(--card-bg, #ffffff);
+  color: var(--text-color, #1f2937);
   text-align: right;
   font-family: inherit;
   cursor: pointer;
@@ -74,8 +74,8 @@
   width: 64px;
   height: 64px;
   border-radius: 16px;
-  background: #edf3fb;
-  color: #1e3c72;
+  background: var(--soft-bg, #edf3fb);
+  color: var(--heading-color, #1e3c72);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -91,14 +91,14 @@
 .results-card-content h2,
 .results-method-content h3 {
   margin: 0;
-  color: #163c70;
+  color: var(--heading-color, #163c70);
   font-size: 24px;
 }
 
 .results-card-content p,
 .results-method-content p {
   margin: 10px 0 0;
-  color: #64748b;
+  color: var(--muted-color, #64748b);
   line-height: 1.8;
 }
 
@@ -106,7 +106,7 @@
   position: absolute;
   left: 24px;
   bottom: 20px;
-  color: #1e3c72;
+  color: var(--heading-color, #1e3c72);
   font-size: 24px;
   font-weight: 900;
 }
@@ -121,10 +121,10 @@
 .results-back-button {
   min-height: 42px;
   padding: 9px 16px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border-color, #cbd5e1);
   border-radius: 9px;
-  background: #ffffff;
-  color: #1e3c72;
+  background: var(--card-bg, #ffffff);
+  color: var(--heading-color, #1e3c72);
   font-family: inherit;
   font-weight: 900;
   cursor: pointer;
@@ -174,9 +174,9 @@
 }
 
 .results-panel {
-  border: 1px solid #dfe7ef;
+  border: 1px solid var(--border-color, #dfe7ef);
   border-radius: 16px;
-  background: #ffffff;
+  background: var(--card-bg, #ffffff);
   box-shadow: 0 9px 26px rgba(30, 60, 114, 0.08);
 }
 
@@ -194,7 +194,7 @@
 }
 
 .results-field span {
-  color: #334155;
+  color: var(--text-color, #334155);
   font-weight: 800;
 }
 
@@ -203,10 +203,10 @@
   width: 100%;
   min-height: 44px;
   padding: 9px 11px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--border-color, #cbd5e1);
   border-radius: 9px;
-  background: #ffffff;
-  color: #1f2937;
+  background: var(--input-bg, #ffffff);
+  color: var(--text-color, #1f2937);
   font-family: inherit;
 }
 
@@ -231,7 +231,7 @@
 .results-empty {
   margin-top: 16px;
   padding: 40px;
-  color: #64748b;
+  color: var(--muted-color, #64748b);
   text-align: center;
 }
 
@@ -260,4 +260,19 @@
     align-items: stretch;
     flex-direction: column;
   }
+}
+
+:root[data-theme="dark"] .results-method-excel .results-method-icon {
+  background: #123b2b;
+  color: #86efac;
+}
+
+:root[data-theme="dark"] .results-method-word .results-method-icon {
+  background: #172f50;
+  color: #93c5fd;
+}
+
+:root[data-theme="dark"] .results-method-manual .results-method-icon {
+  background: #3f3208;
+  color: #fde68a;
 }

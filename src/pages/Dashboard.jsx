@@ -90,11 +90,32 @@ const formatCurrency = (value) =>
 
 const formatClockTime = (value) => value || "—";
 
+const formatSchoolDate = (date) => {
+  const weekday = new Intl.DateTimeFormat("ar-IQ", {
+    timeZone: SCHOOL_TIME_ZONE,
+    weekday: "long",
+  }).format(date);
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: SCHOOL_TIME_ZONE,
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    })
+      .formatToParts(date)
+      .filter(({ type }) => type !== "literal")
+      .map(({ type, value }) => [type, value])
+  );
+
+  return `${weekday} ${parts.day}-${parts.month}-${parts.year}`;
+};
+
 const sections = [
   { title: "الطلاب", description: "إدارة ملفات الطلبة", path: "/students", code: "ST" },
   { title: "الكادر", description: "الموظفون والحضور", path: "/teachers", code: "HR" },
   { title: "الحسابات", description: "الأقساط والدفعات", path: "/fees", code: "FN" },
   { title: "الحضور", description: "الحضور والغياب", path: "/attendance", code: "AT" },
+  { title: "الرواتب", description: "رواتب الكادر والاستقطاعات", path: "/payroll", code: "PY" },
   { title: "الدرجات", description: "النتائج والتقييمات", path: "/results", code: "GR" },
   { title: "الجداول", description: "الجداول الدراسية", path: "/timetable", code: "SC" },
   { title: "التقارير", description: "مركز التقارير", path: "/reports", code: "RP" },
@@ -143,6 +164,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [statisticsError, setStatisticsError] = useState("");
+  const [currentDate, setCurrentDate] = useState(() => new Date());
   const inFlightRequestRef = useRef(null);
   const requestControllerRef = useRef(null);
   const hasStatisticsRef = useRef(false);
@@ -207,7 +229,7 @@ export default function Dashboard() {
     }, 0);
     const interval = window.setInterval(() => {
       refreshStatistics();
-    }, 30_000);
+    }, 60_000);
 
     const refreshWhenVisible = () => {
       if (document.visibilityState === "visible") {
@@ -231,15 +253,15 @@ export default function Dashboard() {
     };
   }, [refreshStatistics]);
 
-  const dateText = useMemo(() => {
-    return new Intl.DateTimeFormat("ar-IQ", {
-      timeZone: SCHOOL_TIME_ZONE,
-      weekday: "long",
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    }).format(new Date());
+  useEffect(() => {
+    const dateTimer = window.setInterval(() => {
+      setCurrentDate(new Date());
+    }, 60_000);
+
+    return () => window.clearInterval(dateTimer);
   }, []);
+
+  const dateText = useMemo(() => formatSchoolDate(currentDate), [currentDate]);
 
   const searchResults = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -336,25 +358,6 @@ export default function Dashboard() {
         </div>
 
         <div className="header-tools">
-          <div className="global-search">
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="بحث سريع في النظام..."
-            />
-
-            {searchResults.length > 0 && (
-              <div className="search-results">
-                {searchResults.map((item) => (
-                  <button key={item.path} type="button" onClick={() => navigate(item.path)}>
-                    <strong>{item.title}</strong>
-                    <span>{item.description}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
           <div className="notifications">
             <button
               type="button"
@@ -389,7 +392,38 @@ export default function Dashboard() {
             )}
           </div>
 
+          <button
+            type="button"
+            className="statistics-refresh-button"
+            onClick={() => refreshStatistics()}
+            disabled={loading || refreshing}
+            aria-label="تحديث الإحصائيات"
+          >
+            <span aria-hidden="true">↻</span>
+            {loading || refreshing ? "جاري التحديث..." : "تحديث الإحصائيات"}
+          </button>
+
           <div className="date-chip">{dateText}</div>
+
+          <div className="global-search">
+            <input
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="بحث سريع في النظام..."
+            />
+
+            {searchResults.length > 0 && (
+              <div className="search-results">
+                {searchResults.map((item) => (
+                  <button key={item.path} type="button" onClick={() => navigate(item.path)}>
+                    <strong>{item.title}</strong>
+                    <span>{item.description}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <button type="button" className="logout-button" onClick={() => navigate("/")}>تسجيل الخروج</button>
         </div>
       </header>
@@ -402,13 +436,6 @@ export default function Dashboard() {
             </strong>
             <span>آخر تحديث: {lastUpdatedText}</span>
           </div>
-          <button
-            type="button"
-            onClick={() => refreshStatistics()}
-            disabled={loading || refreshing}
-          >
-            {refreshing ? "جاري التحديث..." : "تحديث الآن"}
-          </button>
         </section>
 
         {statisticsError && (

@@ -3,7 +3,6 @@ const pool = require("../db");
 const ALLOWED_STATUSES = new Set([
   "present",
   "absent",
-  "excused",
   "late",
 ]);
 const ALLOWED_WORK_SHIFTS = new Set([
@@ -24,7 +23,8 @@ const ensureAttendanceTable = () => {
             REFERENCES employees(id)
             ON DELETE CASCADE,
           attendance_date DATE NOT NULL,
-          status VARCHAR(20) NOT NULL,
+          status VARCHAR(20) NOT NULL
+            CHECK (status IN ('present', 'absent', 'late')),
           notes TEXT,
           check_in_time TIME,
           check_out_time TIME,
@@ -42,13 +42,6 @@ const ensureAttendanceTable = () => {
 
         ALTER TABLE employee_attendance
           ADD COLUMN IF NOT EXISTS late_minutes INTEGER NOT NULL DEFAULT 0;
-
-        ALTER TABLE employee_attendance
-          DROP CONSTRAINT IF EXISTS employee_attendance_status_check;
-
-        ALTER TABLE employee_attendance
-          ADD CONSTRAINT employee_attendance_status_check
-          CHECK (status IN ('present', 'absent', 'excused', 'late'));
 
         CREATE INDEX IF NOT EXISTS idx_employee_attendance_date
           ON employee_attendance(attendance_date);
@@ -214,8 +207,6 @@ const getAttendanceReport = async (req, res) => {
       `SELECT
          COUNT(*) FILTER (WHERE ea.status = 'absent')::int
            AS absent_count,
-         COUNT(*) FILTER (WHERE ea.status = 'excused')::int
-           AS excused_count,
          COUNT(*) FILTER (WHERE ea.status = 'late')::int
            AS late_count,
          COALESCE(SUM(ea.late_minutes), 0)::int

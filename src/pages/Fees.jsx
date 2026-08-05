@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import "../styles/Dashboard.css";
 
 import FeesStats from "../components/finance/FeesStats";
@@ -31,7 +32,11 @@ const sections = [
 ];
 
 export default function Fees() {
-  const [activeSection, setActiveSection] = useState("");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedSection = searchParams.get("section");
+  const activeSection = sections.some(({ id }) => id === requestedSection)
+    ? requestedSection
+    : "";
   const [fees, setFees] = useState([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState("");
@@ -48,7 +53,7 @@ export default function Fees() {
 
   const [quickSearch, setQuickSearch] = useState("");
 
-  const loadFees = async () => {
+  const loadFees = useCallback(async () => {
     try {
       setLoading(true);
       setMessage("");
@@ -69,16 +74,17 @@ export default function Fees() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     if (
       activeSection === "payments" ||
       activeSection === "reports"
     ) {
-      loadFees();
+      const loadTimer = window.setTimeout(loadFees, 0);
+      return () => window.clearTimeout(loadTimer);
     }
-  }, [activeSection]);
+  }, [activeSection, loadFees]);
 
   const filteredFees = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -150,12 +156,12 @@ export default function Fees() {
     loadFees();
   };
 
-  const returnToSections = () => {
-    setActiveSection("");
+  const openSection = (sectionId) => {
     setSearch("");
     setMessage("");
     setShowQuickPayment(false);
     setQuickSearch("");
+    setSearchParams({ section: sectionId });
   };
 
   const openQuickPayment = () => {
@@ -182,21 +188,11 @@ export default function Fees() {
     <div className="main-content fees-page" dir="rtl">
       <div style={headerStyle}>
         <div>
-          {activeSection && (
-            <button
-              type="button"
-              onClick={returnToSections}
-              style={backButtonStyle}
-            >
-              رجوع
-            </button>
-          )}
-
           <h2 style={{ margin: "14px 0 0" }}>
             الحسابات والأقساط
           </h2>
 
-          <p style={{ color: "#777", marginBottom: 0 }}>
+          <p style={{ color: "var(--muted-color, #64748b)", marginBottom: 0 }}>
             إدارة الرسوم والدفعات والتقارير المالية
           </p>
         </div>
@@ -212,9 +208,7 @@ export default function Fees() {
             <button
               key={section.id}
               type="button"
-              onClick={() =>
-                setActiveSection(section.id)
-              }
+              onClick={() => openSection(section.id)}
               className="section-card"
               style={sectionButtonResetStyle}
             >
@@ -410,7 +404,7 @@ function SectionTitle({ title, description }) {
     <div style={sectionHeaderStyle}>
       <h3 style={{ margin: 0 }}>{title}</h3>
 
-      <p style={{ color: "#777", marginBottom: 0 }}>
+      <p style={{ color: "var(--muted-color, #64748b)", marginBottom: 0 }}>
         {description}
       </p>
     </div>
@@ -446,16 +440,6 @@ const headerStyle = {
   flexWrap: "wrap",
 };
 
-const backButtonStyle = {
-  background: "#edf1f5",
-  color: "#1e3c72",
-  border: "none",
-  padding: "9px 14px",
-  borderRadius: "9px",
-  cursor: "pointer",
-  fontWeight: "bold",
-};
-
 const sectionsGridStyle = {
   direction: "rtl",
   gridTemplateColumns:
@@ -482,9 +466,10 @@ const sectionHeaderStyle = {
   flex: 1,
   marginBottom: 0,
   padding: "18px",
-  background: "#fff",
+  background: "var(--card-bg, #fff)",
+  color: "var(--text-color, #1f2937)",
   borderRadius: "13px",
-  border: "1px solid #e5e9ef",
+  border: "1px solid var(--border-color, #e5e9ef)",
 };
 
 const topPaymentButtonStyle = {
@@ -536,7 +521,8 @@ const quickModalStyle = {
   maxHeight: "88vh",
   padding: "22px",
   borderRadius: "16px",
-  background: "#fff",
+  background: "var(--card-bg, #fff)",
+  color: "var(--text-color, #1f2937)",
   overflowY: "auto",
   boxShadow: "0 24px 70px rgba(15,23,42,.28)",
 };
@@ -559,8 +545,8 @@ const quickCloseButtonStyle = {
   height: "40px",
   border: "none",
   borderRadius: "9px",
-  background: "#f1f5f9",
-  color: "#334155",
+  background: "var(--soft-bg, #f1f5f9)",
+  color: "var(--text-color, #334155)",
   fontSize: "26px",
   cursor: "pointer",
 };
@@ -589,8 +575,8 @@ const quickStudentButtonStyle = {
   padding: "14px",
   border: "1px solid #dfe7ef",
   borderRadius: "12px",
-  background: "#fff",
-  color: "#1f2937",
+  background: "var(--card-bg, #fff)",
+  color: "var(--text-color, #1f2937)",
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",

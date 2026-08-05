@@ -92,3 +92,30 @@
 .skip-login-btn:hover {
   background: #eef4ff;
 }
+
+:root[data-theme="dark"] .login-card {
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-color);
+  box-shadow: var(--surface-shadow);
+}
+
+:root[data-theme="dark"] .login-header h1,
+:root[data-theme="dark"] .form-group label {
+  color: var(--heading-color);
+}
+
+:root[data-theme="dark"] .login-header p {
+  color: var(--muted-color);
+}
+
+:root[data-theme="dark"] .skip-login-btn {
+  border-color: var(--border-color);
+  background: var(--soft-bg);
+  color: var(--heading-color);
+}
+
+:root[data-theme="dark"] .skip-login-btn:hover {
+  background: var(--table-header-bg);
+  color: #ffffff;
+}
