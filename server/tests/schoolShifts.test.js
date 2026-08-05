@@ -25,12 +25,17 @@ const run = async () => {
   assert.match(validateStudentShift("طالب", "").error, /وقت الدوام/);
 
   try {
-    const existingStudents = await requestJson("/students");
-    assert.equal(existingStudents.response.status, 200);
-    assert.ok(existingStudents.data.length > 0, "يلزم صف دراسي موجود للاختبار");
+    const gradeResult = await pool.query(
+      `SELECT name
+       FROM grades
+       WHERE is_active = TRUE
+       ORDER BY sort_order, id
+       LIMIT 1`
+    );
+    assert.equal(gradeResult.rows.length, 1, "يلزم صف دراسي نشط للاختبار");
 
-    const grade = existingStudents.data[0].grade;
-    const section = existingStudents.data[0].section || "أ";
+    const grade = gradeResult.rows[0].name;
+    const section = "أ";
     const createStudent = async (gender, schoolShift, label) => {
       const result = await requestJson("/students", {
         method: "POST",
