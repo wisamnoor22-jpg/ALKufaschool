@@ -5,6 +5,8 @@ const API_BASE = "http://localhost:5000";
 const TIMETABLE_API = `${API_BASE}/timetables`;
 const BAGHDAD_TIME_ZONE = "Asia/Baghdad";
 const TABLE_HEADER_HEIGHT = 58;
+const OPPORTUNITY_MINUTES = 10;
+const OPPORTUNITY_ROW_WEIGHT = 0.42;
 
 const DAYS = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس"];
 const SECTIONS = ["أ", "ب", "ج", "د"];
@@ -147,38 +149,102 @@ const getCurrentShiftState = (nowMinutes, times) => {
   return { shift: "ظهري", status: "finished" };
 };
 
+const buildScheduleRows = (periods) => {
+  const rows = [];
+
+  periods.forEach((period, index) => {
+    rows.push({
+      type: "period",
+      key: `period-${period.period_number}`,
+      period,
+      periodIndex: index,
+      startMinutes: timeToMinutes(period.start),
+      endMinutes: timeToMinutes(period.end),
+      weight: 1,
+    });
+
+    const nextPeriod = periods[index + 1];
+
+    if (!nextPeriod) {
+      return;
+    }
+
+    const breakStart = timeToMinutes(period.end);
+    const breakEnd = timeToMinutes(nextPeriod.start);
+    const breakMinutes = breakEnd - breakStart;
+
+    if (breakMinutes <= 0) {
+      return;
+    }
+
+    const isOpportunity = breakMinutes >= OPPORTUNITY_MINUTES;
+
+    rows.push({
+      type: "break",
+      key: `break-${period.period_number}-${nextPeriod.period_number}`,
+      start: period.end,
+      end: nextPeriod.start,
+      startMinutes: breakStart,
+      endMinutes: breakEnd,
+      duration: breakMinutes,
+      isOpportunity,
+      weight: isOpportunity ? OPPORTUNITY_ROW_WEIGHT : 0,
+    });
+  });
+
+  return rows;
+};
+
 const getTimelineData = (nowMinutes, periods) => {
   if (!periods.length) {
-    return { position: null, currentLessonIndex: -1, isBreak: false };
+    return {
+      position: null,
+      currentLessonIndex: -1,
+      currentBreakKey: null,
+      isBreak: false,
+    };
   }
 
-  for (let index = 0; index < periods.length; index += 1) {
-    const start = timeToMinutes(periods[index].start);
-    const end = timeToMinutes(periods[index].end);
+  const rows = buildScheduleRows(periods);
+  const totalWeight = rows.reduce((total, row) => total + row.weight, 0);
 
-    if (nowMinutes >= start && nowMinutes <= end) {
-      const progress = (nowMinutes - start) / Math.max(end - start, 1);
+  if (totalWeight <= 0) {
+    return {
+      position: null,
+      currentLessonIndex: -1,
+      currentBreakKey: null,
+      isBreak: false,
+    };
+  }
+
+  let consumedWeight = 0;
+
+  for (const row of rows) {
+    if (nowMinutes >= row.startMinutes && nowMinutes <= row.endMinutes) {
+      const duration = Math.max(row.endMinutes - row.startMinutes, 1);
+      const progress = (nowMinutes - row.startMinutes) / duration;
+      const rowProgress =
+        row.weight > 0 ? progress * row.weight : 0;
+
       return {
-        position: ((index + progress) / periods.length) * 100,
-        currentLessonIndex: index,
-        isBreak: false,
+        position: ((consumedWeight + rowProgress) / totalWeight) * 100,
+        currentLessonIndex:
+          row.type === "period" ? row.periodIndex : -1,
+        currentBreakKey:
+          row.type === "break" && row.isOpportunity ? row.key : null,
+        isBreak: row.type === "break",
       };
     }
 
-    const nextStart = periods[index + 1]
-      ? timeToMinutes(periods[index + 1].start)
-      : null;
-
-    if (nextStart !== null && nowMinutes > end && nowMinutes < nextStart) {
-      return {
-        position: ((index + 1) / periods.length) * 100,
-        currentLessonIndex: -1,
-        isBreak: true,
-      };
-    }
+    consumedWeight += row.weight;
   }
 
-  return { position: null, currentLessonIndex: -1, isBreak: false };
+  return {
+    position: null,
+    currentLessonIndex: -1,
+    currentBreakKey: null,
+    isBreak: false,
+  };
 };
 
 const cloneTimes = (times) => ({
@@ -261,10 +327,19 @@ export default function Timetables() {
   const liveState = getCurrentShiftState(nowMinutes, times);
   const activeShift = liveState.shift;
   const activeTimes = times[activeShift] || [];
+  const activeScheduleRows = useMemo(
+    () => buildScheduleRows(activeTimes).filter((row) => row.type === "period" || row.isOpportunity),
+    [activeTimes]
+  );
   const timeline =
     liveState.status === "active"
       ? getTimelineData(nowMinutes, activeTimes)
-      : { position: null, currentLessonIndex: -1, isBreak: false };
+      : {
+          position: null,
+          currentLessonIndex: -1,
+          currentBreakKey: null,
+          isBreak: false,
+        };
   const statusText = {
     before: "لم يبدأ الدوام الصباحي بعد",
     active:
@@ -680,51 +755,81 @@ export default function Timetables() {
                 </tr>
               </thead>
               <tbody>
-                {activeTimes.map((period, rowIndex) => (
-                  <tr
-                    key={`${activeShift}-${period.period_number}`}
-                    className={
-                      timeline.currentLessonIndex === rowIndex
-                        ? "current-row"
-                        : ""
-                    }
-                  >
-                    <th className="lesson-index-cell">
-                      <span>الحصة</span>
-                      <strong>{period.period_number}</strong>
-                    </th>
-                    <td className="lesson-time-cell">
-                      <strong>{formatClock(period.start)}</strong>
-                      <span>إلى</span>
-                      <strong>{formatClock(period.end)}</strong>
-                    </td>
-                    {SECTIONS.map((section) => {
-                      const entry = previewEntryMap.get(
-                        entryKey(section, period.period_number)
-                      );
-                      return (
-                        <td key={`${section}-${period.period_number}`}>
-                          {entry ? (
-                            <div className="lesson-assignment">
-                              <strong>
-                                {entry.teacher_name || "معلمة غير محددة"}
-                                {entry.teacher_specialization && (
-                                  <small>({entry.teacher_specialization})</small>
-                                )}
-                              </strong>
-                              <span>{entry.subject}</span>
-                            </div>
-                          ) : (
-                            <div className="lesson-assignment empty">
-                              <strong>غير محدد</strong>
-                              <span>لم تُضف حصة</span>
-                            </div>
-                          )}
+                {activeScheduleRows.map((row) => {
+                  if (row.type === "break") {
+                    return (
+                      <tr
+                        key={`${activeShift}-${row.key}`}
+                        className={`timetable-opportunity-row ${
+                          timeline.currentBreakKey === row.key
+                            ? "current-break"
+                            : ""
+                        }`}
+                      >
+                        <td colSpan={SECTIONS.length + 2}>
+                          <div className="timetable-opportunity-band">
+                            <span />
+                            <strong>الفرصة</strong>
+                            <small>
+                              {formatClock(row.start)} — {formatClock(row.end)}
+                            </small>
+                            <span />
+                          </div>
                         </td>
-                      );
-                    })}
-                  </tr>
-                ))}
+                      </tr>
+                    );
+                  }
+
+                  const { period, periodIndex } = row;
+
+                  return (
+                    <tr
+                      key={`${activeShift}-${period.period_number}`}
+                      className={
+                        timeline.currentLessonIndex === periodIndex
+                          ? "current-row"
+                          : ""
+                      }
+                    >
+                      <th className="lesson-index-cell">
+                        <span>الحصة</span>
+                        <strong>{period.period_number}</strong>
+                      </th>
+                      <td className="lesson-time-cell">
+                        <strong>{formatClock(period.start)}</strong>
+                        <span>إلى</span>
+                        <strong>{formatClock(period.end)}</strong>
+                      </td>
+                      {SECTIONS.map((section) => {
+                        const entry = previewEntryMap.get(
+                          entryKey(section, period.period_number)
+                        );
+                        return (
+                          <td key={`${section}-${period.period_number}`}>
+                            {entry ? (
+                              <div className="lesson-assignment">
+                                <strong>
+                                  {entry.teacher_name || "معلمة غير محددة"}
+                                  {entry.teacher_specialization && (
+                                    <small>
+                                      ({entry.teacher_specialization})
+                                    </small>
+                                  )}
+                                </strong>
+                                <span>{entry.subject}</span>
+                              </div>
+                            ) : (
+                              <div className="lesson-assignment empty">
+                                <strong>غير محدد</strong>
+                                <span>لم تُضف حصة</span>
+                              </div>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
 
@@ -743,8 +848,11 @@ export default function Timetables() {
                   style={{ top: `${timeline.position}%` }}
                 >
                   <span className="live-time-label">
-                    {String(baghdadHour).padStart(2, "0")}:
-                    {baghdadParts.minute}
+                    {formatClock(
+                      `${String(baghdadHour).padStart(2, "0")}:${
+                        baghdadParts.minute
+                      }`
+                    )}
                   </span>
                 </div>
               )}

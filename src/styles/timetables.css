@@ -375,7 +375,22 @@
 }
 
 .timetable-live-grid tbody tr.current-row > * {
-  background: color-mix(in srgb, var(--tt-success) 7%, var(--tt-surface));
+  background: color-mix(in srgb, var(--tt-accent) 8%, var(--tt-surface));
+  border-top: 2px solid var(--tt-accent);
+  border-bottom: 2px solid var(--tt-accent);
+}
+
+.timetable-live-grid tbody tr.current-row > *:first-child {
+  border-inline-start: 2px solid var(--tt-accent);
+}
+
+.timetable-live-grid tbody tr.current-row > *:last-child {
+  border-inline-end: 2px solid var(--tt-accent);
+}
+
+.timetable-live-grid tbody tr.current-row .lesson-assignment {
+  background: color-mix(in srgb, var(--tt-accent) 9%, var(--tt-primary-soft));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tt-accent) 42%, transparent);
 }
 
 .lesson-index-column,
@@ -461,6 +476,45 @@
 .lesson-assignment.empty strong,
 .lesson-assignment.empty span {
   color: var(--tt-muted);
+}
+
+.timetable-opportunity-row td {
+  height: 30px;
+  padding: 0 12px;
+  background: color-mix(in srgb, var(--tt-warning-soft) 72%, var(--tt-surface));
+  border-bottom: 1px solid var(--tt-border);
+}
+
+.timetable-opportunity-band {
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--tt-warning);
+}
+
+.timetable-opportunity-band > span {
+  height: 1px;
+  flex: 1 1 auto;
+  background: color-mix(in srgb, var(--tt-warning) 35%, transparent);
+}
+
+.timetable-opportunity-band strong {
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.timetable-opportunity-band small {
+  color: var(--tt-muted);
+  font-size: 9px;
+  font-weight: 800;
+  direction: rtl;
+}
+
+.timetable-opportunity-row.current-break td {
+  box-shadow: inset 0 0 0 2px var(--tt-accent);
+  background: color-mix(in srgb, var(--tt-accent) 7%, var(--tt-warning-soft));
 }
 
 .timetable-body-overlay {

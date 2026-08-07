@@ -1,0 +1,472 @@
+.dashboard-timetable {
+  margin-bottom: 18px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.dashboard-timetable-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 15px 17px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dashboard-timetable-head h2 {
+  margin: 4px 0 3px;
+  color: var(--brand-900);
+  font-size: 20px;
+}
+
+.dashboard-timetable-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.dashboard-timetable-eyebrow {
+  display: inline-flex;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: var(--brand-100);
+  color: var(--brand-700);
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.dashboard-timetable-head-tools {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.dashboard-timetable-head-tools > button {
+  min-width: 135px;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface);
+  color: var(--brand-700);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.dashboard-timetable-head-tools > button:hover {
+  background: var(--brand-100);
+}
+
+.dashboard-timetable-clock {
+  min-width: 142px;
+  display: grid;
+  place-content: center;
+  gap: 2px;
+  padding: 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--brand-100);
+  text-align: center;
+}
+
+.dashboard-timetable-clock span {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.dashboard-timetable-clock strong {
+  color: var(--brand-700);
+  font-size: 18px;
+  direction: ltr;
+}
+
+.dashboard-timetable-grades {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dashboard-timetable-grades button,
+.dashboard-timetable-days button {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.dashboard-timetable-grades button {
+  padding: 7px 6px;
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dashboard-timetable-grades button:hover,
+.dashboard-timetable-grades button.active,
+.dashboard-timetable-days button:hover,
+.dashboard-timetable-days button.active {
+  border-color: var(--brand-700);
+  background: var(--brand-700);
+  color: #fff;
+}
+
+.dashboard-timetable-toolbar {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.dashboard-timetable-days {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dashboard-timetable-days button {
+  padding: 7px 11px;
+  font-size: 11px;
+}
+
+.dashboard-timetable-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.dashboard-timetable-status strong {
+  color: var(--brand-900);
+}
+
+.dashboard-timetable-status .status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--warning);
+}
+
+.dashboard-timetable-status .status-dot.active {
+  background: var(--success);
+}
+
+.dashboard-timetable-status .status-dot.finished {
+  background: var(--muted);
+}
+
+.dashboard-timetable-error {
+  margin: 9px 12px 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(214, 76, 76, 0.28);
+  border-radius: 9px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.dashboard-timetable-card {
+  width: 100%;
+  overflow: hidden;
+}
+
+.dashboard-timetable-table-wrap {
+  position: relative;
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.dashboard-timetable-table {
+  width: 100%;
+  min-width: 920px;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.dashboard-timetable-table th,
+.dashboard-timetable-table td {
+  border-inline-start: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+  vertical-align: middle;
+}
+
+.dashboard-timetable-table thead th {
+  height: 58px;
+  padding: 6px;
+  background: var(--brand-800);
+  color: #fff;
+  font-size: 13px;
+}
+
+.dashboard-timetable-period-column,
+.dashboard-timetable-period-cell {
+  width: 72px;
+}
+
+.dashboard-timetable-time-column,
+.dashboard-timetable-time-cell {
+  width: 118px;
+}
+
+.dashboard-timetable-table tbody tr.current-row th,
+.dashboard-timetable-table tbody tr.current-row td {
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface));
+  border-top: 2px solid var(--danger);
+  border-bottom: 2px solid var(--danger);
+}
+
+.dashboard-timetable-table tbody tr.current-row > *:first-child {
+  border-inline-start: 2px solid var(--danger);
+}
+
+.dashboard-timetable-table tbody tr.current-row > *:last-child {
+  border-inline-end: 2px solid var(--danger);
+}
+
+.dashboard-timetable-table tbody tr.current-row .dashboard-lesson-assignment {
+  background: color-mix(in srgb, var(--danger) 8%, var(--brand-100));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--danger) 38%, transparent);
+  border-radius: 8px;
+}
+
+.dashboard-timetable-period-cell {
+  background: var(--brand-100);
+  color: var(--brand-700);
+}
+
+.dashboard-timetable-period-cell span {
+  display: block;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.dashboard-timetable-period-cell strong {
+  display: block;
+  margin-top: 2px;
+  font-size: 18px;
+}
+
+.dashboard-timetable-time-cell {
+  background: color-mix(in srgb, var(--surface) 92%, var(--background));
+}
+
+.dashboard-timetable-time-cell strong {
+  display: block;
+  font-size: 11px;
+}
+
+.dashboard-timetable-time-cell span {
+  display: block;
+  margin: 1px 0;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.dashboard-lesson-assignment {
+  min-height: 62px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px;
+}
+
+.dashboard-lesson-assignment strong {
+  display: block;
+  color: var(--text);
+  font-size: 11px;
+}
+
+.dashboard-lesson-assignment strong small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 700;
+}
+
+.dashboard-lesson-assignment > span {
+  display: inline-flex;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: var(--brand-100);
+  color: var(--brand-700);
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.dashboard-lesson-assignment.empty strong,
+.dashboard-lesson-assignment.empty span {
+  color: var(--muted);
+}
+
+.dashboard-lesson-assignment.empty span {
+  background: transparent;
+}
+
+.dashboard-opportunity-row td {
+  height: 30px;
+  padding: 0 10px;
+  background: color-mix(in srgb, var(--warning) 8%, var(--surface));
+  border-bottom: 1px solid var(--border);
+}
+
+.dashboard-opportunity-band {
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  color: var(--warning);
+}
+
+.dashboard-opportunity-band > span {
+  height: 1px;
+  flex: 1 1 auto;
+  background: color-mix(in srgb, var(--warning) 35%, transparent);
+}
+
+.dashboard-opportunity-band strong {
+  font-size: 11px;
+  font-weight: 950;
+}
+
+.dashboard-opportunity-band small {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  direction: rtl;
+}
+
+.dashboard-opportunity-row.current-break td {
+  box-shadow: inset 0 0 0 2px var(--danger);
+  background: color-mix(in srgb, var(--danger) 7%, var(--surface));
+}
+
+.dashboard-timetable-overlay {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.dashboard-live-time-line {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 2px;
+  background: var(--danger);
+  box-shadow: 0 0 0 1px rgba(214, 76, 76, 0.12);
+  z-index: 5;
+}
+
+.dashboard-live-time-line::before {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--danger);
+  transform: translate(50%, -50%);
+}
+
+.dashboard-live-time-line > span {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  direction: ltr;
+  transform: translateY(-50%);
+}
+
+.dashboard-timetable-loading {
+  position: absolute;
+  inset: 58px 0 0;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--surface) 78%, transparent);
+  color: var(--brand-700);
+  font-size: 12px;
+  font-weight: 900;
+  backdrop-filter: blur(2px);
+  z-index: 10;
+}
+
+:root[data-theme="dark"] .dashboard-timetable {
+  background: var(--surface);
+}
+
+:root[data-theme="dark"] .dashboard-timetable-head-tools > button,
+:root[data-theme="dark"] .dashboard-timetable-grades button,
+:root[data-theme="dark"] .dashboard-timetable-days button {
+  background: var(--surface);
+  color: var(--text);
+}
+
+:root[data-theme="dark"] .dashboard-timetable-grades button.active,
+:root[data-theme="dark"] .dashboard-timetable-days button.active {
+  background: var(--brand-700);
+  color: #fff;
+}
+
+@media (max-width: 1000px) {
+  .dashboard-timetable-grades {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .dashboard-timetable-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dashboard-timetable-days {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 650px) {
+  .dashboard-timetable-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .dashboard-timetable-head-tools {
+    width: 100%;
+  }
+
+  .dashboard-timetable-head-tools > button,
+  .dashboard-timetable-clock {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .dashboard-timetable-grades {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dashboard-timetable-status {
+    justify-content: space-between;
+  }
+}
