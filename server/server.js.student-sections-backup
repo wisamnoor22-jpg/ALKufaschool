@@ -15,7 +15,6 @@ const dashboardStatisticsRoutes = require("./routes/dashboardStatistics");
 const payrollRoutes = require("./routes/payroll");
 const timetablesRoutes = require("./routes/timetables");
 
-const studentSectionsRoutes = require("./routes/studentSections");
 const app = express();
 const PORT = Number(process.env.PORT || 5000);
 
@@ -46,8 +45,6 @@ app.use(
 );
 
 app.use("/students", studentsRoutes);
-
-app.use("/student-sections", studentSectionsRoutes);
 app.use("/employees", employeesRoutes);
 app.use("/fees", feesRoutes);
 app.use("/grade-fees", gradeFeesRoutes);

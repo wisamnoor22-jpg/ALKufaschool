@@ -1,110 +1,128 @@
-@media screen {
-  .app-navigation-bar {
-    position: fixed;
-    top: max(4px, env(safe-area-inset-top));
-    right: max(8px, env(safe-area-inset-right));
-    z-index: 850;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 5px;
-    border: 1px solid var(--border-color, rgba(203, 213, 225, 0.9));
-    border-radius: 14px;
-    background: color-mix(in srgb, var(--card-bg, #ffffff) 92%, transparent);
-    box-shadow: var(--surface-shadow, 0 10px 28px rgba(15, 23, 42, 0.14));
-    backdrop-filter: blur(12px);
-    direction: rtl;
+/*
+  أدوات التنقل العامة لفروع البرنامج.
+  - الدارك مود: ثابت أعلى يمين الشاشة.
+  - الرجوع: ثابت أسفل يمين الشاشة.
+  لا يحجزان مساحة داخل الصفحة ولا يتحركان مع التمرير.
+*/
+.app-navigation-bar {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483500;
+  pointer-events: none;
+  direction: rtl;
+}
+
+.app-navigation-theme-button,
+.app-navigation-back-button {
+  position: fixed;
+  right: 20px;
+  pointer-events: auto;
+  font: inherit;
+  border: 1px solid var(--border, #e4eaf1);
+  background: color-mix(in srgb, var(--surface, #ffffff) 96%, transparent);
+  color: var(--text, #162234);
+  box-shadow: 0 8px 24px rgba(15, 59, 103, 0.13);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+/* ثابت أعلى يمين الصفحة */
+.app-navigation-theme-button {
+  top: 18px;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 14px;
+  color: var(--brand-700, #1b5c99);
+}
+
+.app-navigation-theme-button span {
+  font-size: 23px;
+  line-height: 1;
+}
+
+/* ثابت أسفل يمين الصفحة */
+.app-navigation-back-button {
+  bottom: 20px;
+  min-width: 92px;
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 16px;
+  border-radius: 13px;
+  direction: rtl;
+}
+
+.app-navigation-back-button span {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.app-navigation-back-button strong {
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.app-navigation-theme-button:hover,
+.app-navigation-back-button:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(
+    in srgb,
+    var(--brand-600, #2877ba) 62%,
+    var(--border, #e4eaf1)
+  );
+  background: var(--brand-100, #eaf4ff);
+  box-shadow: 0 10px 28px rgba(15, 59, 103, 0.17);
+}
+
+.app-navigation-theme-button:focus-visible,
+.app-navigation-back-button:focus-visible {
+  outline: 3px solid color-mix(
+    in srgb,
+    var(--brand-600, #2877ba) 26%,
+    transparent
+  );
+  outline-offset: 3px;
+}
+
+:root[data-theme="dark"] .app-navigation-theme-button,
+:root[data-theme="dark"] .app-navigation-back-button {
+  background: color-mix(in srgb, var(--surface, #132238) 95%, transparent);
+  border-color: var(--border, #30455f);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme="dark"] .app-navigation-theme-button {
+  color: var(--brand-600, #69adff);
+}
+
+@media (max-width: 580px) {
+  .app-navigation-theme-button,
+  .app-navigation-back-button {
+    right: 12px;
   }
 
-  .app-route-frame {
-    min-height: 100vh;
-    padding-top: 58px;
-  }
-
-  .app-route-frame .founder-header {
-    top: 58px;
-  }
-
-  .app-route-frame > .login-page {
-    min-height: calc(100vh - 58px);
-  }
-
-  .app-theme-toggle {
-    display: inline-grid;
+  .app-navigation-theme-button {
+    top: 12px;
     width: 42px;
     height: 42px;
-    flex: 0 0 42px;
-    place-items: center;
-    padding: 0;
-    border: 1px solid var(--border-color, #d8e0e8);
-    border-radius: 10px;
-    background: var(--card-bg, #ffffff);
-    color: var(--heading-color, #1e3c72);
-    font-family: inherit;
-    cursor: pointer;
-    transition:
-      transform 0.18s ease,
-      background-color 0.18s ease,
-      border-color 0.18s ease;
   }
 
-  .app-theme-toggle span {
-    font-size: 22px;
-    line-height: 1;
-  }
-
-  .app-theme-toggle:hover {
-    transform: translateY(-1px);
-    border-color: #7da2ce;
-    background: var(--soft-bg, #f4f7fb);
-  }
-
-  .app-theme-toggle:focus-visible {
-    outline: 3px solid rgba(37, 99, 235, 0.24);
-    outline-offset: 2px;
-  }
-
-  :root[data-theme="dark"] .app-navigation-bar {
-    border-color: var(--border-color, #344861);
-    background: color-mix(in srgb, var(--card-bg, #142231) 92%, transparent);
-  }
-
-  :root[data-theme="dark"] .app-theme-toggle {
-    border-color: #344861;
-    background: #172338;
-    color: #e8f2ff;
-  }
-
-  @media (max-width: 520px) {
-    .app-navigation-bar {
-      top: max(3px, env(safe-area-inset-top));
-      right: max(5px, env(safe-area-inset-right));
-      gap: 6px;
-      padding: 5px;
-    }
-
-    .app-route-frame {
-      padding-top: 54px;
-    }
-
-    .app-route-frame .founder-header {
-      top: 54px;
-    }
-
-    .app-route-frame > .login-page {
-      min-height: calc(100vh - 54px);
-    }
-
-    .app-back-button {
-      min-height: 40px;
-      padding: 8px 11px;
-    }
-
-    .app-theme-toggle {
-      width: 40px;
-      height: 40px;
-      flex-basis: 40px;
-    }
+  .app-navigation-back-button {
+    bottom: 12px;
+    min-width: 84px;
+    min-height: 40px;
+    padding: 8px 13px;
   }
 }
 

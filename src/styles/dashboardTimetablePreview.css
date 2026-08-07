@@ -185,13 +185,12 @@
 .dashboard-timetable-table-wrap {
   position: relative;
   width: 100%;
-  overflow-x: auto;
-  overflow-y: visible;
+  overflow: hidden;
 }
 
 .dashboard-timetable-table {
   width: 100%;
-  min-width: 920px;
+  min-width: 0;
   border-collapse: collapse;
   table-layout: fixed;
 }
@@ -214,12 +213,12 @@
 
 .dashboard-timetable-period-column,
 .dashboard-timetable-period-cell {
-  width: 72px;
+  width: 64px;
 }
 
 .dashboard-timetable-time-column,
 .dashboard-timetable-time-cell {
-  width: 118px;
+  width: 104px;
 }
 
 .dashboard-timetable-table tbody tr.current-row th,

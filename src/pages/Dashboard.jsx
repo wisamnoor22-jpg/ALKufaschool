@@ -6,6 +6,7 @@ import {
   useState,
 } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { createPortal } from "react-dom";
 import ReportPrintHeader from "../components/common/ReportPrintHeader";
 import "../styles/Dashboard.css";
 import "../styles/dashboardTimetablePreview.css";
@@ -16,7 +17,7 @@ const STATISTICS_URL = "http://localhost:5000/dashboard/statistics";
 const TIMETABLE_API = "http://localhost:5000/timetables";
 const SCHOOL_TIME_ZONE = "Asia/Baghdad";
 const TABLE_HEADER_HEIGHT = 58;
-const OPPORTUNITY_MINUTES = 10;
+const OPPORTUNITY_MINUTES = 1;
 const OPPORTUNITY_ROW_WEIGHT = 0.42;
 
 const TIMETABLE_DAYS = [
@@ -36,13 +37,24 @@ const TIMETABLE_GRADES = [
   "الصف السادس",
   "الأول المتوسط",
   "الثاني المتوسط",
-  "الثالث المتوسط",
-  "الرابع الإعدادي",
-  "الخامس الإعدادي",
-  "السادس الإعدادي",
 ];
 
-const TIMETABLE_SECTIONS = ["أ", "ب", "ج", "د"];
+const DEFAULT_TIMETABLE_SECTIONS = ["أ", "ب", "ج", "د"];
+const MORNING_TIMETABLE_SECTIONS_BY_GRADE = Object.freeze({
+  "الصف الأول": ["أ", "ب", "ت"],
+  "الصف الثاني": ["أ", "ب", "ت"],
+  "الصف الثالث": ["أ"],
+  "الصف الرابع": ["أ"],
+  "الصف الخامس": ["أ"],
+  "الصف السادس": ["أ"],
+  "الأول المتوسط": ["أ"],
+  "الثاني المتوسط": ["أ"],
+});
+
+const getDashboardSections = (shift, grade) =>
+  shift === "صباحي"
+    ? MORNING_TIMETABLE_SECTIONS_BY_GRADE[grade] || ["أ"]
+    : DEFAULT_TIMETABLE_SECTIONS;
 
 const DEFAULT_SHIFT_TIMES = {
   صباحي: [
@@ -143,6 +155,12 @@ const sections = [
     description: "الحضور والغياب",
     path: "/attendance",
     code: "AT",
+  },
+  {
+    title: "العطل",
+    description: "إدارة العطل الرسمية والطارئة",
+    path: "/holidays",
+    code: "HD",
   },
   {
     title: "الرواتب",
@@ -405,6 +423,59 @@ const getTimelineData = (nowMinutes, periods) => {
   };
 };
 
+const EMPTY_TIMELINE = Object.freeze({
+  position: null,
+  currentLessonIndex: -1,
+  currentBreakKey: null,
+  isBreak: false,
+});
+
+const createEmptyTimeline = () => ({ ...EMPTY_TIMELINE });
+
+const getBaghdadClockState = (date = new Date()) => {
+  const parts = getBaghdadParts(date);
+  const parsedHour = Number(parts.hour);
+  const hour = parsedHour === 24 ? 0 : parsedHour;
+  const minute = Number(parts.minute) || 0;
+  const second = Number(parts.second) || 0;
+
+  return {
+    parts,
+    hour,
+    nowMinutes: hour * 60 + minute + second / 60,
+  };
+};
+
+const getSchoolDayState = (date = new Date()) => {
+  const day = getArabicBaghdadDay(date);
+
+  return {
+    day,
+    isSchoolDay: TIMETABLE_DAYS.includes(day),
+  };
+};
+
+const resolveLiveTimeline = ({
+  nowMinutes,
+  periods,
+  liveState,
+  currentDay,
+  selectedDay,
+  isSchoolDay,
+}) => {
+  const isLiveSchedule =
+    isSchoolDay &&
+    selectedDay === currentDay &&
+    liveState.status === "active";
+
+  return {
+    isLiveSchedule,
+    timeline: isLiveSchedule
+      ? getTimelineData(nowMinutes, periods)
+      : createEmptyTimeline(),
+  };
+};
+
 const entryKey = (section, periodNumber) => `${section}-${periodNumber}`;
 
 function Donut({ value, color, label }) {
@@ -485,35 +556,34 @@ function DashboardTimetablePreview({ onOpenTimetable }) {
     };
   }, []);
 
-  const baghdadParts = getBaghdadParts(currentTime);
-  const rawHour = Number(baghdadParts.hour);
-  const baghdadHour = rawHour === 24 ? 0 : rawHour;
+  const baghdadClock = getBaghdadClockState(currentTime);
+  const schoolDayState = getSchoolDayState(currentTime);
+  const currentArabicDay = schoolDayState.day;
+  const isSchoolDay = schoolDayState.isSchoolDay;
 
-  const nowMinutes =
-    baghdadHour * 60 +
-    Number(baghdadParts.minute) +
-    Number(baghdadParts.second) / 60;
-
-  const currentArabicDay = getArabicBaghdadDay(currentTime);
-  const isSchoolDay = TIMETABLE_DAYS.includes(currentArabicDay);
-
-  const liveState = getCurrentShiftState(nowMinutes, times);
+  const liveState = getCurrentShiftState(baghdadClock.nowMinutes, times);
   const activeShift = liveState.shift;
+  const activeSections = useMemo(
+    () => getDashboardSections(activeShift, selectedGrade),
+    [activeShift, selectedGrade]
+  );
   const activeTimes = times[activeShift] || [];
   const activeScheduleRows = useMemo(
-    () => buildScheduleRows(activeTimes).filter((row) => row.type === "period" || row.isOpportunity),
+    () =>
+      buildScheduleRows(activeTimes).filter(
+        (row) => row.type === "period" || row.isOpportunity
+      ),
     [activeTimes]
   );
 
-  const timeline =
-    liveState.status === "active"
-      ? getTimelineData(nowMinutes, activeTimes)
-      : {
-          position: null,
-          currentLessonIndex: -1,
-          currentBreakKey: null,
-          isBreak: false,
-        };
+  const { timeline } = resolveLiveTimeline({
+    nowMinutes: baghdadClock.nowMinutes,
+    periods: activeTimes,
+    liveState,
+    currentDay: currentArabicDay,
+    selectedDay,
+    isSchoolDay,
+  });
 
   const statusText = !isSchoolDay
     ? "اليوم عطلة أسبوعية"
@@ -574,7 +644,11 @@ function DashboardTimetablePreview({ onOpenTimetable }) {
     <section className="dashboard-timetable" aria-label="معاينة جدول الحصص">
       <div className="dashboard-timetable-head">
         <div>
-          <span className="dashboard-timetable-eyebrow">المعاينة المباشرة</span>
+          <span className="dashboard-timetable-eyebrow">
+            {isSchoolDay && selectedDay === currentArabicDay
+              ? "جدول اليوم"
+              : `جدول ${selectedDay}`}
+          </span>
           <h2>جدول الدوام {activeShift}</h2>
           <p>{statusText}</p>
         </div>
@@ -583,8 +657,8 @@ function DashboardTimetablePreview({ onOpenTimetable }) {
           <div className="dashboard-timetable-clock" aria-live="polite">
             <span>توقيت بغداد</span>
             <strong>
-              {String(baghdadHour).padStart(2, "0")}:{baghdadParts.minute}:
-              {baghdadParts.second}
+              {String(baghdadClock.hour).padStart(2, "0")}:
+              {baghdadClock.parts.minute}:{baghdadClock.parts.second}
             </strong>
           </div>
 
@@ -642,7 +716,7 @@ function DashboardTimetablePreview({ onOpenTimetable }) {
                 <th className="dashboard-timetable-period-column">الحصة</th>
                 <th className="dashboard-timetable-time-column">الوقت</th>
 
-                {TIMETABLE_SECTIONS.map((section) => (
+                {activeSections.map((section) => (
                   <th key={section}>{`${selectedGrade} ${section}`}</th>
                 ))}
               </tr>
@@ -660,7 +734,7 @@ function DashboardTimetablePreview({ onOpenTimetable }) {
                           : ""
                       }`}
                     >
-                      <td colSpan={TIMETABLE_SECTIONS.length + 2}>
+                      <td colSpan={activeSections.length + 2}>
                         <div className="dashboard-opportunity-band">
                           <span />
                           <strong>الفرصة</strong>
@@ -697,7 +771,7 @@ function DashboardTimetablePreview({ onOpenTimetable }) {
                       <strong>{formatLessonClock(period.end)}</strong>
                     </td>
 
-                    {TIMETABLE_SECTIONS.map((section) => {
+                    {activeSections.map((section) => {
                       const entry = entryMap.get(
                         entryKey(section, period.period_number)
                       );
@@ -749,8 +823,8 @@ function DashboardTimetablePreview({ onOpenTimetable }) {
               >
                 <span>
                   {formatLessonClock(
-                    `${String(baghdadHour).padStart(2, "0")}:${
-                      baghdadParts.minute
+                    `${String(baghdadClock.hour).padStart(2, "0")}:${
+                      baghdadClock.parts.minute
                     }`
                   )}
                 </span>
@@ -773,10 +847,65 @@ export default function Dashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [statisticsError, setStatisticsError] = useState("");
   const [currentDate, setCurrentDate] = useState(() => new Date());
+  const [theme, setTheme] = useState(() => {
+    const documentTheme = document.documentElement.getAttribute("data-theme");
+    const savedTheme =
+      window.localStorage.getItem("theme") ||
+      window.localStorage.getItem("alkufa-theme");
 
+    if (savedTheme === "dark" || savedTheme === "light") {
+      return savedTheme;
+    }
+
+    return documentTheme === "dark" ? "dark" : "light";
+  });
+
+  const topLayerRef = useRef(null);
   const inFlightRequestRef = useRef(null);
   const requestControllerRef = useRef(null);
   const hasStatisticsRef = useRef(false);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    window.localStorage.setItem("theme", theme);
+    window.localStorage.setItem("alkufa-theme", theme);
+  }, [theme]);
+
+  useEffect(() => {
+    const topLayer = topLayerRef.current;
+
+    if (!topLayer) {
+      return undefined;
+    }
+
+    const updateTopLayerHeight = () => {
+      const height = Math.ceil(topLayer.getBoundingClientRect().height);
+      document.documentElement.style.setProperty(
+        "--dashboard-top-layer-height",
+        `${height}px`
+      );
+    };
+
+    updateTopLayerHeight();
+
+    const observer = new ResizeObserver(updateTopLayerHeight);
+    observer.observe(topLayer);
+    window.addEventListener("resize", updateTopLayerHeight);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", updateTopLayerHeight);
+      document.documentElement.style.removeProperty(
+        "--dashboard-top-layer-height"
+      );
+    };
+  }, []);
+
+  const toggleTheme = () => {
+    setTheme((currentTheme) =>
+      currentTheme === "dark" ? "light" : "dark"
+    );
+  };
 
   const refreshStatistics = useCallback((initialLoad = false) => {
     if (inFlightRequestRef.current) {
@@ -967,97 +1096,116 @@ export default function Dashboard() {
 
   return (
     <div className="founder-dashboard" dir="rtl">
-      <header className="founder-header">
-        <div className="brand-area">
-          <img src={schoolLogo} alt="شعار المدرسة" />
-          <div>
-            <h1>مدرسة الكوفة الأهلية التكميلية المختلطة</h1>
-            <p>مرحبًا بك، بحساب المؤسس</p>
-          </div>
-        </div>
-
-        <div className="header-tools">
-          <div className="notifications">
-            <button
-              type="button"
-              className="icon-button"
-              onClick={() => setNotificationsOpen((value) => !value)}
-              aria-label="الإشعارات"
-            >
-              !
-              {unreadCount > 0 && <b>{unreadCount}</b>}
-            </button>
-
-            {notificationsOpen && (
-              <div className="notifications-menu">
-                <div className="menu-title">
-                  <strong>الإشعارات</strong>
-                  <span>{unreadCount} غير مقروء</span>
+      {createPortal(
+        <div className="dashboard-top-layer" ref={topLayerRef} dir="rtl">
+            <header className="founder-header">
+              <div className="brand-area">
+                <img src={schoolLogo} alt="شعار المدرسة" />
+                <div>
+                  <h1>مدرسة الكوفة الأهلية التكميلية المختلطة</h1>
+                  <p>مرحبًا بك، بحساب المؤسس</p>
                 </div>
-
-                {notifications.map((item) => (
+              </div>
+      
+              <div className="header-tools">
+                <div className="notifications">
                   <button
                     type="button"
-                    key={item.id}
-                    className={`notification-item ${
-                      item.unread ? "unread" : ""
-                    }`}
-                    onClick={() => navigate(item.path)}
+                    className="icon-button"
+                    onClick={() => setNotificationsOpen((value) => !value)}
+                    aria-label="الإشعارات"
                   >
-                    <strong>{item.title}</strong>
-                    <span>{item.summary}</span>
-                    <small>{item.details}</small>
+                    !
+                    {unreadCount > 0 && <b>{unreadCount}</b>}
                   </button>
-                ))}
+      
+                  {notificationsOpen && (
+                    <div className="notifications-menu">
+                      <div className="menu-title">
+                        <strong>الإشعارات</strong>
+                        <span>{unreadCount} غير مقروء</span>
+                      </div>
+      
+                      {notifications.map((item) => (
+                        <button
+                          type="button"
+                          key={item.id}
+                          className={`notification-item ${
+                            item.unread ? "unread" : ""
+                          }`}
+                          onClick={() => navigate(item.path)}
+                        >
+                          <strong>{item.title}</strong>
+                          <span>{item.summary}</span>
+                          <small>{item.details}</small>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+      
+                <button
+                  type="button"
+                  className="theme-toggle"
+                  onClick={toggleTheme}
+                  aria-label={
+                    theme === "dark"
+                      ? "تفعيل الوضع الفاتح"
+                      : "تفعيل الوضع الداكن"
+                  }
+                  title={theme === "dark" ? "الوضع الفاتح" : "الوضع الداكن"}
+                >
+                  <span aria-hidden="true">{theme === "dark" ? "☀" : "☾"}</span>
+                </button>
+      
+                <button
+                  type="button"
+                  className="statistics-refresh-button"
+                  onClick={() => refreshStatistics()}
+                  disabled={loading || refreshing}
+                  aria-label="تحديث الإحصائيات"
+                >
+                  <span aria-hidden="true">↻</span>
+                  {loading || refreshing ? "جاري التحديث..." : "تحديث الإحصائيات"}
+                </button>
+      
+                <div className="date-chip">{dateText}</div>
+      
+                <div className="global-search">
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="بحث سريع في النظام..."
+                  />
+      
+                  {searchResults.length > 0 && (
+                    <div className="search-results">
+                      {searchResults.map((item) => (
+                        <button
+                          key={item.path}
+                          type="button"
+                          onClick={() => navigate(item.path)}
+                        >
+                          <strong>{item.title}</strong>
+                          <span>{item.description}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+      
+                <button
+                  type="button"
+                  className="logout-button"
+                  onClick={() => navigate("/")}
+                >
+                  تسجيل الخروج
+                </button>
               </div>
-            )}
-          </div>
-
-          <button
-            type="button"
-            className="statistics-refresh-button"
-            onClick={() => refreshStatistics()}
-            disabled={loading || refreshing}
-            aria-label="تحديث الإحصائيات"
-          >
-            <span aria-hidden="true">↻</span>
-            {loading || refreshing ? "جاري التحديث..." : "تحديث الإحصائيات"}
-          </button>
-
-          <div className="date-chip">{dateText}</div>
-
-          <div className="global-search">
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="بحث سريع في النظام..."
-            />
-
-            {searchResults.length > 0 && (
-              <div className="search-results">
-                {searchResults.map((item) => (
-                  <button
-                    key={item.path}
-                    type="button"
-                    onClick={() => navigate(item.path)}
-                  >
-                    <strong>{item.title}</strong>
-                    <span>{item.description}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-
-          <button
-            type="button"
-            className="logout-button"
-            onClick={() => navigate("/")}
-          >
-            تسجيل الخروج
-          </button>
-        </div>
-      </header>
+            </header>
+        </div>,
+        document.body
+      )}
 
       <main className="dashboard-content">
         <DashboardTimetablePreview

@@ -5,11 +5,34 @@ const API_BASE = "http://localhost:5000";
 const TIMETABLE_API = `${API_BASE}/timetables`;
 const BAGHDAD_TIME_ZONE = "Asia/Baghdad";
 const TABLE_HEADER_HEIGHT = 58;
-const OPPORTUNITY_MINUTES = 1;
 const OPPORTUNITY_ROW_WEIGHT = 0.42;
 
 const DAYS = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس"];
-const SECTIONS = ["أ", "ب", "ج", "د"];
+const PREVIEW_SHIFTS = [
+  { value: "صباحي", label: "صباحي" },
+  { value: "ظهري", label: "مسائي" },
+];
+
+const getPreviewShiftLabel = (shift) =>
+  PREVIEW_SHIFTS.find((item) => item.value === shift)?.label || shift;
+
+const DEFAULT_SECTIONS = ["أ", "ب", "ج", "د"];
+const MORNING_SECTIONS_BY_GRADE = Object.freeze({
+  "الصف الأول": ["أ", "ب", "ت"],
+  "الصف الثاني": ["أ", "ب", "ت"],
+  "الصف الثالث": ["أ"],
+  "الصف الرابع": ["أ"],
+  "الصف الخامس": ["أ"],
+  "الصف السادس": ["أ"],
+  "الأول المتوسط": ["أ"],
+  "الثاني المتوسط": ["أ"],
+});
+
+const getSectionsForSchedule = (shift, grade) =>
+  shift === "صباحي"
+    ? MORNING_SECTIONS_BY_GRADE[grade] || ["أ"]
+    : DEFAULT_SECTIONS;
+
 const STAGES = [
   {
     id: "primary",
@@ -28,13 +51,7 @@ const STAGES = [
     id: "middle",
     title: "المرحلة المتوسطة",
     shortTitle: "المتوسطة",
-    grades: ["الأول المتوسط", "الثاني المتوسط", "الثالث المتوسط"],
-  },
-  {
-    id: "secondary",
-    title: "المرحلة الإعدادية",
-    shortTitle: "الإعدادية",
-    grades: ["الرابع الإعدادي", "الخامس الإعدادي", "السادس الإعدادي"],
+    grades: ["الأول المتوسط", "الثاني المتوسط"],
   },
 ];
 const GRADES = STAGES.flatMap((stage) => stage.grades);
@@ -50,6 +67,64 @@ const SUBJECTS = [
   "التربية الرياضية",
   "الأخلاق",
 ];
+
+const normalizeTeacherText = (value = "") =>
+  String(value)
+    .toLocaleLowerCase("ar")
+    .replace(/[إأآ]/g, "ا")
+    .replace(/ى/g, "ي")
+    .replace(/ة/g, "ه")
+    .replace(/الانجليزيه/g, "الانكليزيه")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const splitSpecializations = (value = "") =>
+  String(value)
+    .split(/[،,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+
+const getTeacherSpecializations = (teacher) => {
+  if (!teacher) return [];
+
+  const rawValues = [
+    teacher.specialization,
+    teacher.teacher_specialization,
+    teacher.primary_specialization,
+    ...(Array.isArray(teacher.specializations) ? teacher.specializations : []),
+    ...(Array.isArray(teacher.secondary_specializations)
+      ? teacher.secondary_specializations
+      : []),
+  ];
+
+  const items = rawValues.flatMap((value) => splitSpecializations(value));
+  const seen = new Set();
+
+  return items.filter((item) => {
+    const key = normalizeTeacherText(item);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
+
+const teacherHasSpecialization = (teacher, specialization) => {
+  if (!specialization) return true;
+  const wanted = normalizeTeacherText(specialization);
+  return getTeacherSpecializations(teacher).some(
+    (item) => normalizeTeacherText(item) === wanted
+  );
+};
+
+const uniqueSubjectOptions = (items) => {
+  const seen = new Set();
+  return items.filter((item) => {
+    const key = normalizeTeacherText(item);
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+};
 
 const DEFAULT_SHIFT_TIMES = {
   صباحي: [
@@ -100,6 +175,12 @@ const getBaghdadParts = (date = new Date()) => {
 
   return Object.fromEntries(parts.map((part) => [part.type, part.value]));
 };
+
+const getArabicBaghdadDay = (date = new Date()) =>
+  new Intl.DateTimeFormat("ar-IQ", {
+    timeZone: BAGHDAD_TIME_ZONE,
+    weekday: "long",
+  }).format(date);
 
 const timeToMinutes = (value) => {
   const [hours, minutes] = String(value || "00:00").split(":").map(Number);
@@ -177,8 +258,6 @@ const buildScheduleRows = (periods) => {
       return;
     }
 
-    const isOpportunity = breakMinutes >= OPPORTUNITY_MINUTES;
-
     rows.push({
       type: "break",
       key: `break-${period.period_number}-${nextPeriod.period_number}`,
@@ -187,8 +266,8 @@ const buildScheduleRows = (periods) => {
       startMinutes: breakStart,
       endMinutes: breakEnd,
       duration: breakMinutes,
-      isOpportunity,
-      weight: isOpportunity ? OPPORTUNITY_ROW_WEIGHT : 0,
+      isOpportunity: true,
+      weight: OPPORTUNITY_ROW_WEIGHT,
     });
   });
 
@@ -247,6 +326,61 @@ const getTimelineData = (nowMinutes, periods) => {
   };
 };
 
+const EMPTY_TIMELINE = Object.freeze({
+  position: null,
+  currentLessonIndex: -1,
+  currentBreakKey: null,
+  isBreak: false,
+});
+
+const createEmptyTimeline = () => ({ ...EMPTY_TIMELINE });
+
+const getBaghdadClockState = (date = new Date()) => {
+  const parts = getBaghdadParts(date);
+  const parsedHour = Number(parts.hour);
+  const hour = parsedHour === 24 ? 0 : parsedHour;
+  const minute = Number(parts.minute) || 0;
+  const second = Number(parts.second) || 0;
+
+  return {
+    parts,
+    hour,
+    nowMinutes: hour * 60 + minute + second / 60,
+  };
+};
+
+const getSchoolDayState = (date = new Date()) => {
+  const day = getArabicBaghdadDay(date);
+
+  return {
+    day,
+    isSchoolDay: DAYS.includes(day),
+  };
+};
+
+const resolveLiveTimeline = ({
+  nowMinutes,
+  periods,
+  liveState,
+  currentDay,
+  selectedDay,
+  activeShift,
+  isSchoolDay,
+}) => {
+  const isLiveSchedule =
+    isSchoolDay &&
+    selectedDay === currentDay &&
+    activeShift === liveState.shift &&
+    liveState.status === "active";
+
+  return {
+    isLiveSchedule,
+    timeline: isLiveSchedule
+      ? getTimelineData(nowMinutes, periods)
+      : createEmptyTimeline(),
+  };
+};
+
 const cloneTimes = (times) => ({
   صباحي: (times.صباحي || []).map((period) => ({ ...period })),
   ظهري: (times.ظهري || []).map((period) => ({ ...period })),
@@ -257,7 +391,11 @@ const entryKey = (section, periodNumber) => `${section}-${periodNumber}`;
 export default function Timetables() {
   const [currentTime, setCurrentTime] = useState(new Date());
   const [times, setTimes] = useState(DEFAULT_SHIFT_TIMES);
-  const [selectedDay, setSelectedDay] = useState("الأحد");
+  const [selectedDay, setSelectedDay] = useState(() => {
+    const day = getArabicBaghdadDay(new Date());
+    return DAYS.includes(day) ? day : DAYS[0];
+  });
+  const [selectedPreviewShift, setSelectedPreviewShift] = useState(null);
   const [selectedGrade, setSelectedGrade] = useState(GRADES[0]);
   const [previewEntries, setPreviewEntries] = useState([]);
   const [previewLoading, setPreviewLoading] = useState(false);
@@ -274,7 +412,7 @@ export default function Timetables() {
   const [manualShift, setManualShift] = useState("صباحي");
   const [manualStageId, setManualStageId] = useState(STAGES[0].id);
   const [manualGrade, setManualGrade] = useState(STAGES[0].grades[0]);
-  const [manualSection, setManualSection] = useState(SECTIONS[0]);
+  const [manualSection, setManualSection] = useState("أ");
   const [manualDay, setManualDay] = useState("الأحد");
   const [manualEntries, setManualEntries] = useState([]);
   const [manualLoading, setManualLoading] = useState(false);
@@ -283,9 +421,64 @@ export default function Timetables() {
   const [subject, setSubject] = useState("");
   const [teachers, setTeachers] = useState([]);
   const [teachersLoading, setTeachersLoading] = useState(false);
+  const [teacherSearch, setTeacherSearch] = useState("");
+  const [teacherSpecializationFilter, setTeacherSpecializationFilter] =
+    useState("");
   const [selectedTeacherId, setSelectedTeacherId] = useState(null);
   const [transferCandidate, setTransferCandidate] = useState(null);
   const [assignmentSaving, setAssignmentSaving] = useState(false);
+
+  const selectedTeacher = useMemo(() => {
+    const fromAvailability = teachers.find(
+      (teacher) => teacher.id === selectedTeacherId
+    );
+
+    if (fromAvailability) return fromAvailability;
+
+    if (cellEditor?.entry && cellEditor.entry.teacher_id === selectedTeacherId) {
+      return {
+        id: cellEditor.entry.teacher_id,
+        full_name: cellEditor.entry.teacher_name,
+        specialization: cellEditor.entry.teacher_specialization,
+      };
+    }
+
+    return null;
+  }, [cellEditor, selectedTeacherId, teachers]);
+
+  const teacherFilterSubjects = useMemo(
+    () =>
+      uniqueSubjectOptions([
+        ...SUBJECTS,
+        ...teachers.flatMap((teacher) => getTeacherSpecializations(teacher)),
+      ]),
+    [teachers]
+  );
+
+  const filteredTeachers = useMemo(() => {
+    const query = normalizeTeacherText(teacherSearch);
+
+    return teachers.filter((teacher) => {
+      const matchesName =
+        !query || normalizeTeacherText(teacher.full_name).includes(query);
+      const matchesSpecialization = teacherHasSpecialization(
+        teacher,
+        teacherSpecializationFilter
+      );
+
+      return matchesName && matchesSpecialization;
+    });
+  }, [teacherSearch, teacherSpecializationFilter, teachers]);
+
+  const selectedTeacherSpecializations = useMemo(
+    () => getTeacherSpecializations(selectedTeacher),
+    [selectedTeacher]
+  );
+
+  const lessonSubjectOptions = useMemo(
+    () => uniqueSubjectOptions([...selectedTeacherSpecializations, ...SUBJECTS]),
+    [selectedTeacherSpecializations]
+  );
 
   useEffect(() => {
     const timer = window.setInterval(() => setCurrentTime(new Date()), 1_000);
@@ -317,40 +510,63 @@ export default function Timetables() {
     };
   }, []);
 
-  const baghdadParts = getBaghdadParts(currentTime);
-  const rawHour = Number(baghdadParts.hour);
-  const baghdadHour = rawHour === 24 ? 0 : rawHour;
-  const nowMinutes =
-    baghdadHour * 60 +
-    Number(baghdadParts.minute) +
-    Number(baghdadParts.second) / 60;
-  const liveState = getCurrentShiftState(nowMinutes, times);
-  const activeShift = liveState.shift;
+  const baghdadClock = getBaghdadClockState(currentTime);
+  const schoolDayState = getSchoolDayState(currentTime);
+  const liveState = getCurrentShiftState(baghdadClock.nowMinutes, times);
+
+  const currentArabicDay = schoolDayState.day;
+  const isSchoolDay = schoolDayState.isSchoolDay;
+  const todayScheduleDay = isSchoolDay ? currentArabicDay : DAYS[0];
+
+  const activeShift = selectedPreviewShift ?? liveState.shift;
+  const activeShiftLabel = getPreviewShiftLabel(activeShift);
+  const previewSections = useMemo(
+    () => getSectionsForSchedule(activeShift, selectedGrade),
+    [activeShift, selectedGrade]
+  );
+  const manualSections = useMemo(
+    () => getSectionsForSchedule(manualShift, manualGrade),
+    [manualGrade, manualShift]
+  );
   const activeTimes = times[activeShift] || [];
   const activeScheduleRows = useMemo(
-    () => buildScheduleRows(activeTimes).filter((row) => row.type === "period" || row.isOpportunity),
+    () => buildScheduleRows(activeTimes),
     [activeTimes]
   );
-  const timeline =
-    liveState.status === "active"
-      ? getTimelineData(nowMinutes, activeTimes)
-      : {
-          position: null,
-          currentLessonIndex: -1,
-          currentBreakKey: null,
-          isBreak: false,
-        };
-  const statusText = {
-    before: "لم يبدأ الدوام الصباحي بعد",
-    active:
-      timeline.currentLessonIndex >= 0
-        ? `الحصة الحالية: ${timeline.currentLessonIndex + 1}`
-        : timeline.isBreak
-          ? "استراحة بين الحصص"
-          : "الدوام جارٍ الآن",
-    waiting: "انتهى الدوام الصباحي — بانتظار بدء الدوام الظهري",
-    finished: "انتهى الدوام اليوم",
-  }[liveState.status];
+
+  const { isLiveSchedule: isTodayView, timeline } = resolveLiveTimeline({
+    nowMinutes: baghdadClock.nowMinutes,
+    periods: activeTimes,
+    liveState,
+    currentDay: currentArabicDay,
+    selectedDay,
+    activeShift,
+    isSchoolDay,
+  });
+
+  const hasChangedFromToday =
+    selectedPreviewShift !== null || selectedDay !== todayScheduleDay;
+  const liveStatusText = !isSchoolDay
+    ? "اليوم عطلة أسبوعية"
+    : {
+        before: "لم يبدأ الدوام الصباحي بعد",
+        active:
+          timeline.currentLessonIndex >= 0
+            ? `الحصة الحالية: ${timeline.currentLessonIndex + 1}`
+            : timeline.isBreak
+              ? "استراحة بين الحصص"
+              : "الدوام جارٍ الآن",
+        waiting: "انتهى الدوام الصباحي — بانتظار بدء الدوام المسائي",
+        finished: "انتهى الدوام اليوم",
+      }[liveState.status];
+  const statusText = hasChangedFromToday
+    ? `عرض جدول ${selectedDay} — الدوام ${activeShiftLabel}`
+    : liveStatusText;
+
+  const returnToTodaySchedule = () => {
+    setSelectedPreviewShift(null);
+    setSelectedDay(todayScheduleDay);
+  };
 
   const previewEntryMap = useMemo(
     () =>
@@ -375,6 +591,12 @@ export default function Timetables() {
     () => STAGES.find((stage) => stage.id === manualStageId) || STAGES[0],
     [manualStageId]
   );
+
+  useEffect(() => {
+    if (!manualSections.includes(manualSection)) {
+      setManualSection(manualSections[0] || "أ");
+    }
+  }, [manualGrade, manualSection, manualSections, manualShift]);
 
   const loadPreview = useCallback(async () => {
     try {
@@ -443,6 +665,20 @@ export default function Timetables() {
     setMessage("");
   };
 
+  const updateDraftTime = (index, field, value) => {
+    setDraftTimes((current) => ({
+      ...current,
+      [editorShift]: current[editorShift].map((period, periodIndex) =>
+        periodIndex === index
+          ? {
+              ...period,
+              [field]: value,
+            }
+          : period
+      ),
+    }));
+  };
+
   const adjustDraftTime = (index, field, amount) => {
     setDraftTimes((current) => ({
       ...current,
@@ -489,9 +725,13 @@ export default function Timetables() {
   };
 
   const saveEditedTimes = async () => {
+    const isValidTime = (value) => /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+
     const hasInvalidPeriod = Object.values(draftTimes).some((periods) =>
       periods.some(
         (period, index) =>
+          !isValidTime(period.start) ||
+          !isValidTime(period.end) ||
           timeToMinutes(period.start) >= timeToMinutes(period.end) ||
           (index > 0 &&
             timeToMinutes(period.start) < timeToMinutes(periods[index - 1].end))
@@ -545,6 +785,8 @@ export default function Timetables() {
     setCellEditor({ period, entry });
     setSubject(entry?.subject || "");
     setSelectedTeacherId(entry?.teacher_id || null);
+    setTeacherSearch("");
+    setTeacherSpecializationFilter("");
     setTransferCandidate(null);
     setTeachers([]);
 
@@ -570,7 +812,9 @@ export default function Timetables() {
   };
 
   const selectTeacher = (teacher) => {
+    const teacherSpecializations = getTeacherSpecializations(teacher);
     setSelectedTeacherId(teacher.id);
+    setSubject(teacherSpecializations[0] || "");
     setTransferCandidate(teacher.conflict_entry_id ? teacher : null);
   };
 
@@ -583,7 +827,7 @@ export default function Timetables() {
       return;
     }
     if (!subject.trim()) {
-      showMessage("يرجى اختيار المادة أو كتابة اسمها.", "error");
+      showMessage("يرجى اختيار الدرس الذي ستدرسه المعلمة.", "error");
       return;
     }
     if (!selectedTeacherId) {
@@ -661,7 +905,7 @@ export default function Timetables() {
         <div className="timetable-command-title">
           <span>المعاينة المباشرة</span>
           <div>
-            <h1>جدول الدوام {activeShift}</h1>
+            <h1>جدول الدوام {activeShiftLabel}</h1>
             <p>{statusText}</p>
           </div>
         </div>
@@ -670,8 +914,8 @@ export default function Timetables() {
           <div className="timetable-live-clock" aria-live="polite">
             <span>توقيت بغداد</span>
             <strong>
-              {String(baghdadHour).padStart(2, "0")}:{baghdadParts.minute}:
-              {baghdadParts.second}
+              {String(baghdadClock.hour).padStart(2, "0")}:
+              {baghdadClock.parts.minute}:{baghdadClock.parts.second}
             </strong>
           </div>
 
@@ -711,22 +955,50 @@ export default function Timetables() {
 
       <section className="timetable-main-preview">
         <div className="timetable-preview-toolbar">
-          <div className="timetable-day-tabs">
-            {DAYS.map((day) => (
-              <button
-                key={day}
-                type="button"
-                className={selectedDay === day ? "active" : ""}
-                onClick={() => setSelectedDay(day)}
-              >
-                {day}
-              </button>
-            ))}
+          <div className="timetable-preview-navigation">
+            <div className="timetable-preview-shifts" aria-label="اختيار الدوام">
+              {PREVIEW_SHIFTS.map((shift) => (
+                <button
+                  key={shift.value}
+                  type="button"
+                  className={activeShift === shift.value ? "active" : ""}
+                  onClick={() => setSelectedPreviewShift(shift.value)}
+                >
+                  {shift.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="timetable-day-tabs">
+              {DAYS.map((day) => (
+                <button
+                  key={day}
+                  type="button"
+                  className={selectedDay === day ? "active" : ""}
+                  onClick={() => setSelectedDay(day)}
+                >
+                  {day}
+                </button>
+              ))}
+            </div>
           </div>
-          <div className="timetable-preview-status">
-            <span className={`status-dot ${liveState.status}`} />
-            <span>{statusText}</span>
-            <b>{selectedGrade}</b>
+
+          <div className="timetable-preview-toolbar-side">
+            {hasChangedFromToday && (
+              <button
+                type="button"
+                className="timetable-return-today"
+                onClick={returnToTodaySchedule}
+              >
+                ↶ الرجوع إلى جدول اليوم
+              </button>
+            )}
+
+            <div className="timetable-preview-status">
+              <span className={`status-dot ${isTodayView ? liveState.status : "preview"}`} />
+              <span>{statusText}</span>
+              <b>{selectedGrade}</b>
+            </div>
           </div>
         </div>
 
@@ -749,7 +1021,7 @@ export default function Timetables() {
                 <tr>
                   <th className="lesson-index-column">الحصة</th>
                   <th className="lesson-time-column">الوقت</th>
-                  {SECTIONS.map((section) => (
+                  {previewSections.map((section) => (
                     <th key={section}>{`${selectedGrade} ${section}`}</th>
                   ))}
                 </tr>
@@ -766,7 +1038,7 @@ export default function Timetables() {
                             : ""
                         }`}
                       >
-                        <td colSpan={SECTIONS.length + 2}>
+                        <td colSpan={previewSections.length + 2}>
                           <div className="timetable-opportunity-band">
                             <span />
                             <strong>الفرصة</strong>
@@ -800,7 +1072,7 @@ export default function Timetables() {
                         <span>إلى</span>
                         <strong>{formatClock(period.end)}</strong>
                       </td>
-                      {SECTIONS.map((section) => {
+                      {previewSections.map((section) => {
                         const entry = previewEntryMap.get(
                           entryKey(section, period.period_number)
                         );
@@ -849,8 +1121,8 @@ export default function Timetables() {
                 >
                   <span className="live-time-label">
                     {formatClock(
-                      `${String(baghdadHour).padStart(2, "0")}:${
-                        baghdadParts.minute
+                      `${String(baghdadClock.hour).padStart(2, "0")}:${
+                        baghdadClock.parts.minute
                       }`
                     )}
                   </span>
@@ -881,7 +1153,7 @@ export default function Timetables() {
               <div>
                 <span>إعدادات الدوام</span>
                 <h2 id="times-modal-title">تعديل أوقات الحصص</h2>
-                <p>كل ضغطة تغيّر الوقت بمقدار 15 دقيقة.</p>
+                <p>اكتب الوقت مباشرة بالدقيقة، أو استخدم أزرار ±15 دقيقة.</p>
               </div>
               <button
                 type="button"
@@ -920,7 +1192,15 @@ export default function Timetables() {
                       >
                         −15
                       </button>
-                      <b>{formatClock(period.start)}</b>
+                      <input
+                        type="time"
+                        value={period.start}
+                        step="60"
+                        onChange={(event) =>
+                          updateDraftTime(index, "start", event.target.value)
+                        }
+                        aria-label={`بداية الحصة ${index + 1}`}
+                      />
                       <button
                         type="button"
                         onClick={() => adjustDraftTime(index, "start", 15)}
@@ -938,7 +1218,15 @@ export default function Timetables() {
                       >
                         −15
                       </button>
-                      <b>{formatClock(period.end)}</b>
+                      <input
+                        type="time"
+                        value={period.end}
+                        step="60"
+                        onChange={(event) =>
+                          updateDraftTime(index, "end", event.target.value)
+                        }
+                        aria-label={`نهاية الحصة ${index + 1}`}
+                      />
                       <button
                         type="button"
                         onClick={() => adjustDraftTime(index, "end", 15)}
@@ -995,7 +1283,7 @@ export default function Timetables() {
                 <span>إدارة الجداول</span>
                 <h2 id="manual-editor-title">تعديل الجداول يدويًا</h2>
                 <p>
-                  اختر الدوام والمرحلة والصف والشعبة، ثم عدّل خلايا الجدول.
+                  اختر الدوام والمرحلة والصف والشعبة، ثم افتح الجدول.
                 </p>
               </div>
               <button
@@ -1100,7 +1388,7 @@ export default function Timetables() {
                     </div>
                   </div>
                   <div className="manual-card-grid section-columns">
-                    {SECTIONS.map((section) => (
+                    {manualSections.map((section) => (
                       <button
                         key={section}
                         type="button"
@@ -1256,39 +1544,49 @@ export default function Timetables() {
             </div>
 
             <div className="lesson-editor-body">
-              <section className="lesson-editor-section">
-                <div className="lesson-editor-heading">
-                  <h3>المادة</h3>
-                  <span>اختر مادة أو اكتب اسمًا آخر</span>
-                </div>
-                <div className="subject-chip-list">
-                  {SUBJECTS.map((item) => (
-                    <button
-                      key={item}
-                      type="button"
-                      className={subject === item ? "active" : ""}
-                      onClick={() => setSubject(item)}
-                    >
-                      {item}
-                    </button>
-                  ))}
-                </div>
-                <input
-                  type="text"
-                  value={subject}
-                  onChange={(event) => setSubject(event.target.value)}
-                  maxLength={100}
-                  placeholder="اسم المادة"
-                  className="lesson-subject-input"
-                />
-              </section>
-
               <section className="lesson-editor-section teacher-section">
                 <div className="lesson-editor-heading">
                   <h3>المعلمة</h3>
-                  <span>
-                    تظهر معلمات الدوام {manualShift} والمعلمات المسجلات للدوامين.
+                  <span>اختر المعلمة أولًا، ثم اختر الدرس الذي ستدرسه.</span>
+                </div>
+
+                <input
+                  type="search"
+                  value={teacherSearch}
+                  onChange={(event) => setTeacherSearch(event.target.value)}
+                  placeholder="بحث باسم المعلمة..."
+                  className="teacher-search-input"
+                  autoComplete="off"
+                />
+
+                <div className="teacher-filter-block">
+                  <span className="teacher-filter-label">
+                    فلترة المعلمات حسب الاختصاص
                   </span>
+                  <div className="subject-chip-list teacher-specialization-filters">
+                    <button
+                      type="button"
+                      className={teacherSpecializationFilter === "" ? "active" : ""}
+                      onClick={() => setTeacherSpecializationFilter("")}
+                    >
+                      الكل
+                    </button>
+                    {teacherFilterSubjects.map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        className={
+                          normalizeTeacherText(teacherSpecializationFilter) ===
+                          normalizeTeacherText(item)
+                            ? "active"
+                            : ""
+                        }
+                        onClick={() => setTeacherSpecializationFilter(item)}
+                      >
+                        {item}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 {teachersLoading ? (
@@ -1297,11 +1595,25 @@ export default function Timetables() {
                   <div className="teacher-list-state warning">
                     لا توجد معلمات مسجلات لهذا الشفت.
                   </div>
+                ) : filteredTeachers.length === 0 ? (
+                  <div className="teacher-list-state warning">
+                    لا توجد معلمات تطابق البحث أو الاختصاص المحدد.
+                  </div>
                 ) : (
                   <div className="teacher-choice-list">
-                    {teachers.map((teacher) => {
+                    {filteredTeachers.map((teacher) => {
                       const hasConflict = Boolean(teacher.conflict_entry_id);
                       const isSelected = selectedTeacherId === teacher.id;
+                      const teacherSpecializations =
+                        getTeacherSpecializations(teacher);
+                      const conflictTitle = hasConflict
+                        ? `تضارب: ${teacher.conflict_shift || ""} ${
+                            teacher.conflict_day_name || ""
+                          } ${teacher.conflict_grade || ""} شعبة ${
+                            teacher.conflict_section || ""
+                          } الحصة ${teacher.conflict_period_number || ""}`
+                        : "المعلمة متاحة في هذا الوقت";
+
                       return (
                         <button
                           key={teacher.id}
@@ -1310,34 +1622,73 @@ export default function Timetables() {
                             hasConflict ? "conflict" : "available"
                           } ${isSelected ? "selected" : ""}`}
                           onClick={() => selectTeacher(teacher)}
+                          title={conflictTitle}
                         >
                           <div className="teacher-choice-main">
                             <strong>{teacher.full_name}</strong>
                             <span>
-                              {teacher.specialization || "بدون اختصاص مسجل"}
+                              {teacherSpecializations.length > 0
+                                ? teacherSpecializations.join("، ")
+                                : "بدون اختصاص مسجل"}
                             </span>
                           </div>
-                          {hasConflict ? (
-                            <div className="teacher-conflict-note">
-                              <b>⚠ تضارب</b>
-                              <span>
-                                الدوام {teacher.conflict_shift} —{" "}
-                                {teacher.conflict_day_name} —{" "}
-                                {teacher.conflict_grade} — شعبة{" "}
-                                {teacher.conflict_section} — الحصة{" "}
-                                {teacher.conflict_period_number}
-                              </span>
-                              <small>{teacher.conflict_subject}</small>
-                            </div>
-                          ) : (
-                            <span className="teacher-available-badge">متاحة</span>
-                          )}
+                          <span
+                            className={`teacher-status-badge ${
+                              hasConflict ? "conflict" : "available"
+                            }`}
+                          >
+                            {hasConflict ? "تضارب" : "متاحة"}
+                          </span>
                         </button>
                       );
                     })}
                   </div>
                 )}
               </section>
+
+              {selectedTeacher && (
+                <section className="lesson-editor-section lesson-subject-section">
+                  <div className="lesson-editor-heading">
+                    <h3>الدرس الذي ستدرسه</h3>
+                    <span>
+                      الافتراضي هو الاختصاص الأساسي للمعلمة، ويمكنك اختيار مادة
+                      أخرى لهذه الحصة.
+                    </span>
+                  </div>
+
+                  <div className="selected-teacher-summary">
+                    <div>
+                      <span>المعلمة المختارة</span>
+                      <strong>{selectedTeacher.full_name || "معلمة غير محددة"}</strong>
+                    </div>
+                    <div>
+                      <span>اختصاصها</span>
+                      <strong>
+                        {selectedTeacherSpecializations.length > 0
+                          ? selectedTeacherSpecializations.join("، ")
+                          : "بدون اختصاص مسجل"}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="subject-chip-list lesson-subject-options">
+                    {lessonSubjectOptions.map((item) => (
+                      <button
+                        key={item}
+                        type="button"
+                        className={
+                          normalizeTeacherText(subject) === normalizeTeacherText(item)
+                            ? "active"
+                            : ""
+                        }
+                        onClick={() => setSubject(item)}
+                      >
+                        {item}
+                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
 
               {transferCandidate && (
                 <div className="teacher-transfer-confirmation" role="alert">
@@ -1361,6 +1712,7 @@ export default function Timetables() {
                       onClick={() => {
                         setTransferCandidate(null);
                         setSelectedTeacherId(null);
+                        setSubject("");
                       }}
                       disabled={assignmentSaving}
                     >
@@ -1406,7 +1758,9 @@ export default function Timetables() {
                   type="button"
                   className="primary"
                   onClick={() => saveAssignment(false)}
-                  disabled={assignmentSaving}
+                  disabled={
+                    assignmentSaving || !selectedTeacherId || !subject.trim()
+                  }
                 >
                   {assignmentSaving ? "جاري الحفظ..." : "حفظ الدرس"}
                 </button>

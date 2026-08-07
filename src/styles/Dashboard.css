@@ -82,11 +82,6 @@ button, input { font: inherit; }
 .theme-toggle span { font-size: 22px; line-height: 1; }
 .logout-button { margin-inline-start: auto; padding: 9px 13px; border: 0; border-radius: 12px; background: var(--brand-800); color: #fff; font-weight: 800; white-space: nowrap; cursor: pointer; }
 
-.dashboard-back-row { width: min(1500px, calc(100% - 40px)); margin: 10px auto 0; display: flex; justify-content: flex-start; direction: rtl; }
-.dashboard-back-button { min-height: 39px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; padding: 8px 15px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); font-weight: 800; cursor: pointer; box-shadow: 0 5px 14px rgba(15, 59, 103, .08); transition: .2s ease; }
-.dashboard-back-button:hover { border-color: var(--brand-600); background: var(--brand-100); color: var(--brand-900); transform: translateY(-1px); }
-.dashboard-back-button span { font-size: 17px; line-height: 1; }
-
 .dashboard-content { width: min(1500px, calc(100% - 40px)); margin: 12px auto 40px; }
 .dashboard-refresh-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 18px; padding: 11px 16px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); box-shadow: var(--shadow); }
 .dashboard-refresh-bar > div { display: flex; flex-direction: column; gap: 4px; }
@@ -237,7 +232,7 @@ button, input { font: inherit; }
 }
 
 @media (max-width: 580px) {
-  .dashboard-content, .dashboard-back-row { width: min(100% - 22px,1500px); }
+  .dashboard-content { width: min(100% - 22px,1500px); }
   .founder-header { top: 0; gap: 8px; padding: 8px 10px; }
   .brand-area img { width: 40px; height: 40px; }
   .brand-area h1 { font-size: 15px; }
@@ -287,24 +282,81 @@ button, input { font: inherit; }
 :root[data-theme="dark"] .donut-track { stroke: #314456; }
 :root[data-theme="dark"] .modal-actions .secondary { background: #293b4c; color: var(--text); }
 
+/* Dashboard top layer: dashboard keeps only its command bar */
+html,
+body,
+#root {
+  min-height: 100%;
+  background: var(--background) !important;
+}
 
-/* Dashboard top-bar positioning overrides */
+body {
+  min-height: 100dvh;
+  overscroll-behavior-y: none;
+}
+
+.founder-dashboard {
+  min-height: 100dvh !important;
+  margin-top: -68px !important;
+  padding-top: var(--dashboard-top-layer-height, 68px) !important;
+  background:
+    radial-gradient(circle at 92% 0%, rgba(40, 119, 186, .10), transparent 28%),
+    var(--background) !important;
+}
+
+.dashboard-top-layer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: 0;
+  z-index: 2147483600;
+  width: 100%;
+  pointer-events: none;
+  background: var(--background);
+}
+
+.dashboard-top-layer .founder-header {
+  position: relative !important;
+  top: auto !important;
+  right: auto !important;
+  left: auto !important;
+  width: 100% !important;
+  min-height: 68px;
+  z-index: 2 !important;
+  pointer-events: auto;
+  transform: none !important;
+}
+
+.dashboard-top-layer .theme-toggle {
+  flex: 0 0 39px;
+}
+
+.dashboard-content {
+  margin-top: 0 !important;
+}
+
 :root[data-theme="dark"],
 :root[data-theme="dark"] body,
 :root[data-theme="dark"] #root,
-:root[data-theme="dark"] .founder-dashboard {
-  background-color: var(--background);
+:root[data-theme="dark"] .founder-dashboard,
+:root[data-theme="dark"] .dashboard-top-layer {
+  background-color: var(--background) !important;
 }
 
 @media (max-width: 850px) {
   .founder-dashboard {
-    margin-top: -68px;
-    padding-top: 122px;
+    margin-top: -68px !important;
+    padding-top: var(--dashboard-top-layer-height, 122px) !important;
+  }
+
+  .dashboard-top-layer .founder-header {
+    align-items: stretch;
+    flex-wrap: wrap;
   }
 }
 
 @media (max-width: 580px) {
   .founder-dashboard {
-    padding-top: 146px;
+    padding-top: var(--dashboard-top-layer-height, 146px) !important;
   }
 }
