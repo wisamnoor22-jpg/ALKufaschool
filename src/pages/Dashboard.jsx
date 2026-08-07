@@ -126,7 +126,6 @@ const sections = [
     code: "DA",
     showsArchiveCount: true,
   },
-  { title: "السجل", description: "آخر العمليات", path: "/history", code: "LG" },
   { title: "الإعدادات", description: "إعدادات النظام", path: "/settings", code: "SE" },
 ];
 

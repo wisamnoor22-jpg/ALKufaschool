@@ -4,7 +4,6 @@ const path = require("path");
 require("dotenv").config();
 
 const pool = require("./db");
-
 const employeesRoutes = require("./routes/employees");
 const studentsRoutes = require("./routes/students");
 const feesRoutes = require("./routes/fees");
@@ -14,6 +13,7 @@ const employeeAttendanceRoutes = require("./routes/employeeAttendance");
 const deletionArchiveRoutes = require("./routes/deletionArchive");
 const dashboardStatisticsRoutes = require("./routes/dashboardStatistics");
 const payrollRoutes = require("./routes/payroll");
+const timetablesRoutes = require("./routes/timetables");
 
 const app = express();
 const PORT = Number(process.env.PORT || 5000);
@@ -39,7 +39,6 @@ app.use(
 );
 
 app.use(express.json());
-
 app.use(
   "/uploads",
   express.static(path.join(__dirname, "uploads"))
@@ -54,6 +53,7 @@ app.use("/employee-attendance", employeeAttendanceRoutes);
 app.use("/deletion-archive", deletionArchiveRoutes);
 app.use("/dashboard", dashboardStatisticsRoutes);
 app.use("/payroll", payrollRoutes);
+app.use("/timetables", timetablesRoutes);
 
 app.get("/", (req, res) => {
   res.json({

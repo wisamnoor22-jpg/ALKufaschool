@@ -9,6 +9,10 @@
   --tt-primary-soft: #eaf1fb;
   --tt-accent: #d9414f;
   --tt-success: #15935f;
+  --tt-success-soft: #e9f8f1;
+  --tt-warning: #c98600;
+  --tt-warning-soft: #fff7d6;
+  --tt-danger-soft: #fff0f1;
   --tt-shadow: 0 14px 34px rgba(22, 48, 86, 0.1);
 }
 
@@ -23,23 +27,34 @@
   --tt-primary-soft: #1a3658;
   --tt-accent: #ff7d88;
   --tt-success: #4bd49b;
+  --tt-success-soft: #163b31;
+  --tt-warning: #ffc94f;
+  --tt-warning-soft: #4a3915;
+  --tt-danger-soft: #4a2028;
   --tt-shadow: 0 16px 38px rgba(0, 0, 0, 0.3);
 }
 
 .timetable-overview-page {
-  height: calc(100dvh - 92px);
-  min-height: 620px;
+  height: auto;
+  min-height: calc(100dvh - 92px);
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
   gap: 10px;
-  overflow: hidden;
+  overflow: visible;
   padding: 10px 18px 14px;
   background: var(--tt-bg);
   color: var(--tt-text);
 }
 
+.timetable-overview-page *,
+.timetable-modal-overlay * {
+  box-sizing: border-box;
+}
+
 .timetable-overview-page button,
-.timetable-overview-page input {
+.timetable-overview-page input,
+.timetable-modal-overlay button,
+.timetable-modal-overlay input {
   font: inherit;
 }
 
@@ -55,10 +70,10 @@
 }
 
 .timetable-command-title {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 12px;
-  min-width: 0;
 }
 
 .timetable-command-title > span {
@@ -90,7 +105,7 @@
 }
 
 .timetable-command-tools > button {
-  min-width: 128px;
+  min-width: 142px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -102,10 +117,14 @@
   color: var(--tt-text);
   font-weight: 800;
   cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease,
+    background 0.2s ease;
 }
 
 .timetable-command-tools > button:hover {
   border-color: var(--tt-primary);
+  background: var(--tt-primary-soft);
+  transform: translateY(-1px);
 }
 
 .timetable-command-tools > button span {
@@ -131,9 +150,9 @@
 }
 
 .timetable-live-clock strong {
+  direction: ltr;
   color: var(--tt-primary);
   font-size: 18px;
-  direction: ltr;
 }
 
 .timetable-grade-strip {
@@ -176,74 +195,88 @@
   color: #ffffff;
 }
 
-.timetable-grade-strip button.active small {
-  color: rgba(255, 255, 255, 0.76);
+.timetable-grade-strip button.active small,
+.timetable-grade-strip button:hover small {
+  color: rgba(255, 255, 255, 0.78);
 }
 
 .timetable-main-preview {
   min-height: 0;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  gap: 8px;
 }
 
 .timetable-preview-toolbar {
-  min-height: 42px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
+  padding: 7px 9px;
+  border: 1px solid var(--tt-border);
+  border-radius: 13px;
+  background: var(--tt-surface);
 }
 
 .timetable-day-tabs {
   display: flex;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 5px;
 }
 
-.timetable-day-tabs button {
-  min-width: 82px;
-  border: 1px solid var(--tt-border);
+.timetable-day-tabs button,
+.manual-day-tabs button {
+  border: 1px solid transparent;
   border-radius: 9px;
-  padding: 7px 11px;
-  background: var(--tt-surface);
+  padding: 7px 13px;
+  background: transparent;
   color: var(--tt-muted);
+  font-weight: 800;
   cursor: pointer;
 }
 
-.timetable-day-tabs button.active {
+.timetable-day-tabs button:hover,
+.timetable-day-tabs button.active,
+.manual-day-tabs button:hover,
+.manual-day-tabs button.active {
   border-color: var(--tt-primary);
-  background: var(--tt-primary);
-  color: #ffffff;
+  background: var(--tt-primary-soft);
+  color: var(--tt-primary);
 }
 
 .timetable-preview-status {
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: 7px;
+  justify-content: flex-end;
+  gap: 8px;
   color: var(--tt-muted);
   font-size: 12px;
 }
 
 .timetable-preview-status b {
-  padding: 5px 8px;
-  border-radius: 999px;
-  background: var(--tt-primary-soft);
-  color: var(--tt-primary);
+  padding: 5px 9px;
+  border-radius: 8px;
+  background: var(--tt-surface-soft);
+  color: var(--tt-text);
 }
 
 .status-dot {
   width: 9px;
   height: 9px;
+  flex: 0 0 auto;
   border-radius: 50%;
   background: var(--tt-muted);
 }
 
 .status-dot.active {
   background: var(--tt-success);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--tt-success) 15%, transparent);
 }
 
-.status-dot.waiting,
-.status-dot.before {
-  background: #e5a12a;
+.status-dot.before,
+.status-dot.waiting {
+  background: var(--tt-warning);
 }
 
 .status-dot.finished {
@@ -251,77 +284,112 @@
 }
 
 .timetable-inline-message {
-  margin-bottom: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   padding: 8px 12px;
   border: 1px solid var(--tt-border);
-  border-radius: 9px;
+  border-radius: 10px;
   background: var(--tt-primary-soft);
   color: var(--tt-primary);
-  font-size: 12px;
-  font-weight: 700;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.timetable-inline-message.success {
+  border-color: color-mix(in srgb, var(--tt-success) 40%, var(--tt-border));
+  background: var(--tt-success-soft);
+  color: var(--tt-success);
+}
+
+.timetable-inline-message.error {
+  border-color: color-mix(in srgb, var(--tt-accent) 40%, var(--tt-border));
+  background: var(--tt-danger-soft);
+  color: var(--tt-accent);
+}
+
+.timetable-inline-message button {
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: currentColor;
+  font-size: 20px;
+  cursor: pointer;
 }
 
 .timetable-preview-card {
   min-height: 0;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid var(--tt-border);
   border-radius: 15px;
   background: var(--tt-surface);
   box-shadow: var(--tt-shadow);
 }
 
-.timetable-live-grid-wrap {
+.timetable-live-grid-wrap,
+.manual-table-wrap {
   position: relative;
-  height: 100%;
-  min-height: 0;
+  width: 100%;
+  height: auto;
+  overflow-x: auto;
+  overflow-y: visible;
 }
 
 .timetable-live-grid {
   width: 100%;
-  height: 100%;
+  min-width: 940px;
+  height: auto;
+  border-collapse: separate;
+  border-spacing: 0;
   table-layout: fixed;
-  border-collapse: collapse;
 }
 
 .timetable-live-grid th,
 .timetable-live-grid td {
-  border-inline-start: 1px solid var(--tt-border);
+  border-left: 1px solid var(--tt-border);
   border-bottom: 1px solid var(--tt-border);
+  padding: 8px;
   text-align: center;
   vertical-align: middle;
 }
 
+.timetable-live-grid tr > *:last-child {
+  border-left: 0;
+}
+
 .timetable-live-grid thead th {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   height: 58px;
-  padding: 6px;
   background: var(--tt-primary);
   color: #ffffff;
-  font-size: 14px;
+  font-size: 13px;
+}
+
+.timetable-live-grid tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.timetable-live-grid tbody tr.current-row > * {
+  background: color-mix(in srgb, var(--tt-success) 7%, var(--tt-surface));
 }
 
 .lesson-index-column,
 .lesson-index-cell {
-  width: 72px;
+  width: 82px;
 }
 
 .lesson-time-column,
 .lesson-time-cell {
-  width: 118px;
-}
-
-.timetable-live-grid tbody tr:last-child th,
-.timetable-live-grid tbody tr:last-child td {
-  border-bottom: 0;
-}
-
-.timetable-live-grid tbody tr.current-row th,
-.timetable-live-grid tbody tr.current-row td {
-  background: var(--tt-primary-soft);
+  width: 142px;
 }
 
 .lesson-index-cell {
-  background: var(--tt-primary-soft);
-  color: var(--tt-primary);
+  background: var(--tt-surface-soft);
 }
 
 .lesson-index-cell span {
@@ -331,74 +399,84 @@
 }
 
 .lesson-index-cell strong {
-  display: block;
-  margin-top: 2px;
-  font-size: 19px;
+  color: var(--tt-primary);
+  font-size: 22px;
 }
 
 .lesson-time-cell {
+  direction: rtl;
   background: var(--tt-surface-soft);
 }
 
-.lesson-time-cell strong {
+.lesson-time-cell strong,
+.manual-period-time strong {
   display: block;
+  direction: rtl;
+  color: var(--tt-text);
   font-size: 12px;
 }
 
-.lesson-time-cell span {
+.lesson-time-cell span,
+.manual-period-time span {
   display: block;
-  margin: 1px 0;
+  margin: 2px 0;
   color: var(--tt-muted);
   font-size: 9px;
 }
 
 .lesson-assignment {
-  min-height: 54px;
+  min-height: 58px;
   display: grid;
   place-content: center;
-  gap: 4px;
-  padding: 6px;
+  gap: 5px;
+  padding: 5px;
+  border-radius: 9px;
+  background: var(--tt-primary-soft);
 }
 
-.lesson-assignment > strong {
+.lesson-assignment strong {
   display: grid;
   gap: 2px;
-  font-size: 13px;
-  line-height: 1.25;
+  color: var(--tt-text);
+  font-size: 12px;
 }
 
-.lesson-assignment > strong small {
+.lesson-assignment strong small {
   color: var(--tt-muted);
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 700;
 }
 
 .lesson-assignment > span {
-  justify-self: center;
-  padding: 3px 8px;
-  border-radius: 999px;
-  background: var(--tt-primary-soft);
   color: var(--tt-primary);
   font-size: 11px;
   font-weight: 900;
 }
 
+.lesson-assignment.empty {
+  border: 1px dashed var(--tt-border);
+  background: transparent;
+}
+
+.lesson-assignment.empty strong,
+.lesson-assignment.empty span {
+  color: var(--tt-muted);
+}
+
 .timetable-body-overlay {
   position: absolute;
-  right: 0;
+  inset-inline: 0;
   bottom: 0;
-  left: 0;
-  z-index: 5;
+  z-index: 8;
   pointer-events: none;
 }
 
 .live-time-line {
   position: absolute;
-  right: 0;
-  left: 0;
+  inset-inline: 0;
   height: 2px;
   background: var(--tt-accent);
-  box-shadow: 0 0 9px rgba(217, 65, 79, 0.45);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--tt-accent) 55%, transparent);
 }
 
 .live-time-line::before {
@@ -406,8 +484,8 @@
   position: absolute;
   right: 0;
   top: 50%;
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: var(--tt-accent);
   transform: translate(50%, -50%);
@@ -415,87 +493,124 @@
 
 .live-time-label {
   position: absolute;
-  left: 10px;
+  left: 8px;
   top: 50%;
-  padding: 3px 8px;
+  padding: 2px 6px;
   border-radius: 999px;
   background: var(--tt-accent);
   color: #ffffff;
   font-size: 10px;
   font-weight: 900;
   transform: translateY(-50%);
-  direction: ltr;
+}
+
+.timetable-table-loading {
+  position: absolute;
+  inset: 58px 0 0;
+  z-index: 12;
+  display: grid;
+  place-items: center;
+  background: color-mix(in srgb, var(--tt-surface) 82%, transparent);
+  color: var(--tt-primary);
+  font-weight: 900;
+  backdrop-filter: blur(2px);
 }
 
 .timetable-modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1200;
+  z-index: 1000;
   display: grid;
   place-items: center;
   padding: 18px;
-  background: rgba(5, 12, 22, 0.72);
+  background: rgba(5, 13, 25, 0.62);
   backdrop-filter: blur(5px);
 }
 
-.timetable-times-modal {
-  width: min(720px, 100%);
-  max-height: 90vh;
-  overflow: auto;
+.timetable-times-modal,
+.lesson-cell-modal,
+.manual-timetable-modal {
+  width: min(760px, 96vw);
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   border: 1px solid var(--tt-border);
   border-radius: 20px;
   background: var(--tt-surface);
   color: var(--tt-text);
-  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.32);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.28);
 }
 
 .timetable-modal-header {
-  position: sticky;
-  top: 0;
-  z-index: 2;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
-  padding: 18px;
+  gap: 18px;
+  padding: 18px 20px;
   border-bottom: 1px solid var(--tt-border);
-  background: var(--tt-surface);
+  background: var(--tt-surface-soft);
 }
 
-.timetable-modal-header span {
+.timetable-modal-header > div > span {
+  display: inline-block;
+  margin-bottom: 3px;
   color: var(--tt-primary);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 900;
 }
 
 .timetable-modal-header h2 {
-  margin: 4px 0 0;
+  margin: 0;
+  color: var(--tt-text);
+  font-size: 22px;
+}
+
+.timetable-modal-header p {
+  margin: 5px 0 0;
+  color: var(--tt-muted);
+  font-size: 12px;
 }
 
 .timetable-modal-close {
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
   border: 1px solid var(--tt-border);
-  border-radius: 12px;
-  background: var(--tt-surface-soft);
-  color: var(--tt-text);
+  border-radius: 10px;
+  background: var(--tt-surface);
+  color: var(--tt-muted);
   font-size: 24px;
+  line-height: 1;
   cursor: pointer;
+}
+
+.timetable-modal-close:hover {
+  border-color: var(--tt-accent);
+  color: var(--tt-accent);
+}
+
+.timetable-modal-close:disabled,
+.timetable-modal-actions button:disabled,
+.teacher-transfer-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 .timetable-shift-switch {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
-  padding: 16px 18px 8px;
+  padding: 14px 18px 4px;
 }
 
 .timetable-shift-switch button {
   border: 1px solid var(--tt-border);
   border-radius: 11px;
-  padding: 11px;
+  padding: 10px;
   background: var(--tt-surface-soft);
-  color: var(--tt-muted);
+  color: var(--tt-text);
+  font-weight: 900;
   cursor: pointer;
 }
 
@@ -507,73 +622,714 @@
 
 .timetable-times-list {
   display: grid;
-  gap: 9px;
-  padding: 10px 18px 14px;
+  gap: 8px;
+  overflow: auto;
+  padding: 14px 18px;
 }
 
 .timetable-time-row {
   display: grid;
-  grid-template-columns: 110px repeat(2, minmax(0, 1fr));
-  align-items: end;
+  grid-template-columns: 90px minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
   gap: 10px;
-  padding: 12px;
+  padding: 10px;
   border: 1px solid var(--tt-border);
   border-radius: 12px;
   background: var(--tt-surface-soft);
 }
 
-.timetable-time-row label {
-  display: grid;
-  gap: 5px;
+.timetable-time-row > strong {
+  color: var(--tt-primary);
+  text-align: center;
 }
 
-.timetable-time-row label span {
+.timetable-time-control {
+  display: grid;
+  gap: 4px;
+}
+
+.timetable-time-control > span {
   color: var(--tt-muted);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.time-stepper {
+  display: grid;
+  grid-template-columns: 52px minmax(80px, 1fr) 52px;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid var(--tt-border);
+  border-radius: 9px;
+  background: var(--tt-surface);
+}
+
+.time-stepper button {
+  height: 38px;
+  border: 0;
+  background: var(--tt-primary-soft);
+  color: var(--tt-primary);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.time-stepper button:hover {
+  background: var(--tt-primary);
+  color: #ffffff;
+}
+
+.time-stepper b {
+  direction: rtl;
+  color: var(--tt-text);
+  text-align: center;
   font-size: 12px;
 }
 
-.timetable-time-row input {
-  min-height: 42px;
+.timetable-lessons-controls {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 18px 14px;
+}
+
+.timetable-lessons-controls button {
   border: 1px solid var(--tt-border);
   border-radius: 9px;
-  padding: 0 10px;
+  padding: 8px 13px;
+  background: var(--tt-surface-soft);
+  color: var(--tt-text);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.timetable-lessons-controls button:hover {
+  border-color: var(--tt-primary);
+  color: var(--tt-primary);
+}
+
+.timetable-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 18px;
+  border-top: 1px solid var(--tt-border);
+  background: var(--tt-surface-soft);
+}
+
+.timetable-modal-actions button {
+  min-width: 104px;
+  border: 1px solid var(--tt-border);
+  border-radius: 10px;
+  padding: 9px 14px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.timetable-modal-actions button.secondary {
   background: var(--tt-surface);
   color: var(--tt-text);
 }
 
-.timetable-lessons-controls,
-.timetable-modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 9px;
-  padding: 0 18px 14px;
-}
-
-.timetable-lessons-controls button,
-.timetable-modal-actions button {
-  border: 1px solid var(--tt-border);
-  border-radius: 10px;
-  padding: 10px 15px;
-  background: var(--tt-surface-soft);
-  color: var(--tt-text);
-  cursor: pointer;
-}
-
-.timetable-modal-actions {
-  padding-top: 14px;
-  border-top: 1px solid var(--tt-border);
-}
-
-.timetable-modal-actions .primary {
+.timetable-modal-actions button.primary {
   border-color: var(--tt-primary);
   background: var(--tt-primary);
   color: #ffffff;
 }
 
+.timetable-modal-actions button.danger {
+  border-color: color-mix(in srgb, var(--tt-accent) 45%, var(--tt-border));
+  background: var(--tt-danger-soft);
+  color: var(--tt-accent);
+}
+
+.manual-editor-overlay {
+  z-index: 1010;
+}
+
+.manual-timetable-modal {
+  width: min(1180px, 97vw);
+  height: min(880px, 94vh);
+}
+
+.manual-header {
+  flex: 0 0 auto;
+}
+
+.manual-selection-content,
+.manual-table-content {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow: auto;
+  padding: 18px;
+}
+
+.manual-selection-content {
+  display: grid;
+  gap: 15px;
+}
+
+.manual-selection-step {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--tt-border);
+  border-radius: 15px;
+  background: var(--tt-surface-soft);
+}
+
+.manual-step-heading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.manual-step-heading > span {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  background: var(--tt-primary);
+  color: #ffffff;
+  font-weight: 900;
+}
+
+.manual-step-heading h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.manual-step-heading p {
+  margin: 2px 0 0;
+  color: var(--tt-muted);
+  font-size: 11px;
+}
+
+.manual-card-grid {
+  display: grid;
+  gap: 9px;
+}
+
+.manual-card-grid.two-columns {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.manual-card-grid.three-columns {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.manual-card-grid.grade-columns {
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.manual-card-grid.section-columns {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.manual-choice-card {
+  min-height: 78px;
+  display: grid;
+  place-content: center;
+  gap: 5px;
+  border: 1px solid var(--tt-border);
+  border-radius: 12px;
+  padding: 12px;
+  background: var(--tt-surface);
+  color: var(--tt-text);
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease,
+    background 0.2s ease;
+}
+
+.manual-choice-card:hover {
+  border-color: var(--tt-primary);
+  transform: translateY(-1px);
+}
+
+.manual-choice-card.active {
+  border-color: var(--tt-primary);
+  background: var(--tt-primary-soft);
+  box-shadow: inset 0 0 0 1px var(--tt-primary);
+}
+
+.manual-choice-card strong {
+  font-size: 14px;
+}
+
+.manual-choice-card small {
+  color: var(--tt-muted);
+  font-size: 10px;
+}
+
+.manual-choice-card.shift-card > span {
+  color: var(--tt-warning);
+  font-size: 24px;
+}
+
+.manual-choice-card.compact {
+  min-height: 55px;
+  padding: 8px;
+}
+
+.manual-choice-card.section-card {
+  min-height: 68px;
+}
+
+.manual-choice-card.section-card span {
+  color: var(--tt-muted);
+  font-size: 10px;
+}
+
+.manual-choice-card.section-card strong {
+  color: var(--tt-primary);
+  font-size: 25px;
+}
+
+.manual-selection-summary {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px 15px;
+  border: 1px solid var(--tt-primary);
+  border-radius: 14px;
+  background: var(--tt-surface);
+  box-shadow: var(--tt-shadow);
+}
+
+.manual-selection-summary > div {
+  display: grid;
+  gap: 3px;
+}
+
+.manual-selection-summary span {
+  color: var(--tt-muted);
+  font-size: 10px;
+}
+
+.manual-selection-summary strong {
+  font-size: 14px;
+}
+
+.manual-selection-summary button {
+  border: 1px solid var(--tt-primary);
+  border-radius: 10px;
+  padding: 10px 18px;
+  background: var(--tt-primary);
+  color: #ffffff;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.manual-table-content {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 12px;
+}
+
+.manual-table-toolbar {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid var(--tt-border);
+  border-radius: 13px;
+  background: var(--tt-surface-soft);
+}
+
+.manual-back-button {
+  border: 1px solid var(--tt-border);
+  border-radius: 9px;
+  padding: 8px 12px;
+  background: var(--tt-surface);
+  color: var(--tt-text);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.manual-back-button:hover {
+  border-color: var(--tt-primary);
+  color: var(--tt-primary);
+}
+
+.manual-table-identity {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.manual-table-identity span,
+.manual-table-identity b {
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: var(--tt-primary-soft);
+  color: var(--tt-primary);
+  font-size: 11px;
+}
+
+.manual-table-identity strong {
+  font-size: 14px;
+}
+
+.manual-day-tabs {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.manual-table-wrap {
+  min-height: 0;
+  border: 1px solid var(--tt-border);
+  border-radius: 14px;
+  background: var(--tt-surface);
+}
+
+.manual-section-table {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.manual-section-table th,
+.manual-section-table td {
+  border-left: 1px solid var(--tt-border);
+  border-bottom: 1px solid var(--tt-border);
+  padding: 9px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.manual-section-table tr > *:last-child {
+  border-left: 0;
+}
+
+.manual-section-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  height: 52px;
+  background: var(--tt-primary);
+  color: #ffffff;
+}
+
+.manual-section-table thead th:first-child {
+  width: 95px;
+}
+
+.manual-section-table thead th:nth-child(2) {
+  width: 170px;
+}
+
+.manual-section-table tbody tr:last-child > * {
+  border-bottom: 0;
+}
+
+.manual-section-table tbody th {
+  background: var(--tt-surface-soft);
+}
+
+.manual-section-table tbody th span {
+  display: block;
+  color: var(--tt-muted);
+  font-size: 9px;
+}
+
+.manual-section-table tbody th strong {
+  color: var(--tt-primary);
+  font-size: 22px;
+}
+
+.manual-period-time {
+  background: var(--tt-surface-soft);
+}
+
+.manual-editable-cell {
+  width: 100%;
+  min-height: 68px;
+  display: grid;
+  place-content: center;
+  gap: 4px;
+  border: 1px solid var(--tt-border);
+  border-radius: 11px;
+  padding: 8px;
+  background: var(--tt-surface-soft);
+  color: var(--tt-text);
+  cursor: pointer;
+}
+
+.manual-editable-cell:hover {
+  border-color: var(--tt-primary);
+  background: var(--tt-primary-soft);
+}
+
+.manual-editable-cell.filled {
+  border-color: color-mix(in srgb, var(--tt-primary) 45%, var(--tt-border));
+  background: var(--tt-primary-soft);
+}
+
+.manual-editable-cell.empty {
+  border-style: dashed;
+  color: var(--tt-muted);
+}
+
+.manual-editable-cell strong {
+  color: var(--tt-primary);
+  font-size: 14px;
+}
+
+.manual-editable-cell span {
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.manual-editable-cell small {
+  color: var(--tt-muted);
+  font-size: 10px;
+}
+
+.cell-editor-overlay {
+  z-index: 1030;
+}
+
+.lesson-cell-modal {
+  width: min(900px, 96vw);
+  max-height: 94vh;
+}
+
+.lesson-editor-body {
+  min-height: 0;
+  display: grid;
+  gap: 14px;
+  overflow: auto;
+  padding: 17px;
+}
+
+.lesson-editor-section {
+  display: grid;
+  gap: 10px;
+  padding: 13px;
+  border: 1px solid var(--tt-border);
+  border-radius: 14px;
+  background: var(--tt-surface-soft);
+}
+
+.lesson-editor-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lesson-editor-heading h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.lesson-editor-heading span {
+  color: var(--tt-muted);
+  font-size: 10px;
+}
+
+.subject-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.subject-chip-list button {
+  border: 1px solid var(--tt-border);
+  border-radius: 999px;
+  padding: 7px 11px;
+  background: var(--tt-surface);
+  color: var(--tt-text);
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.subject-chip-list button:hover,
+.subject-chip-list button.active {
+  border-color: var(--tt-primary);
+  background: var(--tt-primary);
+  color: #ffffff;
+}
+
+.lesson-subject-input {
+  width: 100%;
+  border: 1px solid var(--tt-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  outline: none;
+  background: var(--tt-surface);
+  color: var(--tt-text);
+}
+
+.lesson-subject-input:focus {
+  border-color: var(--tt-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tt-primary) 13%, transparent);
+}
+
+.teacher-choice-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.teacher-choice {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid var(--tt-border);
+  border-radius: 11px;
+  padding: 10px;
+  background: var(--tt-surface);
+  color: var(--tt-text);
+  text-align: right;
+  cursor: pointer;
+}
+
+.teacher-choice:hover,
+.teacher-choice.selected {
+  border-color: var(--tt-primary);
+  box-shadow: inset 0 0 0 1px var(--tt-primary);
+}
+
+.teacher-choice.conflict {
+  border-color: color-mix(in srgb, var(--tt-warning) 60%, var(--tt-border));
+  background: var(--tt-warning-soft);
+}
+
+.teacher-choice-main {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.teacher-choice-main strong,
+.teacher-choice-main span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.teacher-choice-main strong {
+  font-size: 13px;
+}
+
+.teacher-choice-main span {
+  color: var(--tt-muted);
+  font-size: 10px;
+}
+
+.teacher-available-badge {
+  flex: 0 0 auto;
+  padding: 4px 7px;
+  border-radius: 999px;
+  background: var(--tt-success-soft);
+  color: var(--tt-success);
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.teacher-conflict-note {
+  min-width: 125px;
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--tt-warning) 12%, var(--tt-surface));
+  color: var(--tt-warning);
+  text-align: right;
+}
+
+.teacher-conflict-note b {
+  font-size: 10px;
+}
+
+.teacher-conflict-note span,
+.teacher-conflict-note small {
+  font-size: 9px;
+}
+
+.teacher-list-state {
+  padding: 18px;
+  border: 1px dashed var(--tt-border);
+  border-radius: 10px;
+  color: var(--tt-muted);
+  text-align: center;
+  font-weight: 800;
+}
+
+.teacher-list-state.warning {
+  border-color: var(--tt-warning);
+  background: var(--tt-warning-soft);
+  color: var(--tt-warning);
+}
+
+.teacher-transfer-confirmation {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 13px;
+  border: 1px solid var(--tt-warning);
+  border-radius: 13px;
+  background: var(--tt-warning-soft);
+  color: var(--tt-text);
+}
+
+.teacher-transfer-confirmation strong {
+  color: var(--tt-warning);
+}
+
+.teacher-transfer-confirmation p {
+  margin: 4px 0 0;
+  color: var(--tt-muted);
+  font-size: 11px;
+}
+
+.teacher-transfer-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 7px;
+}
+
+.teacher-transfer-actions button {
+  border: 1px solid var(--tt-border);
+  border-radius: 9px;
+  padding: 8px 11px;
+  background: var(--tt-surface);
+  color: var(--tt-text);
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.teacher-transfer-actions button.warning-action {
+  border-color: var(--tt-warning);
+  background: var(--tt-warning);
+  color: #1b1607;
+}
+
+.lesson-actions .actions-spacer {
+  flex: 1 1 auto;
+}
+
 @media (max-width: 1180px) {
   .timetable-overview-page {
     height: auto;
-    min-height: calc(100dvh - 80px);
+    min-height: calc(100dvh - 92px);
     overflow: visible;
   }
 
@@ -582,56 +1338,136 @@
   }
 
   .timetable-command-tools {
-    justify-content: stretch;
+    flex-wrap: wrap;
   }
 
-  .timetable-command-tools > * {
-    flex: 1;
+  .timetable-command-tools > button,
+  .timetable-live-clock {
+    flex: 1 1 150px;
   }
 
   .timetable-grade-strip {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
-  .timetable-preview-card {
-    min-height: 520px;
+  .timetable-main-preview {
+    min-height: 600px;
+  }
+
+  .manual-card-grid.grade-columns {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .manual-table-toolbar {
+    grid-template-columns: auto 1fr;
+  }
+
+  .manual-day-tabs {
+    grid-column: 1 / -1;
+    justify-content: center;
+    flex-wrap: wrap;
   }
 }
 
-@media (max-width: 720px) {
+@media (max-width: 760px) {
   .timetable-overview-page {
     padding: 8px;
   }
 
   .timetable-command-title,
-  .timetable-command-tools,
-  .timetable-preview-toolbar {
+  .timetable-preview-toolbar,
+  .manual-selection-summary,
+  .teacher-transfer-confirmation {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .timetable-command-tools {
+    display: grid;
+    grid-template-columns: 1fr;
   }
 
   .timetable-grade-strip {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .timetable-day-tabs {
+  .timetable-preview-toolbar {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
   }
 
-  .timetable-day-tabs button {
-    min-width: 0;
+  .timetable-preview-status {
+    justify-content: flex-start;
+    flex-wrap: wrap;
   }
 
-  .timetable-live-grid-wrap {
-    overflow-x: auto;
+  .timetable-modal-overlay {
+    padding: 7px;
   }
 
-  .timetable-live-grid {
-    min-width: 820px;
+  .timetable-times-modal,
+  .lesson-cell-modal,
+  .manual-timetable-modal {
+    width: 100%;
+    max-height: 98vh;
+    border-radius: 14px;
   }
 
   .timetable-time-row {
     grid-template-columns: 1fr;
+  }
+
+  .timetable-time-row > strong {
+    text-align: right;
+  }
+
+  .manual-card-grid.two-columns,
+  .manual-card-grid.three-columns,
+  .manual-card-grid.grade-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .manual-card-grid.section-columns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .manual-selection-summary button {
+    width: 100%;
+  }
+
+  .manual-table-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .manual-table-identity {
+    flex-wrap: wrap;
+  }
+
+  .teacher-choice-list {
+    grid-template-columns: 1fr;
+  }
+
+  .lesson-editor-heading {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .teacher-transfer-actions {
+    width: 100%;
+  }
+
+  .teacher-transfer-actions button {
+    flex: 1 1 0;
+  }
+
+  .timetable-modal-actions {
+    flex-wrap: wrap;
+  }
+
+  .timetable-modal-actions button {
+    flex: 1 1 120px;
+  }
+
+  .lesson-actions .actions-spacer {
+    display: none;
   }
 }
