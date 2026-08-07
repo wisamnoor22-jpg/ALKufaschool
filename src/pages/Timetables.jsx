@@ -5,7 +5,7 @@ const API_BASE = "http://localhost:5000";
 const TIMETABLE_API = `${API_BASE}/timetables`;
 const BAGHDAD_TIME_ZONE = "Asia/Baghdad";
 const TABLE_HEADER_HEIGHT = 58;
-const OPPORTUNITY_MINUTES = 10;
+const OPPORTUNITY_MINUTES = 1;
 const OPPORTUNITY_ROW_WEIGHT = 0.42;
 
 const DAYS = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس"];

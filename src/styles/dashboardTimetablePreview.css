@@ -369,9 +369,9 @@
   position: absolute;
   right: 0;
   left: 0;
-  height: 2px;
-  background: var(--danger);
-  box-shadow: 0 0 0 1px rgba(214, 76, 76, 0.12);
+  height: 3px;
+  background: #d4af37;
+  box-shadow: 0 0 10px rgba(212, 175, 55, 0.75);
   z-index: 5;
 }
 
@@ -383,7 +383,8 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: var(--danger);
+  background: #d4af37;
+  box-shadow: 0 0 8px rgba(212, 175, 55, 0.8);
   transform: translate(50%, -50%);
 }
 
@@ -393,8 +394,8 @@
   top: 50%;
   padding: 3px 8px;
   border-radius: 999px;
-  background: var(--danger);
-  color: #fff;
+  background: #d4af37;
+  color: #211900;
   font-size: 10px;
   font-weight: 900;
   direction: ltr;
