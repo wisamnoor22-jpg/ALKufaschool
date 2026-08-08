@@ -522,6 +522,22 @@
   color: var(--sm-success);
 }
 
+.student-section-actions button.delete {
+  border-color: color-mix(in srgb, var(--danger, #d64c4c) 38%, var(--sm-border));
+  background: color-mix(in srgb, var(--danger, #d64c4c) 7%, var(--sm-surface));
+  color: var(--danger, #d64c4c);
+}
+
+.student-section-actions button.delete:hover {
+  border-color: var(--danger, #d64c4c);
+  background: color-mix(in srgb, var(--danger, #d64c4c) 13%, var(--sm-surface));
+}
+
+.student-section-actions button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .student-sections-empty,
 .student-sections-state {
   padding: 28px 16px;
@@ -631,6 +647,32 @@
   border-color: var(--sm-brand);
   background: var(--sm-brand);
   color: #ffffff;
+}
+
+.student-sections-form-actions button.danger {
+  border-color: var(--danger, #d64c4c);
+  background: var(--danger, #d64c4c);
+  color: #ffffff;
+}
+
+.student-delete-warning {
+  display: grid;
+  gap: 5px;
+  padding: 11px 12px;
+  border: 1px solid color-mix(in srgb, var(--danger, #d64c4c) 28%, var(--sm-border));
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--danger, #d64c4c) 7%, var(--sm-surface));
+}
+
+.student-delete-warning strong {
+  color: var(--danger, #d64c4c);
+  font-size: 11px;
+}
+
+.student-delete-warning span {
+  color: var(--sm-muted);
+  font-size: 10px;
+  line-height: 1.7;
 }
 
 .student-transfer-layout {

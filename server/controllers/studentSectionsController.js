@@ -61,6 +61,97 @@ const getSchoolGrades = async (client = db) => {
   }));
 };
 
+
+const getGradeDisplayName = async (client, gradeId) => {
+  const grades = await getSchoolGrades(client);
+  const grade = grades.find((item) => Number(item.id) === Number(gradeId));
+
+  if (grade) {
+    return grade.display_name || grade.name || "غير محدد";
+  }
+
+  const result = await client.query(
+    "SELECT name FROM grades WHERE id = $1 LIMIT 1",
+    [gradeId]
+  );
+
+  return result.rows[0]?.name || "غير محدد";
+};
+
+const getTransferActor = (req) =>
+  String(
+    req.user?.full_name ||
+      req.user?.username ||
+      req.body?.transferred_by ||
+      "النظام"
+  )
+    .trim()
+    .slice(0, 120) || "النظام";
+
+const logStudentSectionTransfers = async ({
+  client,
+  students,
+  academicYear,
+  gradeId,
+  fromSection,
+  toSection,
+  reason,
+  source,
+  actor,
+}) => {
+  if (!students.length) return;
+
+  const gradeName = await getGradeDisplayName(client, gradeId);
+  const academicYearName = getAcademicYearLabel(academicYear);
+  const transferSource = source || "manual";
+  const transferredBy = actor || "النظام";
+
+  for (const student of students) {
+    const studentId = Number(student.student_id);
+    const studentName = student.full_name || `طالب رقم ${studentId}`;
+    const actionText =
+      reason || `نقل من شعبة ${fromSection.name} إلى شعبة ${toSection.name}`;
+
+    await client.query(
+      `
+        INSERT INTO deletion_archive (
+          entity_type,
+          entity_id,
+          entity_name,
+          deletion_reason,
+          deleted_by,
+          metadata
+        )
+        VALUES ($1, $2, $3, $4, $5, $6::jsonb)
+      `,
+      [
+        "student_section_transfer",
+        String(studentId),
+        studentName,
+        actionText,
+        transferredBy,
+        JSON.stringify({
+          record_kind: "transfer",
+          student_id: studentId,
+          student_name: studentName,
+          academic_year_id: Number(academicYear.id),
+          academic_year: academicYearName,
+          grade_id: Number(gradeId),
+          grade_name: gradeName,
+          from_section_id: Number(fromSection.id),
+          from_section_name: fromSection.name,
+          to_section_id: Number(toSection.id),
+          to_section_name: toSection.name,
+          transfer_reason: actionText,
+          transfer_source: transferSource,
+          transferred_by: transferredBy,
+          transferred_at: new Date().toISOString(),
+        }),
+      ]
+    );
+  }
+};
+
 const getSectionOrThrow = async (client, sectionId, academicYearId) => {
   const result = await client.query(
     `
@@ -361,12 +452,163 @@ const renameStudentSection = async (req, res) => {
   }
 };
 
+const deleteStudentSection = async (req, res) => {
+  const sectionId = toPositiveInteger(req.params.id);
+  const moveToSectionId = toPositiveInteger(req.body?.move_to_section_id);
+
+  if (!sectionId) {
+    return res.status(400).json({ message: "معرف الشعبة غير صحيح" });
+  }
+
+  const client = await db.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const academicYear = await getActiveAcademicYear(client);
+    const academicYearId = Number(academicYear.id);
+    const section = await getSectionOrThrow(
+      client,
+      sectionId,
+      academicYearId
+    );
+
+    const studentsResult = await client.query(
+      `
+        SELECT
+          se.student_id,
+          s.full_name
+        FROM student_enrollments se
+        JOIN students s ON s.id = se.student_id
+        WHERE se.academic_year_id = $1
+          AND se.section_id = $2
+          AND se.enrollment_status = 'active'
+          AND se.deleted_at IS NULL
+        FOR UPDATE OF se
+      `,
+      [academicYearId, sectionId]
+    );
+
+    const transferStudents = studentsResult.rows;
+    const studentIds = transferStudents.map((row) => Number(row.student_id));
+
+    let targetSection = null;
+
+    if (studentIds.length > 0) {
+      if (!moveToSectionId) {
+        await client.query("ROLLBACK");
+        return res.status(409).json({
+          message:
+            "هذه الشعبة تحتوي طلابًا. اختر شعبة أخرى من الصف نفسه لنقل الطلاب إليها ثم أعد الحذف.",
+          requires_transfer: true,
+          student_count: studentIds.length,
+        });
+      }
+
+      if (moveToSectionId === sectionId) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({
+          message: "لا يمكن نقل الطلاب إلى الشعبة نفسها",
+        });
+      }
+
+      targetSection = await getSectionOrThrow(
+        client,
+        moveToSectionId,
+        academicYearId
+      );
+
+      if (Number(targetSection.grade_id) !== Number(section.grade_id)) {
+        await client.query("ROLLBACK");
+        return res.status(400).json({
+          message: "يجب نقل الطلاب إلى شعبة أخرى داخل الصف نفسه",
+        });
+      }
+
+      await client.query(
+        `
+          UPDATE student_enrollments
+          SET section_id = $1
+          WHERE academic_year_id = $2
+            AND section_id = $3
+            AND enrollment_status = 'active'
+            AND deleted_at IS NULL
+        `,
+        [moveToSectionId, academicYearId, sectionId]
+      );
+
+      await client.query(
+        `
+          UPDATE students
+          SET section = $1
+          WHERE id = ANY($2::INTEGER[])
+        `,
+        [targetSection.name, studentIds]
+      );
+
+      await logStudentSectionTransfers({
+        client,
+        students: transferStudents,
+        academicYear,
+        gradeId: section.grade_id,
+        fromSection: section,
+        toSection: targetSection,
+        reason: `نقل تلقائي بسبب حذف شعبة ${section.name}`,
+        source: "section_delete",
+        actor: getTransferActor(req),
+      });
+    }
+
+    const deleted = await client.query(
+      `
+        UPDATE sections
+        SET is_active = FALSE
+        WHERE id = $1
+          AND academic_year_id = $2
+          AND is_active = TRUE
+        RETURNING id, grade_id, name
+      `,
+      [sectionId, academicYearId]
+    );
+
+    if (!deleted.rows.length) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({
+        message: "الشعبة غير موجودة أو تم حذفها مسبقًا",
+      });
+    }
+
+    await client.query("COMMIT");
+
+    const movedText = studentIds.length
+      ? ` وتم نقل ${studentIds.length} طالب إلى شعبة ${targetSection.name}`
+      : "";
+
+    return res.json({
+      message: `تم حذف شعبة ${section.name} بنجاح${movedText}`,
+      deleted_section_id: sectionId,
+      transferred_count: studentIds.length,
+      transferred_to_section_id: targetSection ? Number(targetSection.id) : null,
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("deleteStudentSection error:", error);
+    return res.status(error.status || 500).json({
+      message: error.message || "تعذر حذف الشعبة",
+    });
+  } finally {
+    client.release();
+  }
+};
+
 const transferStudentsBetweenSections = async (req, res) => {
   const fromSectionId = toPositiveInteger(req.body?.from_section_id);
   const toSectionId = toPositiveInteger(req.body?.to_section_id);
   const studentIds = Array.isArray(req.body?.student_ids)
     ? [...new Set(req.body.student_ids.map(toPositiveInteger).filter(Boolean))]
     : [];
+  const transferReason =
+    String(req.body?.reason || "").trim().slice(0, 500) || "نقل بين الشعب";
 
   if (!fromSectionId || !toSectionId) {
     return res.status(400).json({
@@ -413,14 +655,17 @@ const transferStudentsBetweenSections = async (req, res) => {
 
     const eligible = await client.query(
       `
-        SELECT student_id
-        FROM student_enrollments
-        WHERE academic_year_id = $1
-          AND section_id = $2
-          AND enrollment_status = 'active'
-          AND deleted_at IS NULL
-          AND student_id = ANY($3::INTEGER[])
-        FOR UPDATE
+        SELECT
+          se.student_id,
+          s.full_name
+        FROM student_enrollments se
+        JOIN students s ON s.id = se.student_id
+        WHERE se.academic_year_id = $1
+          AND se.section_id = $2
+          AND se.enrollment_status = 'active'
+          AND se.deleted_at IS NULL
+          AND se.student_id = ANY($3::INTEGER[])
+        FOR UPDATE OF se
       `,
       [academicYearId, fromSectionId, studentIds]
     );
@@ -457,6 +702,18 @@ const transferStudentsBetweenSections = async (req, res) => {
       [toSection.name, eligibleIds]
     );
 
+    await logStudentSectionTransfers({
+      client,
+      students: eligible.rows,
+      academicYear,
+      gradeId: fromSection.grade_id,
+      fromSection,
+      toSection,
+      reason: transferReason,
+      source: "manual",
+      actor: getTransferActor(req),
+    });
+
     await client.query("COMMIT");
 
     return res.json({
@@ -479,5 +736,6 @@ module.exports = {
   initializeMorningSectionPlan,
   createStudentSection,
   renameStudentSection,
+  deleteStudentSection,
   transferStudentsBetweenSections,
 };

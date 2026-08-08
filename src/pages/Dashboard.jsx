@@ -193,13 +193,16 @@ const sections = [
     code: "DA",
     showsArchiveCount: true,
   },
-  {
-    title: "الإعدادات",
-    description: "إعدادات النظام",
-    path: "/settings",
-    code: "SE",
-  },
 ];
+
+const SETTINGS_ITEM = {
+  title: "الإعدادات",
+  description: "إعدادات النظام",
+  path: "/settings",
+  code: "SE",
+};
+
+const searchableSections = [...sections, SETTINGS_ITEM];
 
 const numberFormatter = new Intl.NumberFormat("ar-IQ", {
   maximumFractionDigits: 1,
@@ -476,7 +479,8 @@ const resolveLiveTimeline = ({
   };
 };
 
-const entryKey = (section, periodNumber) => `${section}-${periodNumber}`;
+const entryKey = (grade, section, periodNumber) =>
+  `${grade}::${section}::${periodNumber}`;
 
 function Donut({ value, color, label }) {
   const radius = 52;
@@ -511,7 +515,7 @@ function Donut({ value, color, label }) {
 function DashboardTimetablePreview({ onOpenTimetable }) {
   const [currentTime, setCurrentTime] = useState(() => new Date());
   const [times, setTimes] = useState(DEFAULT_SHIFT_TIMES);
-  const [selectedGrade, setSelectedGrade] = useState(TIMETABLE_GRADES[0]);
+  const [sectionCatalog, setSectionCatalog] = useState([]);
   const [selectedDay, setSelectedDay] = useState(() => {
     const day = getArabicBaghdadDay(new Date());
     return TIMETABLE_DAYS.includes(day) ? day : TIMETABLE_DAYS[0];
@@ -556,6 +560,26 @@ function DashboardTimetablePreview({ onOpenTimetable }) {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSectionCatalog = async () => {
+      try {
+        const data = await requestJson("http://localhost:5000/student-sections");
+        if (!cancelled) {
+          setSectionCatalog(Array.isArray(data.sections) ? data.sections : []);
+        }
+      } catch {
+        if (!cancelled) setSectionCatalog([]);
+      }
+    };
+
+    loadSectionCatalog();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const baghdadClock = getBaghdadClockState(currentTime);
   const schoolDayState = getSchoolDayState(currentTime);
   const currentArabicDay = schoolDayState.day;
@@ -563,10 +587,24 @@ function DashboardTimetablePreview({ onOpenTimetable }) {
 
   const liveState = getCurrentShiftState(baghdadClock.nowMinutes, times);
   const activeShift = liveState.shift;
-  const activeSections = useMemo(
-    () => getDashboardSections(activeShift, selectedGrade),
-    [activeShift, selectedGrade]
-  );
+  const activeColumns = useMemo(() => {
+    return TIMETABLE_GRADES.flatMap((grade) => {
+      const databaseSections = sectionCatalog
+        .filter((section) => section.grade_name === grade)
+        .map((section) => String(section.name || "").trim())
+        .filter(Boolean);
+
+      const sectionNames = databaseSections.length
+        ? [...new Set(databaseSections)]
+        : MORNING_TIMETABLE_SECTIONS_BY_GRADE[grade] || ["أ"];
+
+      return sectionNames.map((section) => ({
+        grade,
+        section,
+        key: `${grade}::${section}`,
+      }));
+    });
+  }, [sectionCatalog]);
   const activeTimes = times[activeShift] || [];
   const activeScheduleRows = useMemo(
     () =>
@@ -605,7 +643,7 @@ function DashboardTimetablePreview({ onOpenTimetable }) {
     () =>
       new Map(
         entries.map((entry) => [
-          entryKey(entry.section, entry.period_number),
+          entryKey(entry.grade, entry.section, entry.period_number),
           entry,
         ])
       ),
@@ -617,24 +655,34 @@ function DashboardTimetablePreview({ onOpenTimetable }) {
       setLoading(true);
       setEntriesError("");
 
-      const params = new URLSearchParams({
-        shift: activeShift,
-        grade: selectedGrade,
-        day_name: selectedDay,
-      });
+      const gradesToLoad = [...new Set(activeColumns.map((column) => column.grade))];
+      const responses = await Promise.all(
+        gradesToLoad.map(async (grade) => {
+          const params = new URLSearchParams({
+            shift: activeShift,
+            grade,
+            day_name: selectedDay,
+          });
 
-      const data = await requestJson(
-        `${TIMETABLE_API}/entries?${params.toString()}`
+          const data = await requestJson(
+            `${TIMETABLE_API}/entries?${params.toString()}`
+          );
+
+          return (Array.isArray(data.entries) ? data.entries : []).map((entry) => ({
+            ...entry,
+            grade: entry.grade || grade,
+          }));
+        })
       );
 
-      setEntries(Array.isArray(data.entries) ? data.entries : []);
+      setEntries(responses.flat());
     } catch (error) {
       setEntries([]);
       setEntriesError(error.message || "تعذر تحميل جدول الحصص");
     } finally {
       setLoading(false);
     }
-  }, [activeShift, selectedDay, selectedGrade]);
+  }, [activeColumns, activeShift, selectedDay]);
 
   useEffect(() => {
     loadEntries();
@@ -668,18 +716,6 @@ function DashboardTimetablePreview({ onOpenTimetable }) {
         </div>
       </div>
 
-      <div className="dashboard-timetable-grades" aria-label="اختيار الصف">
-        {TIMETABLE_GRADES.map((grade) => (
-          <button
-            key={grade}
-            type="button"
-            className={selectedGrade === grade ? "active" : ""}
-            onClick={() => setSelectedGrade(grade)}
-          >
-            {grade}
-          </button>
-        ))}
-      </div>
 
       <div className="dashboard-timetable-toolbar">
         <div className="dashboard-timetable-days" aria-label="اختيار اليوم">
@@ -697,7 +733,7 @@ function DashboardTimetablePreview({ onOpenTimetable }) {
 
         <div className="dashboard-timetable-status">
           <span className={`status-dot ${liveState.status}`} />
-          <strong>{selectedGrade}</strong>
+          <strong>جميع الصفوف والشعب</strong>
           <span>{selectedDay}</span>
         </div>
       </div>
@@ -709,15 +745,25 @@ function DashboardTimetablePreview({ onOpenTimetable }) {
       )}
 
       <div className="dashboard-timetable-card">
-        <div className="dashboard-timetable-table-wrap">
-          <table className="dashboard-timetable-table">
+        <div className="dashboard-timetable-table-wrap" style={{ overflowX: "hidden" }}>
+          <table className="dashboard-timetable-table" style={{ minWidth: 0, tableLayout: "fixed" }}>
+            <colgroup>
+              <col style={{ width: "50px" }} />
+              <col style={{ width: "80px" }} />
+              {activeColumns.map((column) => (
+                <col key={column.key} />
+              ))}
+            </colgroup>
             <thead>
               <tr>
                 <th className="dashboard-timetable-period-column">الحصة</th>
                 <th className="dashboard-timetable-time-column">الوقت</th>
 
-                {activeSections.map((section) => (
-                  <th key={section}>{`${selectedGrade} ${section}`}</th>
+                {activeColumns.map((column) => (
+                  <th key={column.key} style={{ padding: "4px 2px", fontSize: "9px", lineHeight: 1.15 }}>
+                    <span style={{ display: "block", whiteSpace: "normal" }}>{column.grade}</span>
+                    <strong style={{ display: "block", marginTop: "2px", fontSize: "10px" }}>{column.section}</strong>
+                  </th>
                 ))}
               </tr>
             </thead>
@@ -734,7 +780,7 @@ function DashboardTimetablePreview({ onOpenTimetable }) {
                           : ""
                       }`}
                     >
-                      <td colSpan={activeSections.length + 2}>
+                      <td colSpan={activeColumns.length + 2}>
                         <div className="dashboard-opportunity-band">
                           <span />
                           <strong>الفرصة</strong>
@@ -771,29 +817,29 @@ function DashboardTimetablePreview({ onOpenTimetable }) {
                       <strong>{formatLessonClock(period.end)}</strong>
                     </td>
 
-                    {activeSections.map((section) => {
+                    {activeColumns.map((column) => {
                       const entry = entryMap.get(
-                        entryKey(section, period.period_number)
+                        entryKey(column.grade, column.section, period.period_number)
                       );
 
                       return (
-                        <td key={`${section}-${period.period_number}`}>
+                        <td key={`${column.key}-${period.period_number}`} style={{ padding: "3px 1px" }}>
                           {entry ? (
-                            <div className="dashboard-lesson-assignment">
-                              <strong>
+                            <div className="dashboard-lesson-assignment" style={{ minHeight: "50px", padding: "3px 1px" }}>
+                              <strong style={{ fontSize: "8.5px", lineHeight: 1.15, overflowWrap: "anywhere" }}>
                                 {entry.teacher_name || "معلمة غير محددة"}
                                 {entry.teacher_specialization && (
-                                  <small>
+                                  <small style={{ fontSize: "7px" }}>
                                     ({entry.teacher_specialization})
                                   </small>
                                 )}
                               </strong>
-                              <span>{entry.subject}</span>
+                              <span style={{ fontSize: "7.5px", lineHeight: 1.15 }}>{entry.subject}</span>
                             </div>
                           ) : (
-                            <div className="dashboard-lesson-assignment empty">
-                              <strong>غير محدد</strong>
-                              <span>لم تُضف حصة</span>
+                            <div className="dashboard-lesson-assignment empty" style={{ minHeight: "50px", padding: "3px 1px" }}>
+                              <strong style={{ fontSize: "8px" }}>غير محدد</strong>
+                              <span style={{ fontSize: "7px" }}>لم تُضف حصة</span>
                             </div>
                           )}
                         </td>
@@ -1014,7 +1060,7 @@ export default function Dashboard() {
       return [];
     }
 
-    return sections.filter(
+    return searchableSections.filter(
       (item) =>
         item.title.toLowerCase().includes(query) ||
         item.description.toLowerCase().includes(query)
@@ -1160,13 +1206,15 @@ export default function Dashboard() {
       
                 <button
                   type="button"
-                  className="statistics-refresh-button"
+                  className={`statistics-refresh-button ${
+                    loading || refreshing ? "is-refreshing" : ""
+                  }`}
                   onClick={() => refreshStatistics()}
                   disabled={loading || refreshing}
-                  aria-label="تحديث الإحصائيات"
+                  aria-label={loading || refreshing ? "جاري تحديث الإحصائيات" : "تحديث الإحصائيات"}
+                  title={loading || refreshing ? "جاري تحديث الإحصائيات" : "تحديث الإحصائيات"}
                 >
                   <span aria-hidden="true">↻</span>
-                  {loading || refreshing ? "جاري التحديث..." : "تحديث الإحصائيات"}
                 </button>
       
                 <div className="date-chip">{dateText}</div>
@@ -1194,13 +1242,27 @@ export default function Dashboard() {
                   )}
                 </div>
       
-                <button
-                  type="button"
-                  className="logout-button"
-                  onClick={() => navigate("/")}
-                >
-                  تسجيل الخروج
-                </button>
+                <div className="header-account-actions">
+                  <button
+                    type="button"
+                    className="settings-button"
+                    onClick={() => navigate(SETTINGS_ITEM.path)}
+                    aria-label="الإعدادات"
+                    title="الإعدادات"
+                  >
+                    <span className="settings-gear" aria-hidden="true">⚙</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="logout-button"
+                    onClick={() => navigate("/")}
+                    aria-label="تسجيل الخروج"
+                    title="تسجيل الخروج"
+                  >
+                    <span aria-hidden="true">↪</span>
+                  </button>
+                </div>
               </div>
             </header>
         </div>,
@@ -1729,38 +1791,48 @@ export default function Dashboard() {
           </article>
         </section>
 
-        <section className="sections-area">
-          <div className="section-title">
-            <h2>أقسام النظام</h2>
-            <p>انتقل مباشرة إلى القسم المطلوب</p>
-          </div>
-
-          <div className="section-cards">
-            {sections.map((item) => (
-              <Link
-                key={item.path}
-                to={item.path}
-                className="section-card"
-              >
-                <span className="section-icon">{item.code}</span>
-                <div>
-                  <h3>{item.title}</h3>
-                  <p>
-                    {item.showsArchiveCount
-                      ? loading && !statistics
-                        ? "جاري حساب العناصر المحذوفة..."
-                        : `${formatNumber(
-                            stats.archive.total
-                          )} عنصر محذوف`
-                      : item.description}
-                  </p>
-                </div>
-                <b>←</b>
-              </Link>
-            ))}
-          </div>
-        </section>
       </main>
+
+      <aside
+        className="dashboard-sections-drawer"
+        aria-label="أقسام النظام"
+      >
+        <div className="dashboard-sections-drawer-header">
+          <span className="dashboard-drawer-handle" aria-hidden="true">‹</span>
+          <div>
+            <strong>أقسام النظام</strong>
+            <small>مرّر المؤشر لعرض التفاصيل</small>
+          </div>
+        </div>
+
+        <nav className="dashboard-sections-nav" aria-label="روابط أقسام النظام">
+          {sections.map((item) => (
+            <Link
+              key={item.path}
+              to={item.path}
+              className="dashboard-section-link"
+              title={item.title}
+            >
+              <span className="dashboard-section-code" aria-hidden="true">
+                {item.code}
+              </span>
+
+              <div className="dashboard-section-copy">
+                <h3>{item.title}</h3>
+                <p>
+                  {item.showsArchiveCount
+                    ? loading && !statistics
+                      ? "جاري حساب العناصر المحذوفة..."
+                      : `${formatNumber(stats.archive.total)} عنصر محذوف`
+                    : item.description}
+                </p>
+              </div>
+
+              <span className="dashboard-section-arrow" aria-hidden="true">←</span>
+            </Link>
+          ))}
+        </nav>
+      </aside>
 
       {attendanceOpen && (
         <div className="modal-overlay">

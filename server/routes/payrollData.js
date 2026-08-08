@@ -1,8 +1,6 @@
 const express = require("express");
-
-const { getPayrollData } = require("../controllers/payrollController");
-
 const router = express.Router();
+const { getPayrollData } = require("../controllers/payrollDataController");
 
 router.get("/", getPayrollData);
 

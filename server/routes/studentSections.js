@@ -6,6 +6,7 @@ const {
   initializeMorningSectionPlan,
   createStudentSection,
   renameStudentSection,
+  deleteStudentSection,
   transferStudentsBetweenSections,
 } = require("../controllers/studentSectionsController");
 
@@ -14,5 +15,6 @@ router.post("/initialize-plan", initializeMorningSectionPlan);
 router.post("/transfer", transferStudentsBetweenSections);
 router.post("/", createStudentSection);
 router.put("/:id", renameStudentSection);
+router.delete("/:id", deleteStudentSection);
 
 module.exports = router;

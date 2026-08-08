@@ -1,133 +1,168 @@
 /*
-  أدوات التنقل العامة لفروع البرنامج.
-  - الدارك مود: ثابت أعلى يمين الشاشة.
-  - الرجوع: ثابت أسفل يمين الشاشة.
-  لا يحجزان مساحة داخل الصفحة ولا يتحركان مع التمرير.
+  أدوات التنقل العامة.
+  تُرسم مباشرة داخل document.body باستخدام Portal حتى لا تختفي
+  بسبب overflow / transform / z-index في أي صفحة.
 */
-.app-navigation-bar {
-  position: fixed;
-  inset: 0;
-  z-index: 2147483500;
-  pointer-events: none;
-  direction: rtl;
+
+.app-global-navigation-layer {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483646 !important;
+  width: 0 !important;
+  height: 0 !important;
+  pointer-events: none !important;
+  isolation: isolate !important;
 }
 
 .app-navigation-theme-button,
 .app-navigation-back-button {
-  position: fixed;
-  right: 20px;
-  pointer-events: auto;
-  font: inherit;
-  border: 1px solid var(--border, #e4eaf1);
-  background: color-mix(in srgb, var(--surface, #ffffff) 96%, transparent);
-  color: var(--text, #162234);
-  box-shadow: 0 8px 24px rgba(15, 59, 103, 0.13);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  cursor: pointer;
+  position: fixed !important;
+  right: 16px !important;
+  z-index: 2147483647 !important;
+  box-sizing: border-box !important;
+  pointer-events: auto !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+
+  border: 1px solid color-mix(
+    in srgb,
+    var(--border, #dbe4ee) 90%,
+    transparent
+  ) !important;
+
+  /* 35% شفافية = 65% من لون الخلفية */
+  background: color-mix(
+    in srgb,
+    var(--surface, #ffffff) 65%,
+    transparent
+  ) !important;
+
+  color: var(--text, #162234) !important;
+  box-shadow: 0 8px 26px rgba(15, 59, 103, 0.16) !important;
+  backdrop-filter: blur(16px) saturate(135%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(135%) !important;
+
+  cursor: pointer !important;
+  font: inherit !important;
   transition:
     transform 0.18s ease,
     background 0.18s ease,
     border-color 0.18s ease,
-    box-shadow 0.18s ease;
+    box-shadow 0.18s ease !important;
 }
 
-/* ثابت أعلى يمين الصفحة */
 .app-navigation-theme-button {
-  top: 18px;
-  width: 44px;
-  height: 44px;
-  display: grid;
-  place-items: center;
-  padding: 0;
-  border-radius: 14px;
-  color: var(--brand-700, #1b5c99);
+  top: 14px !important;
+  width: 44px !important;
+  height: 44px !important;
+  display: grid !important;
+  place-items: center !important;
+  padding: 0 !important;
+  border-radius: 14px !important;
+  color: var(--brand-700, #1b5c99) !important;
 }
 
 .app-navigation-theme-button span {
-  font-size: 23px;
-  line-height: 1;
+  display: block !important;
+  font-size: 24px !important;
+  line-height: 1 !important;
 }
 
-/* ثابت أسفل يمين الصفحة */
 .app-navigation-back-button {
-  bottom: 20px;
-  min-width: 92px;
-  min-height: 42px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 9px 16px;
-  border-radius: 13px;
-  direction: rtl;
+  bottom: 16px !important;
+  min-width: 94px !important;
+  min-height: 43px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  padding: 9px 16px !important;
+  border-radius: 13px !important;
+  direction: rtl !important;
 }
 
 .app-navigation-back-button span {
-  font-size: 18px;
-  line-height: 1;
+  font-size: 19px !important;
+  line-height: 1 !important;
 }
 
 .app-navigation-back-button strong {
-  font-size: 12px;
-  font-weight: 900;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  line-height: 1 !important;
 }
 
 .app-navigation-theme-button:hover,
 .app-navigation-back-button:hover {
-  transform: translateY(-1px);
-  border-color: color-mix(
+  transform: translateY(-1px) !important;
+  border-color: var(--brand-600, #2877ba) !important;
+  background: color-mix(
     in srgb,
-    var(--brand-600, #2877ba) 62%,
-    var(--border, #e4eaf1)
-  );
-  background: var(--brand-100, #eaf4ff);
-  box-shadow: 0 10px 28px rgba(15, 59, 103, 0.17);
+    var(--brand-100, #eaf4ff) 65%,
+    transparent
+  ) !important;
+  box-shadow: 0 11px 30px rgba(15, 59, 103, 0.2) !important;
+}
+
+.app-navigation-theme-button:active,
+.app-navigation-back-button:active {
+  transform: scale(0.98) !important;
 }
 
 .app-navigation-theme-button:focus-visible,
 .app-navigation-back-button:focus-visible {
   outline: 3px solid color-mix(
     in srgb,
-    var(--brand-600, #2877ba) 26%,
+    var(--brand-600, #2877ba) 30%,
     transparent
-  );
-  outline-offset: 3px;
+  ) !important;
+  outline-offset: 3px !important;
 }
 
 :root[data-theme="dark"] .app-navigation-theme-button,
 :root[data-theme="dark"] .app-navigation-back-button {
-  background: color-mix(in srgb, var(--surface, #132238) 95%, transparent);
-  border-color: var(--border, #30455f);
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.3);
+  background: color-mix(
+    in srgb,
+    var(--surface, #132238) 65%,
+    transparent
+  ) !important;
+  border-color: color-mix(
+    in srgb,
+    var(--border, #30455f) 90%,
+    transparent
+  ) !important;
+  color: var(--text, #edf5fb) !important;
+  box-shadow: 0 9px 28px rgba(0, 0, 0, 0.34) !important;
 }
 
 :root[data-theme="dark"] .app-navigation-theme-button {
-  color: var(--brand-600, #69adff);
+  color: #f4c95d !important;
 }
 
 @media (max-width: 580px) {
   .app-navigation-theme-button,
   .app-navigation-back-button {
-    right: 12px;
+    right: 10px !important;
   }
 
   .app-navigation-theme-button {
-    top: 12px;
-    width: 42px;
-    height: 42px;
+    top: 10px !important;
+    width: 41px !important;
+    height: 41px !important;
   }
 
   .app-navigation-back-button {
-    bottom: 12px;
-    min-width: 84px;
-    min-height: 40px;
-    padding: 8px 13px;
+    bottom: 10px !important;
+    min-width: 86px !important;
+    min-height: 40px !important;
+    padding: 8px 13px !important;
   }
 }
 
 @media print {
-  .app-navigation-bar {
+  .app-global-navigation-layer,
+  .app-navigation-theme-button,
+  .app-navigation-back-button {
     display: none !important;
   }
 }

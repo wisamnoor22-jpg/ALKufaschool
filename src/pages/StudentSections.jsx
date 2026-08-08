@@ -77,10 +77,14 @@ export default function StudentSections() {
   const [renameSection, setRenameSection] = useState(null);
   const [renameValue, setRenameValue] = useState("");
 
+  const [transferOpen, setTransferOpen] = useState(false);
   const [transferSource, setTransferSource] = useState(null);
   const [transferTargetId, setTransferTargetId] = useState("");
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
   const [transferSearch, setTransferSearch] = useState("");
+
+  const [deleteSection, setDeleteSection] = useState(null);
+  const [deleteTargetId, setDeleteTargetId] = useState("");
 
   const showMessage = (text, type = "success") => {
     setMessage(text);
@@ -152,27 +156,6 @@ export default function StudentSections() {
   const totalStudents = data.students.length;
   const totalSections = data.sections.length;
 
-  const handleInitializePlan = async () => {
-    const confirmed = window.confirm(
-      "سيتم إنشاء الشعب الناقصة فقط حسب التوزيع المعتمد، ولن تُحذف أي شعبة أو يُنقل أي طالب. هل تريد المتابعة؟"
-    );
-    if (!confirmed) return;
-
-    try {
-      setSaving(true);
-      const result = await requestJson(`${SECTIONS_API}/initialize-plan`, {
-        method: "POST",
-        body: JSON.stringify({}),
-      });
-      showMessage(result.message || "تم تطبيق توزيع الشعب المعتمد.");
-      await loadSections();
-    } catch (error) {
-      showMessage(error.message, "error");
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleAddSection = async (event) => {
     event.preventDefault();
 
@@ -204,6 +187,73 @@ export default function StudentSections() {
   const openRename = (section) => {
     setRenameSection(section);
     setRenameValue(section.name || "");
+  };
+
+  const openDeleteSection = (section) => {
+    const targets = data.sections.filter(
+      (candidate) =>
+        Number(candidate.grade_id) === Number(section.grade_id) &&
+        Number(candidate.id) !== Number(section.id)
+    );
+
+    setDeleteSection(section);
+    setDeleteTargetId(targets[0] ? String(targets[0].id) : "");
+  };
+
+  const deleteTargets = useMemo(() => {
+    if (!deleteSection) return [];
+
+    return data.sections.filter(
+      (section) =>
+        Number(section.grade_id) === Number(deleteSection.grade_id) &&
+        Number(section.id) !== Number(deleteSection.id)
+    );
+  }, [data.sections, deleteSection]);
+
+  const handleDeleteSection = async () => {
+    if (!deleteSection) return;
+
+    const studentCount = Number(deleteSection.student_count || 0);
+
+    if (studentCount > 0 && !deleteTargetId) {
+      showMessage(
+        "هذه الشعبة تحتوي طلابًا. أنشئ شعبة أخرى في الصف نفسه أو اختر شعبة لنقل الطلاب إليها قبل الحذف.",
+        "error"
+      );
+      return;
+    }
+
+    const target = deleteTargets.find(
+      (section) => String(section.id) === String(deleteTargetId)
+    );
+
+    const confirmed = window.confirm(
+      studentCount > 0
+        ? `سيتم نقل ${studentCount} طالب من شعبة ${deleteSection.name} إلى شعبة ${target?.name || "المختارة"} ثم حذف الشعبة. هل تريد المتابعة؟`
+        : `هل تريد حذف شعبة ${deleteSection.name} من ${deleteSection.grade_name || "هذا الصف"}؟`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setSaving(true);
+      const result = await requestJson(`${SECTIONS_API}/${deleteSection.id}`, {
+        method: "DELETE",
+        body: JSON.stringify({
+          move_to_section_id:
+            studentCount > 0 ? Number(deleteTargetId) : null,
+        }),
+      });
+
+      setDeleteSection(null);
+      setDeleteTargetId("");
+      showMessage(result.message || "تم حذف الشعبة.");
+      await loadSections();
+    } catch (error) {
+      showMessage(error.message || "تعذر حذف الشعبة.", "error");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleRename = async (event) => {
@@ -253,7 +303,15 @@ export default function StudentSections() {
     );
   }, [data.sections, transferSource]);
 
-  const openTransfer = (section) => {
+  const selectTransferSource = (section) => {
+    if (!section) {
+      setTransferSource(null);
+      setTransferTargetId("");
+      setSelectedStudentIds([]);
+      setTransferSearch("");
+      return;
+    }
+
     const targets = data.sections.filter(
       (candidate) =>
         Number(candidate.grade_id) === Number(section.grade_id) &&
@@ -264,6 +322,16 @@ export default function StudentSections() {
     setTransferTargetId(targets[0] ? String(targets[0].id) : "");
     setSelectedStudentIds([]);
     setTransferSearch("");
+  };
+
+  const openTransferManager = () => {
+    setTransferOpen(true);
+    selectTransferSource(null);
+  };
+
+  const closeTransferManager = () => {
+    setTransferOpen(false);
+    selectTransferSource(null);
   };
 
   const toggleStudent = (studentId) => {
@@ -318,8 +386,7 @@ export default function StudentSections() {
           student_ids: selectedStudentIds,
         }),
       });
-      setTransferSource(null);
-      setSelectedStudentIds([]);
+      closeTransferManager();
       showMessage(result.message || "تم نقل الطلاب.");
       await loadSections();
     } catch (error) {
@@ -345,10 +412,10 @@ export default function StudentSections() {
           <button
             type="button"
             className="student-sections-secondary-action"
-            onClick={handleInitializePlan}
-            disabled={saving}
+            onClick={openTransferManager}
+            disabled={loading || saving || !data.sections.length}
           >
-            تطبيق التوزيع المعتمد
+            نقل الطلاب
           </button>
           <button
             type="button"
@@ -370,8 +437,8 @@ export default function StudentSections() {
           <span>الثالث إلى السادس + الأول والثاني المتوسط: أ فقط</span>
         </div>
         <small>
-          زر «تطبيق التوزيع المعتمد» ينشئ الشعب الناقصة فقط ولا يحذف الشعب
-          الموجودة ولا ينقل أي طالب تلقائيًا.
+          استخدم زر «نقل الطلاب» أعلى الصفحة لنقل طالب واحد أو مجموعة طلاب بين
+          شعب الصف نفسه.
         </small>
       </section>
 
@@ -452,10 +519,12 @@ export default function StudentSections() {
                         </button>
                         <button
                           type="button"
-                          className="transfer"
-                          onClick={() => openTransfer(section)}
+                          className="delete"
+                          onClick={() => openDeleteSection(section)}
+                          disabled={saving}
+                          title="حذف الشعبة"
                         >
-                          نقل الطلاب
+                          حذف الشعبة
                         </button>
                       </div>
                     </div>
@@ -544,20 +613,118 @@ export default function StudentSections() {
         </Modal>
       )}
 
-      {transferSource && (
+      {deleteSection && (
         <Modal
-          title={`نقل طلاب شعبة ${transferSource.name}`}
-          description={transferSource.grade_name || "اختر الطلاب والشعبة الجديدة"}
-          onClose={() => setTransferSource(null)}
+          title={`حذف شعبة ${deleteSection.name}`}
+          description={deleteSection.grade_name || "تأكيد حذف الشعبة"}
+          onClose={() => {
+            if (!saving) {
+              setDeleteSection(null);
+              setDeleteTargetId("");
+            }
+          }}
+        >
+          <div className="student-sections-form">
+            <div className="student-delete-warning">
+              <strong>سيتم حذف الشعبة فقط، ولن يُحذف أي طالب.</strong>
+              {Number(deleteSection.student_count || 0) > 0 ? (
+                <span>
+                  يوجد {deleteSection.student_count} طالب في هذه الشعبة. اختر
+                  الشعبة التي سينتقل إليها جميع الطلاب أولًا.
+                </span>
+              ) : (
+                <span>هذه الشعبة فارغة ويمكن حذفها مباشرة.</span>
+              )}
+            </div>
+
+            {Number(deleteSection.student_count || 0) > 0 && (
+              <label>
+                <span>نقل جميع الطلاب إلى</span>
+                <select
+                  value={deleteTargetId}
+                  onChange={(event) => setDeleteTargetId(event.target.value)}
+                  required
+                >
+                  {deleteTargets.length ? (
+                    deleteTargets.map((section) => (
+                      <option key={section.id} value={String(section.id)}>
+                        شعبة {section.name}
+                      </option>
+                    ))
+                  ) : (
+                    <option value="">
+                      {transferSource
+                        ? "لا توجد شعبة أخرى في هذا الصف"
+                        : "اختر الشعبة الحالية أولًا"}
+                    </option>
+                  )}
+                </select>
+              </label>
+            )}
+
+            <div className="student-sections-form-actions">
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteSection(null);
+                  setDeleteTargetId("");
+                }}
+                disabled={saving}
+              >
+                إلغاء
+              </button>
+              <button
+                type="button"
+                className="danger"
+                onClick={handleDeleteSection}
+                disabled={
+                  saving ||
+                  (Number(deleteSection.student_count || 0) > 0 &&
+                    !deleteTargetId)
+                }
+              >
+                {saving ? "جاري الحذف..." : "تأكيد حذف الشعبة"}
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {transferOpen && (
+        <Modal
+          title="نقل الطلاب بين الشعب"
+          description="اختر الشعبة الحالية، ثم حدد الطلاب والشعبة التي سينتقلون إليها."
+          onClose={closeTransferManager}
           wide
         >
           <div className="student-transfer-layout">
             <aside className="student-transfer-destination">
               <label>
+                <span>الشعبة الحالية</span>
+                <select
+                  value={transferSource ? String(transferSource.id) : ""}
+                  onChange={(event) => {
+                    const section = data.sections.find(
+                      (item) => String(item.id) === event.target.value
+                    );
+                    selectTransferSource(section || null);
+                  }}
+                >
+                  <option value="">اختر الشعبة</option>
+                  {data.sections.map((section) => (
+                    <option key={section.id} value={String(section.id)}>
+                      {section.grade_name || "الصف"} — شعبة {section.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label>
                 <span>النقل إلى</span>
                 <select
                   value={transferTargetId}
                   onChange={(event) => setTransferTargetId(event.target.value)}
+                  disabled={!transferSource}
                 >
                   {transferTargets.length ? (
                     transferTargets.map((section) => (
@@ -566,7 +733,11 @@ export default function StudentSections() {
                       </option>
                     ))
                   ) : (
-                    <option value="">لا توجد شعبة أخرى في هذا الصف</option>
+                    <option value="">
+                      {transferSource
+                        ? "لا توجد شعبة أخرى في هذا الصف"
+                        : "اختر الشعبة الحالية أولًا"}
+                    </option>
                   )}
                 </select>
               </label>
@@ -581,7 +752,12 @@ export default function StudentSections() {
                 type="button"
                 className="student-transfer-submit"
                 onClick={handleTransfer}
-                disabled={saving || !transferTargetId || !selectedStudentIds.length}
+                disabled={
+                  saving ||
+                  !transferSource ||
+                  !transferTargetId ||
+                  !selectedStudentIds.length
+                }
               >
                 {saving ? "جاري النقل..." : "نقل الطلاب المحددين"}
               </button>
@@ -624,7 +800,9 @@ export default function StudentSections() {
                   })
                 ) : (
                   <div className="student-sections-empty">
-                    لا يوجد طلاب في هذه الشعبة أو لا توجد نتائج مطابقة.
+                    {transferSource
+                      ? "لا يوجد طلاب في هذه الشعبة أو لا توجد نتائج مطابقة."
+                      : "اختر الشعبة الحالية لعرض طلابها."}
                   </div>
                 )}
               </div>

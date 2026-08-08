@@ -16,7 +16,6 @@ const payrollRoutes = require("./routes/payroll");
 const timetablesRoutes = require("./routes/timetables");
 
 const studentSectionsRoutes = require("./routes/studentSections");
-const payrollDataRoutes = require("./routes/payrollData");
 const app = express();
 const PORT = Number(process.env.PORT || 5000);
 
@@ -59,7 +58,6 @@ app.use("/dashboard", dashboardStatisticsRoutes);
 app.use("/payroll", payrollRoutes);
 app.use("/timetables", timetablesRoutes);
 
-app.use("/payroll-data", payrollDataRoutes);
 app.get("/", (req, res) => {
   res.json({
     message: "AlKufa School server is running",

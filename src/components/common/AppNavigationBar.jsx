@@ -1,16 +1,15 @@
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useLocation, useNavigate } from "react-router-dom";
 import "./AppNavigationBar.css";
 
-const THEME_STORAGE_KEYS = ["theme", "alkufa-theme"];
+const getInitialTheme = () => {
+  const savedTheme =
+    window.localStorage.getItem("theme") ||
+    window.localStorage.getItem("alkufa-theme");
 
-const getSavedTheme = () => {
-  const storedTheme = THEME_STORAGE_KEYS.map((key) =>
-    window.localStorage.getItem(key)
-  ).find((value) => value === "dark" || value === "light");
-
-  if (storedTheme) {
-    return storedTheme;
+  if (savedTheme === "dark" || savedTheme === "light") {
+    return savedTheme;
   }
 
   return document.documentElement.getAttribute("data-theme") === "dark"
@@ -18,37 +17,51 @@ const getSavedTheme = () => {
     : "light";
 };
 
-const isEditableTarget = (target) => {
-  if (!(target instanceof HTMLElement)) {
-    return false;
-  }
-
-  return (
-    target.isContentEditable ||
-    ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)
-  );
-};
-
 export default function AppNavigationBar() {
-  const navigate = useNavigate();
   const location = useLocation();
-  const [theme, setTheme] = useState(getSavedTheme);
+  const navigate = useNavigate();
+  const [theme, setTheme] = useState(getInitialTheme);
 
-  const isLogin = location.pathname === "/";
-  const isDashboard = location.pathname === "/dashboard";
-  const isHidden = isLogin || isDashboard;
+  const isLoginPage = location.pathname === "/";
+  const isDashboardPage = location.pathname === "/dashboard";
+  const showGlobalControls = !isLoginPage && !isDashboardPage;
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
-    THEME_STORAGE_KEYS.forEach((key) => {
-      window.localStorage.setItem(key, theme);
-    });
+    window.localStorage.setItem("theme", theme);
+    window.localStorage.setItem("alkufa-theme", theme);
   }, [theme]);
 
-  const goBack = () => {
-    const historyIndex = Number(window.history.state?.idx);
+  useEffect(() => {
+    if (!showGlobalControls) return undefined;
 
-    if (Number.isFinite(historyIndex) && historyIndex > 0) {
+    const handleBackspace = (event) => {
+      const target = event.target;
+      const tagName = target?.tagName?.toLowerCase();
+
+      const isTyping =
+        tagName === "input" ||
+        tagName === "textarea" ||
+        tagName === "select" ||
+        target?.isContentEditable;
+
+      if (event.key === "Backspace" && !isTyping) {
+        event.preventDefault();
+
+        if (window.history.length > 1) {
+          navigate(-1);
+        } else {
+          navigate("/dashboard");
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleBackspace);
+    return () => window.removeEventListener("keydown", handleBackspace);
+  }, [navigate, showGlobalControls]);
+
+  const handleBack = () => {
+    if (window.history.length > 1) {
       navigate(-1);
       return;
     }
@@ -56,59 +69,49 @@ export default function AppNavigationBar() {
     navigate("/dashboard");
   };
 
-  useEffect(() => {
-    if (isHidden) {
-      return undefined;
-    }
-
-    const handleBackspace = (event) => {
-      if (event.key !== "Backspace" || isEditableTarget(event.target)) {
-        return;
-      }
-
-      event.preventDefault();
-      goBack();
-    };
-
-    window.addEventListener("keydown", handleBackspace);
-    return () => window.removeEventListener("keydown", handleBackspace);
-  }, [isHidden, location.key]);
-
-  if (isHidden) {
-    return null;
-  }
-
   const toggleTheme = () => {
     setTheme((currentTheme) =>
       currentTheme === "dark" ? "light" : "dark"
     );
   };
 
-  return (
-    <nav className="app-navigation-bar print-hide" aria-label="التنقل العام">
+  if (!showGlobalControls || typeof document === "undefined") {
+    return null;
+  }
+
+  return createPortal(
+    <div className="app-global-navigation-layer" dir="rtl">
       <button
         type="button"
         className="app-navigation-theme-button"
         onClick={toggleTheme}
         aria-label={
-          theme === "dark" ? "تفعيل الوضع الفاتح" : "تفعيل الوضع الداكن"
+          theme === "dark"
+            ? "التبديل إلى الوضع الفاتح"
+            : "التبديل إلى الوضع الداكن"
         }
-        title={theme === "dark" ? "الوضع الفاتح" : "الوضع الداكن"}
-        aria-pressed={theme === "dark"}
+        title={
+          theme === "dark"
+            ? "الوضع الفاتح"
+            : "الوضع الداكن"
+        }
       >
-        <span aria-hidden="true">{theme === "dark" ? "☀" : "☾"}</span>
+        <span aria-hidden="true">
+          {theme === "dark" ? "☀" : "☾"}
+        </span>
       </button>
 
       <button
         type="button"
         className="app-navigation-back-button"
-        onClick={goBack}
-        aria-label="الرجوع إلى الصفحة السابقة"
+        onClick={handleBack}
+        aria-label="رجوع"
         title="رجوع"
       >
-        <span aria-hidden="true">←</span>
+        <span aria-hidden="true">↩</span>
         <strong>رجوع</strong>
       </button>
-    </nav>
+    </div>,
+    document.body
   );
 }

@@ -1,13 +1,16 @@
 import { useEffect, useState } from "react";
 import "../styles/deletionArchive.css";
 
-const API_URL = "http://localhost:5000/deletion-archive";
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000";
+const API_URL = `${API_BASE}/deletion-archive`;
 
 const ENTITY_LABELS = {
   student: "طالب",
   employee: "موظف",
   employee_document: "مستند موظف",
   grade_fee: "رسم مرحلة",
+  student_section_transfer: "تنقل بين الشعب",
 };
 
 const SECTION_LABELS = {
@@ -23,11 +26,13 @@ const SECTION_LABELS = {
   employee_document: "بيانات المستند",
   employee_reference: "بيانات الموظف المرتبط",
   grade_fee: "بيانات رسم المرحلة",
+  transfer: "تفاصيل التنقل بين الشعب",
 };
 
 const FIELD_LABELS = {
   id: "المعرّف السابق",
   student_id: "معرّف الطالب",
+  student_name: "اسم الطالب",
   employee_id: "معرّف الموظف",
   employee_code: "الرقم الوظيفي",
   full_name: "الاسم الكامل",
@@ -37,61 +42,50 @@ const FIELD_LABELS = {
   phone: "الهاتف",
   address: "العنوان",
   grade: "الصف",
+  grade_id: "معرّف الصف",
+  grade_name: "الصف",
   section: "الشعبة",
-  created_at: "تاريخ الإنشاء",
-  updated_at: "آخر تحديث",
+  section_id: "معرّف الشعبة",
+  section_name: "الشعبة",
   academic_year_id: "معرّف السنة الدراسية",
   academic_year: "السنة الدراسية",
   academic_year_name: "السنة الدراسية",
-  grade_id: "معرّف الصف",
-  grade_name: "الصف",
-  section_id: "معرّف الشعبة",
-  section_name: "الشعبة",
   enrollment_status: "حالة التسجيل",
   result_status: "حالة النتيجة",
   promotion_status: "حالة الترحيل",
   enrollment_date: "تاريخ التسجيل",
   withdrawal_date: "تاريخ الانسحاب",
-  deleted_at: "تاريخ الحذف المنطقي السابق",
   attendance_date: "تاريخ الحضور",
   status: "الحالة",
   notes: "الملاحظات",
-  student_enrollment_id: "معرّف التسجيل",
   total_fee: "إجمالي الرسم",
   discount: "الخصم",
-  student_fee_id: "معرّف سجل الرسم",
   amount: "المبلغ",
   payment_date: "تاريخ الدفع",
   payment_method: "طريقة الدفع",
   receipt_number: "رقم الوصل",
   employee_name: "اسم الموظف",
-  accountant_employee_id: "معرّف المحاسب",
   accountant_name: "اسم المحاسب",
-  assistant_employee_id: "معرّف المساعد",
-  assistant_name: "اسم المساعد",
-  responsible_employee_id: "معرّف المسؤول",
-  responsible_employee_name: "اسم المسؤول",
-  payment_id: "معرّف الدفعة",
-  receipt_code: "رمز الإيصال",
-  printed: "تمت الطباعة",
   employee_type: "نوع الموظف",
-  first_name: "الاسم الأول",
-  middle_name: "الاسم الثاني",
-  third_name: "الاسم الثالث",
   specialization: "الاختصاص",
   work_shift: "الشفت",
   job_title: "المسمى الوظيفي",
   salary: "الراتب",
-  fingerprint_id: "معرّف البصمة",
-  check_in_time: "وقت الحضور",
-  check_out_time: "وقت الانصراف",
-  late_minutes: "دقائق التأخير",
   document_type: "نوع المستند",
   document_name: "اسم المستند",
   file_name: "اسم الملف",
-  file_path: "مسار الملف",
-  file_size: "حجم الملف",
   uploaded_at: "تاريخ الرفع",
+  from_section_id: "معرّف الشعبة السابقة",
+  from_section_name: "من شعبة",
+  to_section_id: "معرّف الشعبة الجديدة",
+  to_section_name: "إلى شعبة",
+  transfer_reason: "سبب النقل",
+  transfer_source: "طريقة النقل",
+  transferred_by: "تم النقل بواسطة",
+  transferred_at: "تاريخ ووقت النقل",
+  created_at: "تاريخ الإنشاء",
+  updated_at: "آخر تحديث",
+  deleted_at: "تاريخ الحذف",
 };
 
 const EMPTY_FILTERS = {
@@ -136,13 +130,17 @@ const formatValue = (key, value) => {
     return formatDateTime(value);
   }
 
+  if (key === "transfer_source") {
+    return value === "section_delete" ? "نقل تلقائي عند حذف شعبة" : "نقل يدوي";
+  }
+
   return String(value);
 };
 
 function RecordGrid({ record }) {
   return (
     <dl className="deletion-record-grid">
-      {Object.entries(record).map(([key, value]) => (
+      {Object.entries(record || {}).map(([key, value]) => (
         <div key={key}>
           <dt>{FIELD_LABELS[key] || key.replaceAll("_", " ")}</dt>
           <dd>{formatValue(key, value)}</dd>
@@ -201,57 +199,26 @@ export default function DeletionArchive() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [detailsLoading, setDetailsLoading] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    const controller = new AbortController();
-
-    fetch(API_URL, { signal: controller.signal })
-      .then(async (response) => {
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.message || "تعذر جلب سجل المحذوفات");
-        }
-        return data;
-      })
-      .then((data) => {
-        if (!active) return;
-        setItems(Array.isArray(data.items) ? data.items : []);
-        setEntityTypes(
-          Array.isArray(data.entity_types) ? data.entity_types : []
-        );
-        setTotal(Number(data.total || 0));
-        setError("");
-      })
-      .catch((requestError) => {
-        if (!active || requestError.name === "AbortError") return;
-        console.error(requestError);
-        setError(requestError.message || "تعذر الاتصال بالخادم");
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-      controller.abort();
-    };
-  }, []);
-
-  const loadItems = async (requestedFilters) => {
+  const loadItems = async (requestedFilters = filters, signal) => {
     try {
       setLoading(true);
       setError("");
 
       const query = new URLSearchParams();
+
       Object.entries(requestedFilters).forEach(([key, value]) => {
         if (value) query.set(key, value);
       });
 
-      const response = await fetch(`${API_URL}?${query.toString()}`);
-      const data = await response.json();
+      const suffix = query.toString() ? `?${query.toString()}` : "";
+      const response = await fetch(`${API_URL}${suffix}`, {
+        signal,
+        cache: "no-store",
+      });
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(data.message || "تعذر جلب سجل المحذوفات");
+        throw new Error(data.message || "تعذر جلب السجل الإداري");
       }
 
       setItems(Array.isArray(data.items) ? data.items : []);
@@ -260,12 +227,22 @@ export default function DeletionArchive() {
       );
       setTotal(Number(data.total || 0));
     } catch (requestError) {
+      if (requestError.name === "AbortError") return;
       console.error(requestError);
       setError(requestError.message || "تعذر الاتصال بالخادم");
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) {
+        setLoading(false);
+      }
     }
   };
+
+  useEffect(() => {
+    const controller = new AbortController();
+    loadItems(EMPTY_FILTERS, controller.signal);
+
+    return () => controller.abort();
+  }, []);
 
   const handleFilterSubmit = (event) => {
     event.preventDefault();
@@ -282,11 +259,14 @@ export default function DeletionArchive() {
       setDetailsLoading(true);
       setError("");
 
-      const response = await fetch(`${API_URL}/${item.id}`);
-      const data = await response.json();
+      const response = await fetch(
+        `${API_URL}/${encodeURIComponent(item.source_id || item.id)}?record_kind=${encodeURIComponent(item.record_kind || "deletion")}`,
+        { cache: "no-store" }
+      );
+      const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(data.message || "تعذر جلب تفاصيل العنصر المحذوف");
+        throw new Error(data.message || "تعذر جلب تفاصيل السجل");
       }
 
       setSelectedItem(data);
@@ -298,20 +278,47 @@ export default function DeletionArchive() {
     }
   };
 
+  const getDetailsSections = (item) => {
+    if (item?.snapshot_data && Object.keys(item.snapshot_data).length > 0) {
+      return item.snapshot_data;
+    }
+
+    if (item?.metadata && Object.keys(item.metadata).length > 0) {
+      return { transfer: item.metadata };
+    }
+
+    return {};
+  };
+
+  const getActionText = (item) => {
+    if (item.record_kind === "transfer") {
+      return item.action_description || "نقل بين الشعب";
+    }
+
+    return item.deletion_reason || item.action_description || "حذف من النظام";
+  };
+
   return (
     <div className="main-content deletion-archive-page" dir="rtl">
       <header className="deletion-archive-header">
         <div>
-          <h1>سجل المحذوفات</h1>
-          <p>سجل إداري للقراءة فقط يحتفظ بنسخة البيانات قبل الحذف.</p>
+          <h1>سجل المحذوفات والتنقلات</h1>
+          <p>
+            سجل إداري للقراءة فقط يحفظ العناصر المحذوفة وتنقلات الطلاب بين
+            الشعب مع تاريخ كل عملية.
+          </p>
         </div>
+
         <div className="deletion-archive-count">
           <strong>{total}</strong>
-          <span>عنصر محذوف</span>
+          <span>سجل إداري</span>
         </div>
       </header>
 
-      <form className="deletion-archive-filters data-list-filters" onSubmit={handleFilterSubmit}>
+      <form
+        className="deletion-archive-filters data-list-filters"
+        onSubmit={handleFilterSubmit}
+      >
         <input
           type="search"
           value={filters.search}
@@ -321,7 +328,7 @@ export default function DeletionArchive() {
               search: event.target.value,
             }))
           }
-          placeholder="ابحث بالاسم أو المعرّف أو سبب الحذف..."
+          placeholder="ابحث بالاسم أو المعرّف أو العملية..."
           maxLength="120"
         />
 
@@ -334,7 +341,7 @@ export default function DeletionArchive() {
             }))
           }
         >
-          <option value="">جميع أنواع العناصر</option>
+          <option value="">جميع أنواع السجلات</option>
           {entityTypes.map((type) => (
             <option key={type} value={type}>
               {ENTITY_LABELS[type] || type}
@@ -385,41 +392,58 @@ export default function DeletionArchive() {
         <table className="deletion-archive-table data-list-table">
           <thead>
             <tr>
-              <th>نوع العنصر</th>
+              <th>نوع السجل</th>
               <th>الاسم</th>
-              <th>المعرّف السابق</th>
-              <th>سبب الحذف</th>
+              <th>المعرّف</th>
+              <th>العملية</th>
               <th>المستخدم</th>
-              <th>تاريخ ووقت الحذف</th>
+              <th>التاريخ والوقت</th>
               <th>التفاصيل</th>
             </tr>
           </thead>
+
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan="7" className="deletion-archive-empty data-list-loading">
-                  جاري تحميل سجل المحذوفات...
+                <td
+                  colSpan="7"
+                  className="deletion-archive-empty data-list-loading"
+                >
+                  جاري تحميل السجل الإداري...
                 </td>
               </tr>
             ) : items.length === 0 ? (
               <tr>
-                <td colSpan="7" className="deletion-archive-empty data-list-empty">
-                  لا توجد عناصر محذوفة مطابقة.
+                <td
+                  colSpan="7"
+                  className="deletion-archive-empty data-list-empty"
+                >
+                  لا توجد سجلات مطابقة.
                 </td>
               </tr>
             ) : (
               items.map((item) => (
-                <tr key={item.id}>
+                <tr key={`${item.record_kind || "deletion"}:${item.id}`}>
                   <td>
-                    <span className={`deletion-type ${item.entity_type}`}>
+                    <span
+                      className={`deletion-type ${
+                        item.record_kind === "transfer"
+                          ? "student"
+                          : item.entity_type
+                      }`}
+                    >
                       {ENTITY_LABELS[item.entity_type] || item.entity_type}
                     </span>
                   </td>
-                  <td className="deletion-entity-name data-list-name">{item.entity_name}</td>
+
+                  <td className="deletion-entity-name data-list-name">
+                    {item.entity_name}
+                  </td>
                   <td>{item.entity_id}</td>
-                  <td>{item.deletion_reason || "سبب عام غير محدد"}</td>
-                  <td>{item.deleted_by || "غير متوفر في النظام الحالي"}</td>
+                  <td>{getActionText(item)}</td>
+                  <td>{item.deleted_by || "النظام"}</td>
                   <td>{formatDateTime(item.deleted_at)}</td>
+
                   <td>
                     <button
                       type="button"
@@ -438,19 +462,23 @@ export default function DeletionArchive() {
       </section>
 
       {selectedItem && (
-        <div className="deletion-details-overlay">
+        <div
+          className="deletion-details-overlay"
+          onMouseDown={() => setSelectedItem(null)}
+        >
           <div
             className="deletion-details-modal"
             role="dialog"
             aria-modal="true"
             aria-labelledby="deletion-details-title"
+            onMouseDown={(event) => event.stopPropagation()}
           >
             <div className="modal-sticky-close-bar">
               <button
                 type="button"
                 className="deletion-details-close modal-sticky-close"
                 onClick={() => setSelectedItem(null)}
-                aria-label="إغلاق تفاصيل العنصر المحذوف"
+                aria-label="إغلاق تفاصيل السجل"
               >
                 ×
               </button>
@@ -461,18 +489,28 @@ export default function DeletionArchive() {
                 {ENTITY_LABELS[selectedItem.entity_type] ||
                   selectedItem.entity_type}
               </span>
-              <h2 id="deletion-details-title">{selectedItem.entity_name}</h2>
+
+              <h2 id="deletion-details-title">
+                {selectedItem.entity_name}
+              </h2>
+
               <p>
-                المعرّف السابق: {selectedItem.entity_id} — حُذف في{" "}
+                المعرّف: {selectedItem.entity_id} —{" "}
+                {selectedItem.record_kind === "transfer" ? "نُقل في" : "حُذف في"}{" "}
                 {formatDateTime(selectedItem.deleted_at)}
               </p>
+
               <strong>
-                سبب الحذف: {selectedItem.deletion_reason || "غير محدد"}
+                {selectedItem.record_kind === "transfer"
+                  ? selectedItem.action_description || "نقل بين الشعب"
+                  : `سبب الحذف: ${
+                      selectedItem.deletion_reason || "غير محدد"
+                    }`}
               </strong>
             </header>
 
             <div className="deletion-details-content">
-              {Object.entries(selectedItem.snapshot_data || {}).map(
+              {Object.entries(getDetailsSections(selectedItem)).map(
                 ([name, value]) => (
                   <SnapshotSection key={name} name={name} value={value} />
                 )

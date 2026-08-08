@@ -386,7 +386,8 @@ const cloneTimes = (times) => ({
   ظهري: (times.ظهري || []).map((period) => ({ ...period })),
 });
 
-const entryKey = (section, periodNumber) => `${section}-${periodNumber}`;
+const entryKey = (grade, section, periodNumber) =>
+  `${grade}::${section}::${periodNumber}`;
 
 export default function Timetables() {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -396,7 +397,7 @@ export default function Timetables() {
     return DAYS.includes(day) ? day : DAYS[0];
   });
   const [selectedPreviewShift, setSelectedPreviewShift] = useState(null);
-  const [selectedGrade, setSelectedGrade] = useState(GRADES[0]);
+  const [sectionCatalog, setSectionCatalog] = useState([]);
   const [previewEntries, setPreviewEntries] = useState([]);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [message, setMessage] = useState("");
@@ -510,6 +511,26 @@ export default function Timetables() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadSectionCatalog = async () => {
+      try {
+        const data = await requestJson(`${API_BASE}/student-sections`);
+        if (!cancelled) {
+          setSectionCatalog(Array.isArray(data.sections) ? data.sections : []);
+        }
+      } catch {
+        if (!cancelled) setSectionCatalog([]);
+      }
+    };
+
+    loadSectionCatalog();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const baghdadClock = getBaghdadClockState(currentTime);
   const schoolDayState = getSchoolDayState(currentTime);
   const liveState = getCurrentShiftState(baghdadClock.nowMinutes, times);
@@ -520,10 +541,24 @@ export default function Timetables() {
 
   const activeShift = selectedPreviewShift ?? liveState.shift;
   const activeShiftLabel = getPreviewShiftLabel(activeShift);
-  const previewSections = useMemo(
-    () => getSectionsForSchedule(activeShift, selectedGrade),
-    [activeShift, selectedGrade]
-  );
+  const previewColumns = useMemo(() => {
+    return GRADES.flatMap((grade) => {
+      const databaseSections = sectionCatalog
+        .filter((section) => section.grade_name === grade)
+        .map((section) => String(section.name || "").trim())
+        .filter(Boolean);
+
+      const sectionNames = databaseSections.length
+        ? [...new Set(databaseSections)]
+        : MORNING_SECTIONS_BY_GRADE[grade] || ["أ"];
+
+      return sectionNames.map((section) => ({
+        grade,
+        section,
+        key: `${grade}::${section}`,
+      }));
+    });
+  }, [sectionCatalog]);
   const manualSections = useMemo(
     () => getSectionsForSchedule(manualShift, manualGrade),
     [manualGrade, manualShift]
@@ -572,7 +607,7 @@ export default function Timetables() {
     () =>
       new Map(
         previewEntries.map((entry) => [
-          entryKey(entry.section, entry.period_number),
+          entryKey(entry.grade, entry.section, entry.period_number),
           entry,
         ])
       ),
@@ -601,15 +636,26 @@ export default function Timetables() {
   const loadPreview = useCallback(async () => {
     try {
       setPreviewLoading(true);
-      const parameters = new URLSearchParams({
-        shift: activeShift,
-        grade: selectedGrade,
-        day_name: selectedDay,
-      });
-      const data = await requestJson(
-        `${TIMETABLE_API}/entries?${parameters.toString()}`
+
+      const gradesToLoad = [...new Set(previewColumns.map((column) => column.grade))];
+      const responses = await Promise.all(
+        gradesToLoad.map(async (grade) => {
+          const parameters = new URLSearchParams({
+            shift: activeShift,
+            grade,
+            day_name: selectedDay,
+          });
+          const data = await requestJson(
+            `${TIMETABLE_API}/entries?${parameters.toString()}`
+          );
+          return (Array.isArray(data.entries) ? data.entries : []).map((entry) => ({
+            ...entry,
+            grade: entry.grade || grade,
+          }));
+        })
       );
-      setPreviewEntries(Array.isArray(data.entries) ? data.entries : []);
+
+      setPreviewEntries(responses.flat());
     } catch (error) {
       setPreviewEntries([]);
       setMessage(error.message || "تعذر جلب الجدول");
@@ -617,7 +663,7 @@ export default function Timetables() {
     } finally {
       setPreviewLoading(false);
     }
-  }, [activeShift, selectedDay, selectedGrade]);
+  }, [activeShift, previewColumns, selectedDay]);
 
   useEffect(() => {
     loadPreview();
@@ -938,19 +984,6 @@ export default function Timetables() {
           </button>
         </div>
 
-        <div className="timetable-grade-strip" aria-label="اختيار الصف">
-          {GRADES.map((grade, index) => (
-            <button
-              key={grade}
-              type="button"
-              className={selectedGrade === grade ? "active" : ""}
-              onClick={() => setSelectedGrade(grade)}
-            >
-              <small>{String(index + 1).padStart(2, "0")}</small>
-              <strong>{grade}</strong>
-            </button>
-          ))}
-        </div>
       </section>
 
       <section className="timetable-main-preview">
@@ -997,7 +1030,7 @@ export default function Timetables() {
             <div className="timetable-preview-status">
               <span className={`status-dot ${isTodayView ? liveState.status : "preview"}`} />
               <span>{statusText}</span>
-              <b>{selectedGrade}</b>
+              <b>جميع الصفوف والشعب</b>
             </div>
           </div>
         </div>
@@ -1015,14 +1048,24 @@ export default function Timetables() {
         )}
 
         <div className="timetable-preview-card">
-          <div className="timetable-live-grid-wrap">
-            <table className="timetable-live-grid">
+          <div className="timetable-live-grid-wrap" style={{ overflowX: "hidden" }}>
+            <table className="timetable-live-grid" style={{ minWidth: 0, tableLayout: "fixed" }}>
+              <colgroup>
+                <col style={{ width: "54px" }} />
+                <col style={{ width: "88px" }} />
+                {previewColumns.map((column) => (
+                  <col key={column.key} />
+                ))}
+              </colgroup>
               <thead>
                 <tr>
                   <th className="lesson-index-column">الحصة</th>
                   <th className="lesson-time-column">الوقت</th>
-                  {previewSections.map((section) => (
-                    <th key={section}>{`${selectedGrade} ${section}`}</th>
+                  {previewColumns.map((column) => (
+                    <th key={column.key} style={{ padding: "5px 2px", fontSize: "10px", lineHeight: 1.2 }}>
+                      <span style={{ display: "block", whiteSpace: "normal" }}>{column.grade}</span>
+                      <strong style={{ display: "block", marginTop: "2px", fontSize: "11px" }}>{column.section}</strong>
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -1038,7 +1081,7 @@ export default function Timetables() {
                             : ""
                         }`}
                       >
-                        <td colSpan={previewSections.length + 2}>
+                        <td colSpan={previewColumns.length + 2}>
                           <div className="timetable-opportunity-band">
                             <span />
                             <strong>الفرصة</strong>
@@ -1072,28 +1115,28 @@ export default function Timetables() {
                         <span>إلى</span>
                         <strong>{formatClock(period.end)}</strong>
                       </td>
-                      {previewSections.map((section) => {
+                      {previewColumns.map((column) => {
                         const entry = previewEntryMap.get(
-                          entryKey(section, period.period_number)
+                          entryKey(column.grade, column.section, period.period_number)
                         );
                         return (
-                          <td key={`${section}-${period.period_number}`}>
+                          <td key={`${column.key}-${period.period_number}`} style={{ padding: "4px 2px" }}>
                             {entry ? (
-                              <div className="lesson-assignment">
-                                <strong>
+                              <div className="lesson-assignment" style={{ minHeight: "52px", padding: "4px 2px" }}>
+                                <strong style={{ fontSize: "9.5px", lineHeight: 1.2, overflowWrap: "anywhere" }}>
                                   {entry.teacher_name || "معلمة غير محددة"}
                                   {entry.teacher_specialization && (
-                                    <small>
+                                    <small style={{ fontSize: "8px" }}>
                                       ({entry.teacher_specialization})
                                     </small>
                                   )}
                                 </strong>
-                                <span>{entry.subject}</span>
+                                <span style={{ fontSize: "8.5px", lineHeight: 1.2 }}>{entry.subject}</span>
                               </div>
                             ) : (
-                              <div className="lesson-assignment empty">
-                                <strong>غير محدد</strong>
-                                <span>لم تُضف حصة</span>
+                              <div className="lesson-assignment empty" style={{ minHeight: "52px", padding: "4px 2px" }}>
+                                <strong style={{ fontSize: "9px" }}>غير محدد</strong>
+                                <span style={{ fontSize: "8px" }}>لم تُضف حصة</span>
                               </div>
                             )}
                           </td>
