@@ -17,7 +17,6 @@ const timetablesRoutes = require("./routes/timetables");
 
 const studentSectionsRoutes = require("./routes/studentSections");
 const payrollDataRoutes = require("./routes/payrollData");
-const aiAssistantRoutes = require("./routes/aiAssistant");
 const app = express();
 const PORT = Number(process.env.PORT || 5000);
 
@@ -67,8 +66,6 @@ app.get("/", (req, res) => {
   });
 });
 
-app.use("/ai-assistant", aiAssistantRoutes);
-
 app.use((req, res) => {
   res.status(404).json({
     message: "المسار المطلوب غير موجود",
@@ -85,7 +82,6 @@ app.use((error, req, res, next) => {
         : "حدث خطأ داخلي في الخادم",
   });
 });
-
 
 const server = app.listen(PORT, () => {
   console.log(`Server started on port ${PORT}`);

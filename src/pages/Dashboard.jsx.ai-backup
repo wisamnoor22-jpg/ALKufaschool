@@ -8,7 +8,6 @@ import {
 import { Link, useNavigate } from "react-router-dom";
 import { createPortal } from "react-dom";
 import ReportPrintHeader from "../components/common/ReportPrintHeader";
-import SchoolAssistant from "../components/ai/SchoolAssistant";
 import "../styles/Dashboard.css";
 import "../styles/dashboardTimetablePreview.css";
 import "../styles/reportPrint.css";
@@ -1220,8 +1219,29 @@ export default function Dashboard() {
       
                 <div className="date-chip">{dateText}</div>
       
-                <SchoolAssistant onNavigate={navigate} dashboardContext={stats} />
-
+                <div className="global-search">
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder="بحث سريع في النظام..."
+                  />
+      
+                  {searchResults.length > 0 && (
+                    <div className="search-results">
+                      {searchResults.map((item) => (
+                        <button
+                          key={item.path}
+                          type="button"
+                          onClick={() => navigate(item.path)}
+                        >
+                          <strong>{item.title}</strong>
+                          <span>{item.description}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+      
                 <div className="header-account-actions">
                   <button
                     type="button"
