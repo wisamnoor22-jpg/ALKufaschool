@@ -1,3 +1,4 @@
+// SchoolAssistant UI V4 - compact shortcuts + custom AI icon
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
@@ -15,7 +16,7 @@ const initialMessage = {
   id: "welcome",
   role: "assistant",
   content:
-    "أهلًا، أنا مساعد الكوفة الذكي. اسألني عن طريقة استخدام البرنامج أو عن إحصائيات لوحة التحكم الحالية.",
+    "أهلًا، أنا مساعد مدرسة الكوفة الذكي. اسألني عن طريقة استخدام البرنامج أو عن إحصائيات لوحة التحكم الحالية.",
 };
 
 const readStoredMessages = () => {
@@ -41,12 +42,142 @@ const readStoredMessages = () => {
 
 const makeId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
+const renderInlineMarkdown = (text, keyPrefix) => {
+  const parts = String(text || "")
+    .split(/(\*\*[^*]+\*\*|`[^`]+`|\*[^*]+\*)/g)
+    .filter(Boolean);
+
+  return parts.map((part, index) => {
+    const key = `${keyPrefix}-${index}`;
+
+    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+      return <strong key={key}>{part.slice(2, -2)}</strong>;
+    }
+
+    if (part.startsWith("`") && part.endsWith("`") && part.length > 2) {
+      return <code key={key}>{part.slice(1, -1)}</code>;
+    }
+
+    if (part.startsWith("*") && part.endsWith("*") && part.length > 2) {
+      return <em key={key}>{part.slice(1, -1)}</em>;
+    }
+
+    return part;
+  });
+};
+
+const AssistantMessageContent = ({ content }) => {
+  const lines = String(content || "")
+    .replace(/\r\n/g, "\n")
+    .split("\n");
+
+  const elements = [];
+  let listItems = [];
+  let listType = null;
+  let listCounter = 0;
+
+  const flushList = () => {
+    if (!listItems.length || !listType) return;
+
+    const ListTag = listType === "ordered" ? "ol" : "ul";
+    const currentItems = [...listItems];
+
+    elements.push(
+      <ListTag
+        key={`list-${listCounter}`}
+        className={`school-ai-content-list ${listType}`}
+      >
+        {currentItems.map((item, index) => (
+          <li key={`list-${listCounter}-${index}`}>
+            {renderInlineMarkdown(item, `list-${listCounter}-${index}`)}
+          </li>
+        ))}
+      </ListTag>
+    );
+
+    listCounter += 1;
+    listItems = [];
+    listType = null;
+  };
+
+  lines.forEach((rawLine, lineIndex) => {
+    const line = rawLine.trim();
+
+    if (!line) {
+      flushList();
+
+      if (elements.length) {
+        elements.push(
+          <div
+            key={`space-${lineIndex}`}
+            className="school-ai-content-spacer"
+            aria-hidden="true"
+          />
+        );
+      }
+
+      return;
+    }
+
+    const headingMatch = line.match(/^(#{1,3})\s+(.+)$/);
+
+    if (headingMatch) {
+      flushList();
+
+      elements.push(
+        <div
+          key={`heading-${lineIndex}`}
+          className={`school-ai-content-heading level-${headingMatch[1].length}`}
+        >
+          {renderInlineMarkdown(
+            headingMatch[2],
+            `heading-${lineIndex}`
+          )}
+        </div>
+      );
+
+      return;
+    }
+
+    const bulletMatch = line.match(/^[-*•]\s+(.+)$/);
+
+    if (bulletMatch) {
+      if (listType && listType !== "unordered") flushList();
+      listType = "unordered";
+      listItems.push(bulletMatch[1]);
+      return;
+    }
+
+    const numberedMatch = line.match(/^\d+[.)]\s+(.+)$/);
+
+    if (numberedMatch) {
+      if (listType && listType !== "ordered") flushList();
+      listType = "ordered";
+      listItems.push(numberedMatch[1]);
+      return;
+    }
+
+    flushList();
+
+    elements.push(
+      <p key={`paragraph-${lineIndex}`}>
+        {renderInlineMarkdown(line, `paragraph-${lineIndex}`)}
+      </p>
+    );
+  });
+
+  flushList();
+
+  return <div className="school-ai-message-content">{elements}</div>;
+};
+
 export default function SchoolAssistant({ onNavigate, dashboardContext = null }) {
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState(readStoredMessages);
   const [loading, setLoading] = useState(false);
   const [health, setHealth] = useState(null);
+  const [quickOpen, setQuickOpen] = useState(false);
   const inputRef = useRef(null);
   const chatEndRef = useRef(null);
 
@@ -65,6 +196,7 @@ export default function SchoolAssistant({ onNavigate, dashboardContext = null })
         .filter((item) => item.id !== "welcome")
         .slice(-18)
         .map(({ role, content }) => ({ role, content }));
+
       window.sessionStorage.setItem(SESSION_KEY, JSON.stringify(stored));
     } catch {
       // Keep the assistant usable even when sessionStorage is unavailable.
@@ -163,6 +295,7 @@ export default function SchoolAssistant({ onNavigate, dashboardContext = null })
 
   const clearConversation = () => {
     setMessages([initialMessage]);
+
     try {
       window.sessionStorage.removeItem(SESSION_KEY);
     } catch {
@@ -176,6 +309,7 @@ export default function SchoolAssistant({ onNavigate, dashboardContext = null })
         className="school-ai-search"
         onSubmit={(event) => {
           event.preventDefault();
+
           if (input.trim()) sendQuestion(input);
           else setOpen(true);
         }}
@@ -185,18 +319,23 @@ export default function SchoolAssistant({ onNavigate, dashboardContext = null })
           type="button"
           className="school-ai-badge"
           onClick={() => setOpen(true)}
-          aria-label="فتح مساعد الكوفة الذكي"
-          title="مساعد الكوفة الذكي"
+          aria-label="فتح مساعد مدرسة الكوفة الذكي"
+          title="مساعد مدرسة الكوفة الذكي"
         >
-          AI
+          <img
+            src="/ai-assistant-icon.png"
+            alt=""
+            className="school-ai-icon-image"
+            aria-hidden="true"
+          />
         </button>
 
         <input
           value={input}
           onChange={(event) => setInput(event.target.value)}
           onFocus={() => setOpen(true)}
-          placeholder="اسأل مساعد الكوفة الذكي..."
-          aria-label="اسأل مساعد الكوفة الذكي"
+          placeholder="اسأل المساعد..."
+          aria-label="اسأل مساعد مدرسة الكوفة الذكي"
         />
 
         <button
@@ -223,23 +362,52 @@ export default function SchoolAssistant({ onNavigate, dashboardContext = null })
               className="school-ai-panel"
               role="dialog"
               aria-modal="true"
-              aria-label="مساعد الكوفة الذكي"
+              aria-label="مساعد مدرسة الكوفة الذكي"
             >
               <header className="school-ai-header">
                 <div className="school-ai-title">
-                  <span className="school-ai-orb" aria-hidden="true">AI</span>
-                  <div>
-                    <strong>مساعد الكوفة الذكي</strong>
+                  <span className="school-ai-orb" aria-hidden="true">
+                    <img
+                      src="/ai-assistant-icon.png"
+                      alt=""
+                      className="school-ai-icon-image"
+                    />
+                  </span>
+
+                  <div className="school-ai-title-copy">
+                    <strong>مساعد مدرسة الكوفة الذكي</strong>
                     <small>
-                      {health?.configured === false
-                        ? "يحتاج إعداد اتصال OpenAI"
-                        : "دليل البرنامج والمساعد الذكي"}
+                      مساعد ذكي لفهم البرنامج والوصول السريع إلى أقسامه وبياناته
                     </small>
+
+                    <div className="school-ai-meta">
+                      <span
+                        className={`school-ai-status ${
+                          health?.configured === false ? "offline" : ""
+                        }`}
+                      >
+                        <i aria-hidden="true" />
+                        {health?.configured === false
+                          ? "Gemini غير متصل"
+                          : "Gemini متصل"}
+                      </span>
+
+                      <span className="school-ai-mode">
+                        دليل البرنامج + المساعد الذكي
+                      </span>
+                    </div>
                   </div>
                 </div>
 
                 <div className="school-ai-header-actions">
-                  <button type="button" onClick={clearConversation}>مسح</button>
+                  <button
+                    type="button"
+                    className="school-ai-clear"
+                    onClick={clearConversation}
+                  >
+                    مسح المحادثة
+                  </button>
+
                   <button
                     type="button"
                     className="school-ai-close"
@@ -251,24 +419,41 @@ export default function SchoolAssistant({ onNavigate, dashboardContext = null })
                 </div>
               </header>
 
-              <div className="school-ai-quick">
-                <div className="school-ai-quick-title">
-                  <strong>أسئلة شائعة</strong>
-                  <span>اضغط على أي سؤال</span>
+              <div className={`school-ai-quick ${quickOpen ? "open" : ""}`}>
+                <div className="school-ai-quick-bar">
+                  <div className="school-ai-quick-title">
+                    <strong>اقتراحات سريعة</strong>
+                    <span>أسئلة جاهزة تساعدك على البدء</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="school-ai-quick-toggle"
+                    onClick={() => setQuickOpen((current) => !current)}
+                    aria-expanded={quickOpen}
+                  >
+                    {quickOpen ? "إخفاء" : "عرض الاقتراحات"}
+                    <span aria-hidden="true">{quickOpen ? "↑" : "↓"}</span>
+                  </button>
                 </div>
 
-                <div className="school-ai-chips">
-                  {ASSISTANT_QUICK_QUESTIONS.slice(0, 6).map((question) => (
-                    <button
-                      key={question}
-                      type="button"
-                      onClick={() => sendQuestion(question)}
-                      disabled={loading}
-                    >
-                      {question}
-                    </button>
-                  ))}
-                </div>
+                {quickOpen && (
+                  <div className="school-ai-chips">
+                    {ASSISTANT_QUICK_QUESTIONS.slice(0, 6).map((question) => (
+                      <button
+                        key={question}
+                        type="button"
+                        onClick={() => {
+                          setQuickOpen(false);
+                          sendQuestion(question);
+                        }}
+                        disabled={loading}
+                      >
+                        {question}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <div className="school-ai-chat" aria-live="polite">
@@ -280,9 +465,14 @@ export default function SchoolAssistant({ onNavigate, dashboardContext = null })
                     }`}
                   >
                     <span className="school-ai-message-author">
-                      {message.role === "assistant" ? "المساعد" : "أنت"}
+                      {message.role === "assistant" ? "مساعد مدرسة الكوفة الذكي" : "أنت"}
                     </span>
-                    <p>{message.content}</p>
+
+                    {message.role === "assistant" ? (
+                      <AssistantMessageContent content={message.content} />
+                    ) : (
+                      <p className="school-ai-user-content">{message.content}</p>
+                    )}
 
                     {message.suggestedPath && (
                       <button
@@ -301,7 +491,8 @@ export default function SchoolAssistant({ onNavigate, dashboardContext = null })
 
                 {loading && (
                   <article className="school-ai-message assistant typing">
-                    <span className="school-ai-message-author">المساعد</span>
+                    <span className="school-ai-message-author">مساعد مدرسة الكوفة الذكي</span>
+
                     <div className="school-ai-dots" aria-label="جاري كتابة الرد">
                       <i />
                       <i />
@@ -354,7 +545,8 @@ export default function SchoolAssistant({ onNavigate, dashboardContext = null })
               </form>
 
               <footer className="school-ai-footer">
-                يشرح ويجيب ويقرأ الإحصائيات المرسلة من لوحة التحكم، ولا ينفذ حذفًا أو تعديلًا تلقائيًا.
+                يشرح ويجيب ويقرأ الإحصائيات المرسلة من لوحة التحكم، ولا ينفذ
+                حذفًا أو تعديلًا تلقائيًا.
               </footer>
             </section>
           </div>,
