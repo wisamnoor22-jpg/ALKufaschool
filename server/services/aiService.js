@@ -1,43 +1,99 @@
-const DEFAULT_MODEL = "gemini-2.5-flash";
+const {
+  PROGRAM_SECTIONS,
+  FAQS,
+} = require("./assistantTools");
+
+const DEFAULT_MODEL = "gemini-3.5-flash-lite";
 const GEMINI_API_BASE =
   process.env.GEMINI_API_BASE_URL ||
   "https://generativelanguage.googleapis.com/v1beta";
 
-const cleanText = (value, maxLength = 14000) => {
+const cleanText = (value, maxLength = 50000) => {
   if (value === null || value === undefined) return "";
   return String(value).slice(0, maxLength);
 };
 
-const compactDashboardContext = (dashboardContext) => {
-  if (!dashboardContext || typeof dashboardContext !== "object") {
-    return "لا توجد إحصائيات لوحة تحكم مرفقة في هذا الطلب.";
+const compactContext = (value, emptyMessage, maxLength) => {
+  if (!value || typeof value !== "object") {
+    return emptyMessage;
   }
 
   try {
-    return cleanText(JSON.stringify(dashboardContext), 14000);
+    return cleanText(JSON.stringify(value), maxLength);
   } catch {
-    return "تعذر تحويل إحصائيات لوحة التحكم إلى نص.";
+    return emptyMessage;
   }
 };
 
-const buildSystemInstruction = ({ currentPath, dashboardContext }) => `
-أنت "مساعد الكوفة الذكي" داخل برنامج مدرسة الكوفة.
+const buildProgramGuide = () =>
+  PROGRAM_SECTIONS.map(
+    (section) =>
+      `- ${section.title} (${section.path}): ${section.description}`
+  ).join("\n");
 
-المهام:
-- اشرح للمستخدم طريقة استعمال برنامج المدرسة بلغة عربية واضحة ومباشرة.
-- أجب عن الأسئلة المتعلقة بأقسام البرنامج ووظائفه.
-- يمكنك استخدام إحصائيات لوحة التحكم المرفقة فقط عند السؤال عن أرقام حالية.
-- إذا لم تكن المعلومة موجودة في السياق فلا تخترع رقمًا أو زرًا أو صفحة.
-- لا تدّعِ أنك نفذت حذفًا أو تعديلًا أو عملية في قاعدة البيانات.
-- لا تطلب كلمات مرور أو مفاتيح API أو أسرارًا.
-- إذا احتاج المستخدم إلى إجراء داخل البرنامج، اشرح الخطوات باختصار.
-- اجعل الإجابة مختصرة ومناسبة لواجهة المساعد.
+const buildFaqGuide = () =>
+  FAQS.map((faq) => `س: ${faq.question}\nج: ${faq.answer}`).join("\n\n");
 
-المسار الحالي في البرنامج:
+const buildSystemInstruction = ({
+  currentPath,
+  dashboardContext,
+  databaseContext,
+}) => `
+أنت "مساعد مدرسة الكوفة الذكي" داخل برنامج مدرسة الكوفة الأهلية التكميلية المختلطة.
+
+قاعدة أساسية شديدة الأهمية:
+بيانات PostgreSQL الموجودة في نهاية هذه التعليمات هي بيانات حقيقية من النظام الحالي.
+إذا ظهر حقل داخلها فهو متاح لك ويجب استخدامه.
+لا تقل إن تفاصيل غير متوفرة إذا كان الحقل أو الصف موجودًا فعليًا في بيانات PostgreSQL.
+
+أمثلة إلزامية:
+- إذا ظهر databaseContext.payroll فهو يحتوي صفوف الرواتب الفردية. اقرأ salary لكل موظف عند السؤال عن الرواتب.
+- إذا ظهر databaseContext.staff.teachers فهو يحتوي المعلمات واختصاصاتهن.
+- إذا ظهر databaseContext.mentioned_employee فهو بيانات الشخص المذكور في السؤال.
+- إذا ظهر databaseContext.mentioned_student فهو بيانات الطالب المذكور.
+- إذا ظهر databaseContext.timetable فهو جدول الحصص الحقيقي المتاح للسؤال.
+- إذا ظهر databaseContext.attendance فهو بيانات الحضور الحقيقية المتاحة للسؤال.
+- إذا ظهر databaseContext.finance فهو بيانات الحسابات والدفعات المتاحة للسؤال.
+- إذا ظهر databaseContext.results فهو بيانات الدرجات المتاحة للسؤال.
+
+مهامك:
+- شرح جميع أقسام البرنامج وكيفية استخدامها.
+- الإجابة عن بيانات الطلاب والكادر والاختصاصات والحضور والحسابات والرواتب والجداول والدرجات والعطل والسنوات الدراسية وسجل المحذوفات والتنقلات والوثائق عندما تصل بياناتها.
+- إجراء الحسابات البسيطة من الصفوف الموجودة مثل العد والجمع والمتوسط.
+- الربط بين أكثر من قسم عندما يطلب المستخدم ذلك.
+
+قواعد الدقة:
+- افحص جميع مفاتيح وحقول بيانات PostgreSQL قبل أن تقول إن المعلومة غير موجودة.
+- لا تعتمد على التخمين أو معلومات سابقة إذا كانت البيانات الحية موجودة.
+- إذا لم يصل الحقل المطلوب فعلًا، قل: "هذه المعلومة لم تصل ضمن بيانات هذا السؤال".
+- لا تخترع أسماء أو اختصاصات أو أرقامًا أو مبالغ.
+- صلاحيتك READ ONLY: لا تدّعِ أنك أضفت أو عدلت أو حذفت سجلًا.
+- لا تطلب أو تعرض كلمات مرور أو API Keys أو أسرار .env.
+- لا تذكر SQL أو أسماء الجداول للمستخدم النهائي إلا إذا طلب شرحًا تقنيًا.
+- أجب بالعربية بوضوح وبشكل مباشر، واستخدم القوائم عند الحاجة.
+
+الصفحة الحالية:
 ${cleanText(currentPath || "/dashboard", 180)}
 
-إحصائيات لوحة التحكم المتاحة لهذا الطلب:
-${compactDashboardContext(dashboardContext)}
+دليل أقسام البرنامج:
+${buildProgramGuide()}
+
+الأسئلة الشائعة:
+${buildFaqGuide()}
+
+إحصائيات الواجهة:
+${compactContext(
+  dashboardContext,
+  "لا توجد إحصائيات واجهة مرفقة.",
+  14000
+)}
+
+بيانات PostgreSQL الحية لهذا السؤال:
+${compactContext(
+  databaseContext,
+  "لم تصل بيانات PostgreSQL لهذا السؤال.",
+  60000
+)}
 `.trim();
 
 const normalizeRole = (role) => (role === "assistant" ? "model" : "user");
@@ -96,6 +152,7 @@ const askGemini = async ({
   history = [],
   currentPath = "/dashboard",
   dashboardContext = null,
+  databaseContext = null,
 }) => {
   const apiKey = String(process.env.GEMINI_API_KEY || "").trim();
 
@@ -106,6 +163,7 @@ const askGemini = async ({
   }
 
   const model = String(process.env.GEMINI_MODEL || DEFAULT_MODEL).trim();
+
   const url = `${GEMINI_API_BASE}/models/${encodeURIComponent(
     model
   )}:generateContent`;
@@ -123,14 +181,15 @@ const askGemini = async ({
             text: buildSystemInstruction({
               currentPath,
               dashboardContext,
+              databaseContext,
             }),
           },
         ],
       },
       contents: buildContents({ message, history }),
       generationConfig: {
-        temperature: 0.3,
-        maxOutputTokens: 700,
+        temperature: 0.05,
+        maxOutputTokens: 1600,
       },
     }),
   });

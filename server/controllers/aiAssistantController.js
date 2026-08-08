@@ -4,9 +4,20 @@ const {
   FAQS,
   findLocalAnswer,
 } = require("../services/assistantTools");
+const {
+  buildAssistantDatabaseContext,
+} = require("../services/assistantDataService");
+const {
+  buildDirectDatabaseAnswer,
+} = require("../services/assistantDirectAnswer");
 
 const MAX_MESSAGE_LENGTH = 2400;
 const MAX_HISTORY_ITEMS = 12;
+
+const isInstructionQuestion = (message) => {
+  const normalized = String(message || "").trim();
+  return /^(كيف|أين|اين|وين|من وين|من أين)\b/.test(normalized);
+};
 
 const getHealth = async (req, res) => {
   const configured = Boolean(
@@ -17,9 +28,12 @@ const getHealth = async (req, res) => {
     ok: true,
     configured,
     provider: "gemini",
-    model: String(process.env.GEMINI_MODEL || "gemini-2.5-flash"),
+    model: String(process.env.GEMINI_MODEL || "gemini-3.5-flash-lite"),
     faqCount: FAQS.length,
     sectionCount: PROGRAM_SECTIONS.length,
+    databaseReadEnabled: true,
+    databaseScope: "all-school-modules-read-only",
+    groundedAnswersEnabled: true,
   });
 };
 
@@ -39,15 +53,17 @@ const chat = async (req, res) => {
       });
     }
 
-    const localAnswer = findLocalAnswer(message);
+    if (isInstructionQuestion(message)) {
+      const localAnswer = findLocalAnswer(message);
 
-    if (localAnswer) {
-      return res.json({
-        answer: localAnswer.answer,
-        source: "guide",
-        suggestedPath: localAnswer.suggestedPath,
-        suggestedLabel: localAnswer.suggestedLabel,
-      });
+      if (localAnswer) {
+        return res.json({
+          answer: localAnswer.answer,
+          source: "guide",
+          suggestedPath: localAnswer.suggestedPath,
+          suggestedLabel: localAnswer.suggestedLabel,
+        });
+      }
     }
 
     const history = Array.isArray(req.body?.history)
@@ -64,17 +80,34 @@ const chat = async (req, res) => {
         ? req.body.dashboardContext
         : null;
 
+    const databaseContext = await buildAssistantDatabaseContext(message);
+
+    const directAnswer = buildDirectDatabaseAnswer({
+      message,
+      databaseContext,
+    });
+
+    if (directAnswer) {
+      return res.json({
+        answer: directAnswer,
+        source: "database",
+        dataAccess: "read-only",
+      });
+    }
+
     const result = await askGemini({
       message,
       history,
       currentPath,
       dashboardContext,
+      databaseContext,
     });
 
     return res.json({
       answer: result.answer,
       source: "gemini",
       model: result.model,
+      dataAccess: "read-only",
     });
   } catch (error) {
     console.error("AI assistant error:", {
@@ -101,14 +134,14 @@ const chat = async (req, res) => {
     if (error.status === 401 || error.status === 403) {
       return res.status(502).json({
         message:
-          "تعذر التحقق من مفتاح Gemini أو لا توجد صلاحية لهذا المشروع. راجع المفتاح في Google AI Studio.",
+          "تعذر التحقق من مفتاح Gemini أو لا توجد صلاحية لهذا المشروع. راجع إعدادات Gemini API.",
       });
     }
 
     if (error.status === 429) {
       return res.status(503).json({
         message:
-          "تم بلوغ حد الاستخدام المجاني لـ Gemini أو أن الحصة المجانية غير متاحة لهذا المشروع حاليًا.",
+          "تم بلوغ حد استخدام Gemini لهذا المشروع حاليًا.",
       });
     }
 
